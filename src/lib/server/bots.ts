@@ -127,9 +127,12 @@ export class BotController {
 		return wrongNote(game, run, this.rng);
 	}
 
-	/** How long the bot "thinks" between runs, so opponents feel alive rather than instant. */
-	redeployDelay(): number {
-		return 1400 + this.rng.int(2600);
+	/**
+	 * How long the bot takes to write its note during the teaching phase. Spread
+	 * out so rivals' memories visibly update one by one rather than all at once.
+	 */
+	thinkTime(): number {
+		return 1200 + this.rng.int(4200);
 	}
 
 	/**

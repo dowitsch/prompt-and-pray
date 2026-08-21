@@ -43,12 +43,17 @@
 		{#each visible as entry (entry.id)}
 			{@const colour = agentColor(entry.seat, entry.playerId === youId)}
 			<div class="animate-slide-up font-mono text-xs leading-relaxed">
-				{#if entry.kind === 'run'}
-					<div class="mt-3 flex items-center gap-2 first:mt-0">
-						<span class="tracking-[0.2em]" style:color={colour}>{entry.playerName}</span>
-						<span class="h-px flex-1" style:background={`${colour}33`}></span>
-						<span class="text-[10px] text-faint">{entry.text}</span>
+				{#if entry.kind === 'round'}
+					<!-- Rounds are the spine of the feed: everything below belongs to this one. -->
+					<div class="mt-4 flex items-center gap-2 first:mt-0">
+						<span class="tracking-[0.2em] text-parchment">{entry.text}</span>
+						<span class="h-px flex-1 bg-edge-bright"></span>
+						<span class="text-[10px] text-faint">{entry.detail}</span>
 					</div>
+				{:else if entry.kind === 'recap'}
+					<p class="mt-1 border-l-2 border-ember/50 py-0.5 pl-2.5 text-parchment/90">
+						{entry.text}
+					</p>
 				{:else if entry.kind === 'sight'}
 					<p class="text-faint">
 						<span class="opacity-60">{entry.playerName}</span> arrives at {entry.text}

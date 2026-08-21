@@ -1,12 +1,15 @@
 # HOMEWARD
 
 A competitive AI-agent game. Four agents race through a hidden decision tree to reach HOME.
-Every level offers three paths; exactly one continues, the other two kill the agent and end
-the run.
+Every level offers three paths; exactly one continues, the other two kill the agent.
 
-**You never control your agent.** After each run you may add exactly **20 characters** to its
-persistent memory — and that memory is the only thing it carries between runs. Once per match
-you may overwrite one line of an opponent's memory.
+Matches are **round-based and simultaneous**. All four agents set out together and face the
+same level at the same moment, so three of them walking into the Bridge while one finds the
+Valley happens in a single readable beat. A round ends when they are all dead or one is home.
+
+**You never control your agent.** Between rounds everyone gets exactly **20 characters** to add
+to their agent's memory — and that memory is the only thing it carries into the next round.
+Once per match you may overwrite one line of an opponent's memory.
 
 > "I cannot control my AI. I can only teach it."
 
@@ -31,7 +34,7 @@ Three layers, deliberately separated:
 | Layer  | Path                                 | Responsibility                                                                                                                      |
 | ------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
 | Engine | `src/lib/engine/`                    | Pure TypeScript. The map, the rules, and the **only** code that knows which choice is correct. No Svelte, no I/O, no `Math.random`. |
-| Server | `src/lib/server/`                    | Authoritative. In-memory games, the run loop, bots, and the WebSocket hub.                                                          |
+| Server | `src/lib/server/`                    | Authoritative. In-memory games, the lockstep round loop, bots, and the WebSocket hub.                                               |
 | Client | `src/lib/components/`, `src/routes/` | Svelte 5 runes. Renders events and sends requests; decides nothing.                                                                 |
 
 The client never receives the map — only a **fogged** view of it (`src/lib/engine/fog.ts`).
@@ -49,7 +52,7 @@ A deployed build would run the same `Hub` from an `adapter-node` server; the pro
 
 ```bash
 node scripts/simulate.mjs          # headless: play a whole match over the real socket
-node scripts/simulate.mjs --quiet  # just the run summaries and the result
+node scripts/simulate.mjs --quiet  # just the round recaps and the result
 ```
 
 Useful for checking the loop end to end and tuning bot difficulty without clicking.

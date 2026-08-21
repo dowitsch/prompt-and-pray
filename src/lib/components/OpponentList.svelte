@@ -74,7 +74,7 @@
 
 				<div class="mt-2 flex items-center justify-between pl-8.5">
 					<span class="font-mono text-[10px] text-faint">
-						{opponent.runCount} runs · {opponent.memoryChars} chars
+						{opponent.memoryChars} chars taught
 						{#if opponent.wasSabotaged}<span class="text-blood/70"> · hit</span>{/if}
 					</span>
 

@@ -1,15 +1,18 @@
 import {
 	MAX_PLAYERS,
 	MEMORY_GRANT_CHARS,
+	TEACHING_SECONDS,
 	type Agent,
 	type ChoiceOutcome,
 	type DecisionChoice,
 	type DecisionMap,
 	type DecisionNode,
-	type GameStatus,
+	type GamePhase,
 	type MemoryLine,
 	type Player,
 	type RevealState,
+	type RoundOutcome,
+	type RoundSummary,
 	type RunRecord
 } from './types.ts';
 import { layoutTree, type TreeLayout } from './tree.ts';
@@ -21,9 +24,16 @@ import {
 } from './fog.ts';
 
 /**
- * The authoritative game. This class is the only thing in the system that knows
- * which choice is correct — not the client, and emphatically not the LLM. The
- * agent picks a label; `resolveChoice` decides what that label costs.
+ * The authoritative game.
+ *
+ * Matches run in **rounds**. Every agent sets out at the same moment and faces
+ * the same level at the same moment; a round ends when they are all dead or
+ * one of them is home. Between rounds everyone spends their twenty characters
+ * at once. That synchronisation is the point — it is what turns four separate
+ * attempts into one thing worth watching.
+ *
+ * This class is also the only thing in the system that knows which choice is
+ * correct — not the client, and emphatically not the LLM.
  */
 
 export type PublicPlayer = {
@@ -40,18 +50,23 @@ export type PublicPlayer = {
 	bestDepth: number;
 	sabotageUsed: boolean;
 	wasSabotaged: boolean;
+	sabotagedThisRound: boolean;
 	pendingGrants: number;
 	lastRun: RunRecord | null;
 };
 
 export type GameSnapshot = {
 	code: string;
-	status: GameStatus;
+	phase: GamePhase;
+	round: number;
+	/** Epoch ms when the teaching phase closes. 0 outside teaching. */
+	teachingEndsAt: number;
 	hostId: string;
 	depth: number;
 	players: PublicPlayer[];
 	tree: FoggedTree;
-	winnerId: string | null;
+	winnerIds: string[];
+	lastSummary: RoundSummary | null;
 	maxPlayers: number;
 };
 
@@ -60,7 +75,6 @@ export type ResolveResult = {
 	outcome: ChoiceOutcome;
 	toNode: DecisionNode;
 	depth: number;
-	/** Present when the run ended (death or HOME). */
 	run: RunRecord | null;
 	revealed: NodeRevealed;
 };
@@ -75,14 +89,19 @@ export class Game {
 	readonly layout: TreeLayout;
 	readonly createdAt = Date.now();
 
-	status: GameStatus = 'lobby';
+	phase: GamePhase = 'lobby';
+	round = 0;
+	teachingEndsAt = 0;
 	players: Player[] = [];
 	hostId = '';
-	winnerId: string | null = null;
+	winnerIds: string[] = [];
 	startedAt = 0;
+	lastSummary: RoundSummary | null = null;
 
 	private reveal: RevealState = { visitedNodes: [], takenChoices: {} };
 	private memoryLineSeq = 0;
+	/** Where each player died last round, for spotting repeated mistakes. */
+	private previousDeaths = new Map<string, string>();
 
 	constructor(code: string, map: DecisionMap) {
 		this.code = code;
@@ -93,29 +112,25 @@ export class Game {
 	/* ------------------------------------------------------------- lobby */
 
 	addPlayer(id: string, name: string, isBot = false): Player {
-		if (this.players.length >= SEAT_COUNT) {
-			throw new GameError('This game is full.');
-		}
-		if (this.status !== 'lobby') {
-			throw new GameError('This game has already started.');
-		}
-		if (this.players.some((p) => p.id === id)) {
-			throw new GameError('You are already in this game.');
-		}
+		if (this.players.length >= SEAT_COUNT) throw new GameError('This game is full.');
+		if (this.phase !== 'lobby') throw new GameError('This game has already started.');
+		if (this.players.some((p) => p.id === id)) throw new GameError('You are already in this game.');
 
 		const player: Player = {
 			id,
 			name: name.slice(0, 18) || `Agent ${this.players.length + 1}`,
 			seat: this.players.length,
 			isBot,
-			connected: !isBot,
-			ready: isBot,
+			// Bots are always present; only humans can drop out.
+			connected: true,
+			ready: false,
 			memory: [],
 			agent: this.freshAgent(),
 			runCount: 0,
 			runs: [],
 			sabotageUsed: false,
 			wasSabotaged: false,
+			sabotagedThisRound: false,
 			pendingGrants: 0
 		};
 
@@ -139,16 +154,23 @@ export class Game {
 		if (player) player.connected = connected;
 	}
 
-	start(): void {
-		if (this.status !== 'lobby') throw new GameError('Already started.');
+	/**
+	 * True when everyone still present has said they are done teaching.
+	 * Bots count: they must actually finish writing their note first, or the
+	 * round would start before they had a chance to learn anything.
+	 */
+	allReady(): boolean {
+		return this.players.every((p) => p.ready || (!p.isBot && !p.connected));
+	}
+
+	startMatch(): void {
+		if (this.phase !== 'lobby') throw new GameError('Already started.');
 		if (this.players.length < 2) throw new GameError('Need at least two agents.');
-		this.status = 'running';
 		this.startedAt = Date.now();
-		// The start node is always visible: every agent begins by looking at it.
 		this.markVisited(this.map.startNode);
 	}
 
-	/* --------------------------------------------------------------- runs */
+	/* -------------------------------------------------------------- rounds */
 
 	private freshAgent(): Agent {
 		return {
@@ -161,27 +183,124 @@ export class Game {
 		};
 	}
 
-	canDeploy(id: string): boolean {
-		const player = this.getPlayer(id);
-		return (
-			this.status === 'running' &&
-			!this.winnerId &&
-			(player.agent.status === 'idle' || player.agent.status === 'dead')
-		);
+	/** Everyone sets out together. */
+	beginRound(): number {
+		this.round += 1;
+		this.phase = 'running';
+		this.teachingEndsAt = 0;
+
+		for (const player of this.players) {
+			player.runCount += 1;
+			player.ready = false;
+			player.sabotagedThisRound = false;
+			player.agent = {
+				...this.freshAgent(),
+				bestDepth: player.agent.bestDepth,
+				status: 'running'
+			};
+		}
+
+		this.markVisited(this.map.startNode);
+		return this.round;
 	}
 
-	beginRun(id: string): number {
-		const player = this.getPlayer(id);
-		if (!this.canDeploy(id)) throw new GameError('That agent cannot be deployed right now.');
+	/** Agents still walking. The round runs until this is empty. */
+	livingPlayers(): Player[] {
+		return this.players.filter((p) => p.agent.status === 'running');
+	}
 
-		player.runCount += 1;
-		player.agent = {
-			...this.freshAgent(),
-			bestDepth: player.agent.bestDepth,
-			status: 'running'
+	/** Close the round, build its story, and hand everyone their characters. */
+	endRound(): RoundSummary {
+		const outcomes: RoundOutcome[] = this.players.map((player) => {
+			const run = player.runs.at(-1) ?? null;
+			const fatal = run && !run.survived ? (run.decisions.at(-1) ?? null) : null;
+			const deathNode = run && !run.survived ? run.endedAt : null;
+
+			return {
+				playerId: player.id,
+				name: player.name,
+				seat: player.seat,
+				isBot: player.isBot,
+				depth: player.agent.depth,
+				survived: player.agent.status === 'home',
+				killedBy: fatal?.choiceLabel ?? null,
+				epitaph: deathNode ? (this.map.nodes[deathNode]?.epitaph ?? null) : null,
+				repeatedMistake: Boolean(deathNode && this.previousDeaths.get(player.id) === deathNode),
+				wasSabotaged: player.sabotagedThisRound
+			};
+		});
+
+		for (const player of this.players) {
+			const run = player.runs.at(-1);
+			if (run && !run.survived) this.previousDeaths.set(player.id, run.endedAt);
+			else this.previousDeaths.delete(player.id);
+		}
+
+		const summary: RoundSummary = {
+			round: this.round,
+			headline: this.narrate(outcomes),
+			outcomes
 		};
-		this.markVisited(this.map.startNode);
-		return player.runCount;
+		this.lastSummary = summary;
+
+		if (this.winnerIds.length) {
+			this.phase = 'over';
+		} else {
+			// Everyone earns their twenty characters, however badly it went.
+			for (const player of this.players) player.pendingGrants += 1;
+		}
+
+		return summary;
+	}
+
+	openTeaching(seconds = TEACHING_SECONDS): number {
+		this.phase = 'teaching';
+		this.teachingEndsAt = Date.now() + seconds * 1000;
+		for (const player of this.players) {
+			player.ready = false;
+			player.agent.status = 'idle';
+		}
+		return this.teachingEndsAt;
+	}
+
+	/**
+	 * One line of story for the round. Ordered by what is most fun to read
+	 * rather than what is most informative — a repeated death is better
+	 * television than a statistic.
+	 */
+	private narrate(outcomes: RoundOutcome[]): string {
+		const winners = outcomes.filter((o) => o.survived);
+		if (winners.length === 1) return `${winners[0].name} walked through the gate.`;
+		if (winners.length > 1) {
+			return `${winners.map((w) => w.name).join(' and ')} reached home together.`;
+		}
+
+		const dead = outcomes.filter((o) => o.killedBy);
+		const deepest = [...outcomes].sort((a, b) => b.depth - a.depth)[0];
+
+		// Everyone made the same mistake — the best possible round to watch.
+		if (dead.length > 1 && dead.length === outcomes.length) {
+			const first = dead[0].killedBy;
+			if (dead.every((o) => o.killedBy === first)) {
+				return `All ${dead.length} of them walked into the ${first?.toLowerCase()}.`;
+			}
+		}
+
+		const repeat = dead.find((o) => o.repeatedMistake);
+		if (repeat) return `${repeat.name} died at the ${repeat.killedBy?.toLowerCase()}. Again.`;
+
+		const betrayed = dead.find((o) => o.wasSabotaged);
+		if (betrayed) return `${betrayed.name} believed something that wasn't true.`;
+
+		if (deepest && deepest.depth === 0) return 'Nobody got past the first choice.';
+
+		const tiedAtTop = outcomes.filter((o) => o.depth === deepest.depth);
+		if (tiedAtTop.length > 1) {
+			return `${tiedAtTop.length} agents stalled at the same depth.`;
+		}
+
+		const levels = deepest.depth === 1 ? '1 level' : `${deepest.depth} levels`;
+		return `${deepest.name} got the furthest — ${levels} in.`;
 	}
 
 	nodeFor(id: string): DecisionNode {
@@ -204,7 +323,7 @@ export class Game {
 
 	/**
 	 * The single source of truth for correct / wrong / dead / continue / HOME.
-	 * The LLM chose a label; this decides what happens next.
+	 * The LLM chose a label; this decides what that label costs.
 	 */
 	resolveChoice(id: string, choiceId: string, reasoning: string): ResolveResult {
 		const player = this.getPlayer(id);
@@ -239,18 +358,16 @@ export class Game {
 			player.agent.status = outcome === 'win' ? 'home' : 'dead';
 			player.agent.thinking = false;
 			run = {
-				index: player.runCount,
+				index: this.round,
 				decisions: [...player.agent.decisions],
 				endedAt: toNode.id,
 				survived: outcome === 'win',
 				depthReached: player.agent.depth
 			};
 			player.runs.push(run);
-			// Every completed run earns the player their 20 characters.
-			if (outcome === 'death') player.pendingGrants += 1;
-			if (outcome === 'win' && !this.winnerId) {
-				this.winnerId = player.id;
-				this.status = 'finished';
+			// Several agents can arrive in the same step; they all win.
+			if (outcome === 'win' && !this.winnerIds.includes(player.id)) {
+				this.winnerIds.push(player.id);
 			}
 		} else {
 			this.markVisited(toNode.id);
@@ -281,12 +398,11 @@ export class Game {
 	/** Enforces the 20-character grant server-side. The input's maxlength is a courtesy. */
 	addMemory(id: string, rawText: string): MemoryLine {
 		const player = this.getPlayer(id);
-		if (this.status !== 'running') throw new GameError('The match is not running.');
-		if (player.pendingGrants <= 0) {
-			throw new GameError('No knowledge to give — finish a run first.');
+		if (this.phase !== 'teaching') {
+			throw new GameError('You can only teach between rounds.');
 		}
-		if (player.agent.status === 'running') {
-			throw new GameError('You cannot teach an agent mid-run.');
+		if (player.pendingGrants <= 0) {
+			throw new GameError('No knowledge left to give this round.');
 		}
 
 		const text = rawText.trim();
@@ -298,7 +414,7 @@ export class Game {
 		const line: MemoryLine = {
 			id: `m${++this.memoryLineSeq}`,
 			text,
-			addedOnRun: player.runCount
+			addedOnRun: this.round
 		};
 		player.memory.push(line);
 		player.pendingGrants -= 1;
@@ -316,7 +432,9 @@ export class Game {
 		const actor = this.getPlayer(actorId);
 		const target = this.getPlayer(targetId);
 
-		if (this.status !== 'running') throw new GameError('The match is not running.');
+		if (this.phase === 'lobby' || this.phase === 'over') {
+			throw new GameError('The match is not running.');
+		}
 		if (actor.sabotageUsed) throw new GameError('You have already used your sabotage.');
 		if (actorId === targetId) throw new GameError('You cannot sabotage your own agent.');
 
@@ -333,6 +451,7 @@ export class Game {
 		line.sabotagedBy = actor.name;
 		actor.sabotageUsed = true;
 		target.wasSabotaged = true;
+		target.sabotagedThisRound = true;
 
 		return { target, before, after: line.text, lineIndex };
 	}
@@ -364,6 +483,7 @@ export class Game {
 			bestDepth: player.agent.bestDepth,
 			sabotageUsed: player.sabotageUsed,
 			wasSabotaged: player.wasSabotaged,
+			sabotagedThisRound: player.sabotagedThisRound,
 			pendingGrants: player.pendingGrants,
 			lastRun: player.runs.at(-1) ?? null
 		};
@@ -372,12 +492,15 @@ export class Game {
 	snapshot(): GameSnapshot {
 		return {
 			code: this.code,
-			status: this.status,
+			phase: this.phase,
+			round: this.round,
+			teachingEndsAt: this.teachingEndsAt,
 			hostId: this.hostId,
 			depth: this.map.depth,
 			players: this.players.map((p) => this.publicPlayer(p)),
 			tree: this.foggedTree(),
-			winnerId: this.winnerId,
+			winnerIds: this.winnerIds,
+			lastSummary: this.lastSummary,
 			maxPlayers: SEAT_COUNT
 		};
 	}

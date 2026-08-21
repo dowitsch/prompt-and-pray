@@ -41,11 +41,11 @@ export type DecisionMap = {
 /* ------------------------------------------------------------------ agents */
 
 export type AgentStatus =
-	/** Waiting for its player to deploy it. */
+	/** Between rounds, waiting for the next one to start. */
 	| 'idle'
-	/** Mid-run, walking the tree. */
+	/** Walking the tree in the current round. */
 	| 'running'
-	/** Died this run; waiting to be taught and redeployed. */
+	/** Died this round. Stays where it fell until the next round begins. */
 	| 'dead'
 	/** Reached HOME. Terminal. */
 	| 'home';
@@ -68,6 +68,30 @@ export type RunRecord = {
 	endedAt: string;
 	survived: boolean;
 	depthReached: number;
+};
+
+/** One agent's fate in one round, for the between-rounds recap. */
+export type RoundOutcome = {
+	playerId: string;
+	name: string;
+	seat: number;
+	isBot: boolean;
+	depth: number;
+	survived: boolean;
+	/** Label of the choice that killed it, if it died. */
+	killedBy: string | null;
+	epitaph: string | null;
+	/** True when it died at the same place as the round before. */
+	repeatedMistake: boolean;
+	/** True when its memory was corrupted before this round. */
+	wasSabotaged: boolean;
+};
+
+export type RoundSummary = {
+	round: number;
+	/** One line of story for the round as a whole. */
+	headline: string;
+	outcomes: RoundOutcome[];
 };
 
 export type Agent = {
@@ -108,13 +132,33 @@ export type Player = {
 	sabotageUsed: boolean;
 	/** True once this player has been hit by a sabotage at least once. */
 	wasSabotaged: boolean;
-	/** Unspent 20-character grants. Earned by finishing a run. */
+	/** True if sabotaged since the last round started — drives the "hit" badge. */
+	sabotagedThisRound: boolean;
+	/** Unspent 20-character grants. Earned at the end of every round. */
 	pendingGrants: number;
 };
 
 /* ------------------------------------------------------------------- games */
 
 export type GameStatus = 'lobby' | 'running' | 'finished';
+
+/**
+ * Matches are round-based and simultaneous. Every agent sets out together and
+ * faces the same level at the same moment, which is what makes one agent
+ * walking into the Volcano while another finds the Forest worth watching.
+ */
+export type GamePhase =
+	/** Waiting for players before the match begins. */
+	| 'lobby'
+	/** Between rounds: everyone spends their 20 characters. */
+	| 'teaching'
+	/** A round is in progress; agents are stepping in lockstep. */
+	| 'running'
+	/** Someone made it home. */
+	| 'over';
+
+/** How long players get to teach between rounds. */
+export const TEACHING_SECONDS = 30;
 
 /** What the client is allowed to know about the map: fog of war. */
 export type RevealState = {

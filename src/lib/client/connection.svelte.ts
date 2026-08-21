@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { applyChoicesRevealed, applyNodeRevealed } from '$lib/engine/fog';
 import type { GameSnapshot, PublicPlayer } from '$lib/engine/game';
+import type { RoundSummary } from '$lib/engine/types';
 import type { ClientMessage, ServerEvent } from '$lib/protocol';
 import { WS_PATH } from '$lib/protocol';
 
@@ -17,7 +18,8 @@ import { WS_PATH } from '$lib/protocol';
  * exactly, so the socket dropping is a visual hiccup rather than a lost game.
  */
 
-export type LogKind = 'run' | 'sight' | 'speech' | 'ok' | 'dead' | 'home' | 'memory' | 'sabotage';
+export type LogKind =
+	'round' | 'recap' | 'sight' | 'speech' | 'ok' | 'dead' | 'home' | 'memory' | 'sabotage';
 
 export type LogEntry = {
 	id: number;
@@ -54,6 +56,10 @@ export class Connection {
 	status = $state<'idle' | 'connecting' | 'open' | 'closed'>('idle');
 	you = $state<string | null>(null);
 	game = $state<GameSnapshot | null>(null);
+	/** Last completed round’s story, shown between rounds. */
+	summary = $state<RoundSummary | null>(null);
+	/** Which synchronised beat the round is on, e.g. “LEVEL 3 · 2 still walking”. */
+	stepLabel = $state<string | null>(null);
 	log = $state<LogEntry[]>([]);
 	effects = $state<Effect[]>([]);
 	toast = $state<Toast | null>(null);
@@ -159,8 +165,9 @@ export class Connection {
 		this.send({ type: 'START_GAME' });
 	}
 
-	deploy(): void {
-		this.send({ type: 'DEPLOY_AGENT' });
+	/** "I'm done teaching." The round starts once everyone has said this. */
+	readyUp(): void {
+		this.send({ type: 'SET_READY', ready: true });
 	}
 
 	addMemory(text: string): void {
@@ -180,6 +187,8 @@ export class Connection {
 		}
 		this.game = null;
 		this.you = null;
+		this.summary = null;
+		this.stepLabel = null;
 		this.log = [];
 		this.effects = [];
 	}
@@ -241,9 +250,10 @@ export class Connection {
 				}
 				this.you = event.you;
 				this.game = event.game;
+				this.summary = event.game.lastSummary;
 				if (browser) {
 					const target =
-						event.game.status === 'lobby'
+						event.game.phase === 'lobby'
 							? resolve('/lobby/[code]', { code: event.game.code })
 							: resolve('/game/[code]', { code: event.game.code });
 					if (location.pathname !== target) void goto(target);
@@ -276,13 +286,38 @@ export class Connection {
 				return;
 			}
 
-			case 'RUN_STARTED': {
-				this.replacePlayer(event.player);
+			case 'ROUND_STARTED': {
+				this.game = event.game;
+				this.stepLabel = null;
 				this.push({
-					kind: 'run',
-					playerId: event.playerId,
-					text: `RUN ${String(event.run).padStart(2, '0')}`
+					kind: 'round',
+					playerId: '',
+					text: `ROUND ${String(event.round).padStart(2, '0')}`,
+					detail: 'all four set out'
 				});
+				return;
+			}
+
+			case 'STEP_STARTED': {
+				// A synchronised beat — everyone still alive faces this level at once.
+				this.stepLabel = `LEVEL ${event.step + 1} · ${event.alive} still walking`;
+				return;
+			}
+
+			case 'ROUND_ENDED': {
+				this.game = event.game;
+				this.summary = event.summary;
+				this.push({
+					kind: 'recap',
+					playerId: '',
+					text: event.summary.headline
+				});
+				return;
+			}
+
+			case 'TEACHING_STARTED': {
+				this.game = event.game;
+				this.stepLabel = null;
 				return;
 			}
 

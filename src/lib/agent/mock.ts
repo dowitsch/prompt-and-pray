@@ -1,5 +1,5 @@
 import type { AgentBrain, AgentDecision, BrainChoice, DecisionContext } from './brain.ts';
-import { createRng, hashSeed } from '../engine/rng.ts';
+import { createRng, hashSeed, type Rng } from '../engine/rng.ts';
 
 /**
  * The offline brain. Deterministic, dependency-free, and good enough that the
@@ -156,17 +156,35 @@ function readMemory(ctx: DecisionContext): Verdict {
 	return { scores, notes };
 }
 
+/**
+ * Four agents facing the same choice with the same empty memory would otherwise
+ * say the same sentence four times, which reads as one voice instead of four.
+ * The wording varies per agent; the reasoning behind it does not.
+ */
+const BLIND = [
+	(l: string) => `Nothing in my memory covers this place. I take the ${l}.`,
+	(l: string) => `My notes are silent here. The ${l}, then.`,
+	(l: string) => `No guidance for this one — the ${l} looks no worse than the rest.`,
+	(l: string) => `I know nothing about any of these. ${l}.`,
+	(l: string) => `Three ways and not a word about them. I choose the ${l}.`,
+	(l: string) => `I have to guess. The ${l}.`
+];
+
+const ELIMINATED = [
+	(l: string, bad: string) => `I remember the ${bad} is deadly. I take the ${l}.`,
+	(l: string, bad: string) => `Not the ${bad} — my notes are clear on that. The ${l}.`,
+	(l: string, bad: string) => `The ${bad} killed something. I go by the ${l} instead.`
+];
+
 function phrase(
 	ctx: DecisionContext,
 	picked: BrainChoice,
 	verdict: Verdict,
-	blind: boolean
+	blind: boolean,
+	rng: Rng
 ): string {
 	const label = picked.label;
-	if (blind) {
-		const options = ctx.choices.length;
-		return `Nothing in my memory covers this place. ${options} ways out — I take the ${label}.`;
-	}
+	if (blind) return rng.pick(BLIND)(label);
 
 	const reason = verdict.notes.get(picked.id);
 	if (reason && verdict.scores.get(picked.id)! > 0) {
@@ -178,7 +196,7 @@ function phrase(
 		.filter((c) => c.id !== picked.id && (verdict.scores.get(c.id) ?? 0) < 0)
 		.map((c) => c.label.toLowerCase());
 
-	if (avoided.length === 1) return `I remember the ${avoided[0]} is deadly. I take the ${label}.`;
+	if (avoided.length === 1) return rng.pick(ELIMINATED)(label, avoided[0]);
 	if (avoided.length > 1) {
 		return `My notes rule out the ${avoided.join(' and the ')}. That leaves the ${label}.`;
 	}
@@ -213,7 +231,7 @@ export class MockBrain implements AgentBrain {
 
 		return {
 			choice: picked.id,
-			reasoning: phrase(ctx, picked, verdict, blind)
+			reasoning: phrase(ctx, picked, verdict, blind, rng)
 		};
 	}
 }

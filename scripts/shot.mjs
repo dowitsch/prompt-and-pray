@@ -42,62 +42,69 @@ await shot('2-lobby');
 
 await page.click('button:has-text("Start game")');
 await page.waitForURL('**/game/**');
-await page.waitForTimeout(7000);
-await shot('3-board-early');
+
+// Round one: everyone sets out together.
+await page.waitForTimeout(4500);
+await shot('3-round-one');
 
 const teach = page.locator('input[maxlength="20"]').first();
-const deploy = page.locator('button:has-text("Deploy agent")');
+const ready = page.locator('button:has-text("Start round")');
 const written = new Set();
-let shotTaught = false;
+let shotTeaching = false;
 let shotSabotage = false;
+let shotMidRound = false;
 
-// Play until someone reaches HOME, teaching the agent after every death.
-for (let run = 0; run < 40; run++) {
-	const victory = page.locator('text=made it home');
-	if (await victory.isVisible().catch(() => false)) break;
+for (let round = 0; round < 40; round++) {
+	if (
+		await page
+			.locator('text=made it home')
+			.isVisible()
+			.catch(() => false)
+	)
+		break;
 
-	// Wait for our agent to be back and teachable.
-	await deploy.waitFor({ state: 'visible' }).catch(() => {});
-	const ready = await deploy
-		.isEnabled()
-		.then((e) => e)
-		.catch(() => false);
-	if (!ready) {
-		await page.waitForTimeout(1200);
+	// Wait for the teaching phase to open.
+	await ready.waitFor({ state: 'visible', timeout: 90000 }).catch(() => {});
+	if (!(await ready.isEnabled().catch(() => false))) {
+		if (!shotMidRound) {
+			await shot('4-mid-round');
+			shotMidRound = true;
+		}
+		await page.waitForTimeout(1500);
 		continue;
 	}
 
-	// The run-result strip lists this run's choices; the fatal one is struck
-	// through. Scope to that strip only — scraping the whole page picks up
-	// agent names from the rivals panel and teaches the agent nonsense.
-	const strip = page.locator('.panel', { hasText: /correct$/ }).first();
+	// The recap panel names the choice that killed each agent this round.
+	const recap = page.locator('section:has-text("what happened")').first();
+	const mine = recap.locator('li:has-text("you")').first();
 	const killer = (
-		await strip
-			.locator('.line-through')
-			.last()
+		await mine
+			.locator('.text-blood')
+			.first()
 			.innerText()
 			.catch(() => '')
 	).trim();
-	const survived = await strip
-		.locator('span:not(.line-through)')
-		.allInnerTexts()
-		.catch(() => []);
 
 	let note = killer ? `${short(killer)} kills` : '';
 	if (!note || written.has(note)) {
-		const safe = survived
+		// Already warned about that one — bank a step that worked instead.
+		const safe = await page
+			.locator('.text-ember')
+			.allInnerTexts()
+			.catch(() => []);
+		const target = safe
 			.map((s) => s.trim())
-			.filter((s) => s && /^[A-Za-z][A-Za-z ]*$/.test(s) && s.length < 14);
-		const target = safe.at(-1);
+			.filter((s) => /^[A-Za-z][A-Za-z ]*$/.test(s) && s.length < 14)
+			.at(-1);
 		note = target ? `${short(target)} is safe` : '';
 	}
 
 	if (note && !written.has(note) && note.length <= 20) {
 		written.add(note);
 		await teach.fill(note);
-		if (!shotTaught) {
+		if (!shotTeaching) {
 			await shot('5-teaching');
-			shotTaught = true;
+			shotTeaching = true;
 		}
 		await page.click('button:has-text("Add knowledge")');
 		await page.waitForTimeout(200);
@@ -110,20 +117,17 @@ for (let run = 0; run < 40; run++) {
 			await page.waitForTimeout(400);
 			await shot('6-sabotage');
 			await page.fill('input[placeholder="Valley kills"]', 'Valley kills');
-			await page.waitForTimeout(150);
 			await page.click('button:has-text("Corrupt memory")');
 			shotSabotage = true;
 			await page.waitForTimeout(300);
 		}
 	}
 
-	if (run === 3) await shot('4-board-mid-match');
-
-	await deploy.click();
-	await page.waitForTimeout(2500);
+	await ready.click().catch(() => {});
+	await page.waitForTimeout(3000);
 }
 
-await page.waitForSelector('text=made it home', { timeout: 120000 }).catch(() => {});
+await page.waitForSelector('text=made it home', { timeout: 180000 }).catch(() => {});
 await page.waitForTimeout(1200);
 await shot('7-victory');
 

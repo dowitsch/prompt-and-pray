@@ -9,9 +9,11 @@
 		players: PublicPlayer[];
 		youId: string | null;
 		effects: Effect[];
+		/** During a round, frame every agent rather than following your own. */
+		focusAll?: boolean;
 	};
 
-	let { tree, players, youId, effects }: Props = $props();
+	let { tree, players, youId, effects, focusAll = false }: Props = $props();
 
 	/** The camera window, in world units. Roughly four levels at a time. */
 	const CAM_W = 700;
@@ -42,25 +44,54 @@
 
 	const you = $derived(players.find((p) => p.id === youId) ?? null);
 
-	/** Follow the player's own agent; fall back to the deepest thing on the board. */
-	const focusY = $derived.by(() => {
-		const mine = you ? nodeById[you.agent.currentNode] : undefined;
-		if (mine) return mine.y;
-		const active = players
-			.map((p) => nodeById[p.agent.currentNode])
-			.filter((n): n is FoggedNode => Boolean(n));
-		return active.length ? Math.max(...active.map((n) => n.y)) : 0;
-	});
-
+	/**
+	 * Where the camera looks.
+	 *
+	 * During a round it frames **every agent at once**, zooming out as the pack
+	 * spreads — the whole point of running in lockstep is being able to see your
+	 * agent and everyone else's in the same glance. Between rounds it settles
+	 * back on your own, wherever it fell.
+	 */
 	const camera = $derived.by(() => {
+		const fitBox = (
+			minX: number,
+			minY: number,
+			maxX: number,
+			maxY: number,
+			maxScale: number,
+			pad: number
+		) => {
+			const width = maxX - minX + pad * 2;
+			const height = maxY - minY + pad * 2;
+			const scale = Math.min(CAM_W / width, CAM_H / height, maxScale);
+			return {
+				scale,
+				x: CAM_W / 2 - ((minX + maxX) / 2) * scale,
+				y: CAM_H / 2 - ((minY + maxY) / 2) * scale
+			};
+		};
+
 		if (mode === 'fit') {
-			const scale = Math.min(CAM_W / tree.viewBox.width, CAM_H / tree.viewBox.height) * 0.94;
-			const cx = tree.viewBox.minX + tree.viewBox.width / 2;
-			const cy = tree.viewBox.minY + tree.viewBox.height / 2;
-			return { scale, x: CAM_W / 2 - cx * scale, y: CAM_H / 2 - cy * scale };
+			const { minX, minY, width, height } = tree.viewBox;
+			return fitBox(minX, minY, minX + width, minY + height, 1, 0);
 		}
-		const scale = 1;
-		return { scale, x: CAM_W / 2, y: CAM_H / 2 - focusY * scale };
+
+		const tracked = (
+			focusAll
+				? players.map((p) => nodeById[p.agent.currentNode])
+				: [you ? nodeById[you.agent.currentNode] : undefined]
+		).filter((n): n is FoggedNode => Boolean(n));
+
+		if (!tracked.length) return { scale: 1, x: CAM_W / 2, y: CAM_H / 2 };
+
+		return fitBox(
+			Math.min(...tracked.map((n) => n.x)),
+			Math.min(...tracked.map((n) => n.y)),
+			Math.max(...tracked.map((n) => n.x)),
+			Math.max(...tracked.map((n) => n.y)),
+			1,
+			150
+		);
 	});
 
 	/**
@@ -73,7 +104,7 @@
 	const avatars = $derived(
 		players.map((player) => {
 			const node = nodeById[player.agent.currentNode];
-			const angle = ((-140 + player.seat * 33) * Math.PI) / 180;
+			const angle = ((-155 + player.seat * 43) * Math.PI) / 180;
 			return {
 				player,
 				isYou: player.id === youId,

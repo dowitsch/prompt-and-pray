@@ -107,18 +107,16 @@ export class Hub {
 			case 'SET_READY': {
 				const { game, playerId } = this.requirePlayer(session);
 				game.setReady(playerId, message.ready);
-				return this.broadcast(game, {
+				this.broadcast(game, {
 					type: 'PLAYER_UPDATED',
 					player: game.publicPlayer(game.getPlayer(playerId))
 				});
+				// Readying up during teaching can start the next round early.
+				this.runners.get(game.code)?.notifyReady();
+				return;
 			}
 			case 'START_GAME':
 				return this.onStart(session);
-			case 'DEPLOY_AGENT': {
-				const { game, playerId } = this.requirePlayer(session);
-				this.runners.get(game.code)?.deploy(playerId);
-				return;
-			}
 			case 'ADD_MEMORY': {
 				const { game, playerId } = this.requirePlayer(session);
 				game.addMemory(playerId, message.text);
@@ -174,7 +172,6 @@ export class Hub {
 	private onCreate(session: Session, name: string): void {
 		const game = createGame();
 		const player = game.addPlayer(newPlayerId(), name.trim() || 'YOU');
-		player.ready = true;
 
 		session.playerId = player.id;
 		session.code = game.code;
@@ -192,7 +189,6 @@ export class Hub {
 		if (!game) throw new GameError(`No game with code ${code.toUpperCase()}.`);
 
 		const player = game.addPlayer(newPlayerId(), name.trim() || 'AGENT');
-		player.ready = true;
 		session.playerId = player.id;
 		session.code = game.code;
 
@@ -231,7 +227,7 @@ export class Hub {
 			);
 		});
 
-		game.start();
+		game.startMatch();
 		this.broadcast(game, { type: 'GAME_STARTED', game: game.snapshot() });
 		runner.startMatch();
 	}

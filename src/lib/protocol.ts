@@ -1,6 +1,6 @@
 import type { GameSnapshot, PublicPlayer } from './engine/game.ts';
 import type { ChoicesRevealed, NodeRevealed } from './engine/fog.ts';
-import type { MemoryLine, RunRecord } from './engine/types.ts';
+import type { MemoryLine, RoundSummary, RunRecord } from './engine/types.ts';
 
 /**
  * The wire protocol, shared by the WebSocket hub and the browser.
@@ -23,7 +23,6 @@ export type ClientMessage =
 	| { type: 'JOIN_GAME'; code: string; name: string }
 	| { type: 'SET_READY'; ready: boolean }
 	| { type: 'START_GAME' }
-	| { type: 'DEPLOY_AGENT' }
 	| { type: 'ADD_MEMORY'; text: string }
 	| { type: 'SABOTAGE'; targetPlayerId: string; lineIndex: number; text: string }
 	| { type: 'PLAY_AGAIN' };
@@ -42,7 +41,14 @@ export type ServerEvent =
 	| { type: 'PLAYER_JOINED'; player: PublicPlayer; game: GameSnapshot }
 	| { type: 'PLAYER_UPDATED'; player: PublicPlayer }
 	| { type: 'GAME_STARTED'; game: GameSnapshot }
-	| { type: 'RUN_STARTED'; playerId: string; run: number; player: PublicPlayer }
+	/** Every agent sets out at once. */
+	| { type: 'ROUND_STARTED'; round: number; game: GameSnapshot }
+	/** A synchronised beat: all surviving agents are about to face this level. */
+	| { type: 'STEP_STARTED'; round: number; step: number; alive: number }
+	/** The round is over; carries its story. */
+	| { type: 'ROUND_ENDED'; summary: RoundSummary; game: GameSnapshot }
+	/** Teaching is open until `endsAt`, or until everyone readies up. */
+	| { type: 'TEACHING_STARTED'; round: number; endsAt: number; game: GameSnapshot }
 	| {
 			type: 'AGENT_THINKING';
 			playerId: string;
@@ -100,7 +106,7 @@ export type ServerEvent =
 			player: PublicPlayer;
 			actor: PublicPlayer;
 	  }
-	| { type: 'GAME_FINISHED'; winnerId: string; game: GameSnapshot }
+	| { type: 'GAME_FINISHED'; winnerIds: string[]; game: GameSnapshot }
 	| { type: 'ERROR'; message: string };
 
 export type ServerEventType = ServerEvent['type'];

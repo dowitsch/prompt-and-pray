@@ -18,8 +18,12 @@ deployments are documented in `doc/apertus-v1p5-007.md`:
 | `apertus-ai/Apertus-v1.5-8B` | `https://llm.stoney-cloud.com/v1/chat/completions`        | vLLM. Handles `response_format: {"type":"json_object"}` correctly — leave `AI_JSON_MODE=true`. |
 | `apertus-v1.5-70b`           | `https://llm-api2.b.onprem.ai/openai/v1/chat/completions` | Stronger instruction-following. **Set `AI_JSON_MODE=false`** (see below).                      |
 
-Both were measured at roughly **1–1.5 s per decision**, which is why the run loop can afford to
-call the model live for every step of every run.
+Both were measured at roughly **1–1.5 s per decision**, which is why the round loop can afford
+to call the model live for every step of every round.
+
+Because rounds are **lockstep**, all four agents decide concurrently and the beat waits for the
+slowest of them — so a slow response costs everyone a moment rather than giving one agent an
+advantage. `AI_CONCURRENCY` defaults to 4 for exactly this: one in-flight call per agent.
 
 > ⚠️ **The 70B endpoint's JSON mode is broken.** With `response_format: {"type":"json_object"}`
 > it emits a doubled opening brace (`{\n{\n "choice": ...`), which is not valid JSON and fails
@@ -141,12 +145,12 @@ Choose one path id.
 This is the design of the game, not an oversight:
 
 - **Which choice is correct.** Outcomes never appear in any prompt.
-- **Anything about previous runs.** Each run starts amnesiac. The player's memory is the only
-  thing that survives a death — that is what makes twenty characters expensive.
+- **Anything about previous rounds.** Every round starts amnesiac. The player's memory is the
+  only thing that survives a death — that is what makes twenty characters expensive.
 - **Where HOME is, or how deep the tree goes.**
 
 The agent gets the current location, the paths in front of it, the accumulated memory, and the
-route it has walked _this_ run (needed for notes like "after forest choose mountain").
+route it has walked _this_ round (needed for notes like "after forest choose mountain").
 
 ## 6. The expected response
 

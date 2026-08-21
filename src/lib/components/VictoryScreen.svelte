@@ -10,14 +10,16 @@
 
 	let { game, youId, onPlayAgain }: Props = $props();
 
-	const winner = $derived(game.players.find((p) => p.id === game.winnerId) ?? null);
-	const youWon = $derived(Boolean(winner && winner.id === youId));
+	const winners = $derived(game.players.filter((p) => game.winnerIds.includes(p.id)));
+	const winner = $derived(winners[0] ?? null);
+	const youWon = $derived(Boolean(youId && game.winnerIds.includes(youId)));
 	const subject = $derived(
-		(youWon ? winner : (game.players.find((p) => p.id === youId) ?? winner)) as PublicPlayer | null
+		(game.players.find((p) => p.id === youId) ?? winner) as PublicPlayer | null
 	);
 
 	const others = $derived(game.players.filter((p) => p.id !== subject?.id));
 	const winningRun = $derived(winner?.lastRun ?? null);
+	const rounds = $derived(game.round);
 </script>
 
 <div
@@ -33,7 +35,7 @@
 				{#if youWon}
 					You made it home
 				{:else}
-					{winner?.name ?? 'Nobody'} made it home
+					{winners.map((w) => w.name).join(' & ') || 'Nobody'} made it home
 				{/if}
 			</h1>
 			{#if !youWon && winner}
@@ -45,7 +47,7 @@
 
 		{#if subject}
 			<dl class="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-4">
-				{#each [{ label: 'Runs', value: String(subject.runCount) }, { label: 'Memory used', value: `${subject.memoryChars} chars` }, { label: 'Correct decisions', value: youWon && winningRun ? `${winningRun.depthReached} / ${game.depth}` : `${subject.bestDepth} / ${game.depth}` }, { label: 'Sabotage survived', value: subject.wasSabotaged ? 'YES' : '—' }] as stat (stat.label)}
+				{#each [{ label: 'Rounds', value: String(rounds) }, { label: 'Memory used', value: `${subject.memoryChars} chars` }, { label: 'Correct decisions', value: youWon && winningRun ? `${winningRun.depthReached} / ${game.depth}` : `${subject.bestDepth} / ${game.depth}` }, { label: 'Sabotage survived', value: subject.wasSabotaged ? 'YES' : '—' }] as stat (stat.label)}
 					<div class="panel px-4 py-3 text-center">
 						<div class="eyebrow">{stat.label}</div>
 						<div

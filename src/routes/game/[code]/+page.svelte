@@ -9,18 +9,21 @@
 	import AgentLog from '$lib/components/AgentLog.svelte';
 	import OpponentList from '$lib/components/OpponentList.svelte';
 	import SabotagePanel from '$lib/components/SabotagePanel.svelte';
-	import RunResult from '$lib/components/RunResult.svelte';
+	import RoundRecap from '$lib/components/RoundRecap.svelte';
 	import VictoryScreen from '$lib/components/VictoryScreen.svelte';
 
 	const game = $derived(conn.game);
 	const me = $derived(conn.me);
-	const finished = $derived(game?.status === 'finished');
+	const phase = $derived(game?.phase ?? 'lobby');
+	const finished = $derived(phase === 'over');
+	const running = $derived(phase === 'running');
+
+	/** Who the round is still waiting for during teaching. */
+	const waitingOn = $derived(
+		(game?.players ?? []).filter((p) => !p.ready && p.id !== conn.you && p.connected)
+	);
 
 	let sabotageTarget = $state<PublicPlayer | null>(null);
-
-	const canDeploy = $derived(
-		Boolean(me) && !finished && (me!.agent.status === 'idle' || me!.agent.status === 'dead')
-	);
 
 	function confirmSabotage(lineIndex: number, text: string) {
 		if (!sabotageTarget) return;
@@ -49,9 +52,17 @@
 			<span class="font-mono text-xs tracking-[0.28em] text-parchment">HOMEWARD</span>
 			<span class="font-mono text-[10px] tracking-[0.2em] text-faint">{game.code}</span>
 
+			<span
+				class="rounded-full border px-2.5 py-1 font-mono text-[9px] tracking-[0.18em] uppercase"
+				style:color={running ? colour : '#8b8fa0'}
+				style:border-color={running ? colour + '55' : '#1e2230'}
+			>
+				Round {game.round}
+				{#if running}· running{:else if phase === 'teaching'}· teaching{/if}
+			</span>
+
 			<div class="ml-auto flex items-center gap-4">
 				<div class="hidden items-center gap-2 sm:flex">
-					<span class="eyebrow">Your agent</span>
 					<span
 						class="grid h-6 w-6 place-items-center rounded-full border font-mono text-[9px] font-bold"
 						style:border-color={colour}
@@ -61,25 +72,13 @@
 				</div>
 
 				<div class="flex items-center gap-3 font-mono text-[10px] text-faint">
-					<span>RUN <span class="text-parchment tabular-nums">{me.runCount}</span></span>
 					<span>
-						DEPTH
-						<span class="text-parchment tabular-nums">{me.bestDepth}/{game.depth}</span>
+						BEST <span class="text-parchment tabular-nums">{me.bestDepth}/{game.depth}</span>
 					</span>
 					<span class="hidden sm:inline">
 						MEM <span class="text-parchment tabular-nums">{me.memoryChars}</span>
 					</span>
 				</div>
-
-				<span
-					class="rounded-full px-2.5 py-1 font-mono text-[9px] tracking-[0.18em] uppercase"
-					style:color={me.agent.thinking ? colour : '#575c6e'}
-					style:border={`1px solid ${me.agent.thinking ? colour + '66' : '#1e2230'}`}
-				>
-					{#if finished}over{:else if me.agent.thinking}thinking{:else if me.agent.status === 'running'}
-						in the field
-					{:else if me.agent.status === 'dead'}lost{:else}ready{/if}
-				</span>
 			</div>
 		</header>
 
@@ -87,30 +86,54 @@
 		<div
 			class="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[minmax(240px,300px)_1fr_minmax(280px,340px)]"
 		>
-			<!-- Left: what the agents are saying -->
 			<div class="hidden min-h-0 flex-col gap-3 lg:flex">
 				<AgentLog log={conn.log} youId={conn.you} />
 			</div>
 
-			<!-- Centre: the tree -->
-			<div class="min-h-0 overflow-hidden panel">
+			<!-- Centre: the tree, with the current beat called out over it -->
+			<div class="relative min-h-0 overflow-hidden panel">
 				<TreeCanvas
 					tree={game.tree}
 					players={game.players}
 					youId={conn.you}
 					effects={conn.effects}
+					focusAll={running}
 				/>
+
+				{#if running && conn.stepLabel}
+					<div class="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2">
+						<span
+							class="rounded-full border border-edge bg-black/60 px-3 py-1 font-mono
+								text-[10px] tracking-[0.2em] text-muted uppercase backdrop-blur-sm"
+						>
+							{conn.stepLabel}
+						</span>
+					</div>
+				{:else if phase === 'teaching'}
+					<div class="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2">
+						<span
+							class="rounded-full border border-ember/40 bg-black/60 px-3 py-1 font-mono
+								text-[10px] tracking-[0.2em] text-ember uppercase backdrop-blur-sm"
+						>
+							Teach your agent — round {game.round + 1} next
+						</span>
+					</div>
+				{/if}
 			</div>
 
-			<!-- Right: teaching, results, rivals -->
-			<div class="flex min-h-0 flex-col gap-3 overflow-y-auto">
-				<RunResult {me} depth={game.depth} />
+			<!-- Right: the story, teaching, rivals -->
+			<div class="flex min-h-0 flex-col gap-3 overflow-y-auto [&>*]:shrink-0">
+				{#if conn.summary && !finished}
+					<RoundRecap summary={conn.summary} youId={conn.you} depth={game.depth} />
+				{/if}
 				<MemoryPanel
 					{me}
-					{canDeploy}
-					{finished}
+					{phase}
+					round={game.round}
+					teachingEndsAt={game.teachingEndsAt}
+					{waitingOn}
 					onAdd={(text) => conn.addMemory(text)}
-					onDeploy={() => conn.deploy()}
+					onReady={() => conn.readyUp()}
 				/>
 				<OpponentList
 					opponents={conn.opponents}
@@ -122,7 +145,6 @@
 			</div>
 		</div>
 
-		<!-- The log matters too much to hide entirely on small screens. -->
 		<div class="min-h-0 shrink-0 basis-48 p-3 pt-0 lg:hidden">
 			<AgentLog log={conn.log} youId={conn.you} />
 		</div>
