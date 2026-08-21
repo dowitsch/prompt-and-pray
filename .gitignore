@@ -1,0 +1,30 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Secrets: this file ships live API keys and must never be committed.
+# Configure them through .env instead — see docs/ai-integration.md.
+doc/apertus-*.md
+
+# Local dev artefacts
+screenshots/
