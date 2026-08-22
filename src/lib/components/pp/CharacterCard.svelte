@@ -15,9 +15,14 @@
 	 *
 	 * What the frame no longer is, though, is anonymous. Choosing a character is a
 	 * strategic choice now — Aurelia reads notes to the letter, PENGU-01 believes
-	 * any shortcut — so the name, the title and one line about how this one decides
-	 * sit under the frame whether or not the picture ever loads. This carousel is
-	 * the only screen where that is legible before you commit to it.
+	 * any shortcut — so the title and one line about how this one decides sit under
+	 * the frame whether or not the picture ever loads. This carousel is the only
+	 * screen where that is legible before you commit to it.
+	 *
+	 * The name itself is not repeated here: both places that show a figure already
+	 * name it louder than the caption could — the carousel in the name pill above,
+	 * the end card in its heading — so the caption carries only what is new, at a
+	 * size and contrast meant to be read rather than glanced at.
 	 */
 	import { characterSrc } from '$lib/client/identity';
 	import { characterAt } from '$lib/engine/characters';
@@ -31,8 +36,8 @@
 		height?: number;
 		/** Only the placeholder has an edge, so only the placeholder needs this. */
 		radius?: number;
-		/** The name and title always show; the line about how it decides is the
-		 * carousel's job, where the choice is still open. */
+		/** The title always shows; the line about how it decides is the carousel's
+		 * job, where the choice is still open. */
 		detail?: boolean;
 	};
 
@@ -79,10 +84,9 @@
 	</div>
 
 	<div class="px-6 text-center">
-		<p class="display text-lg leading-tight tracking-[0.04em] text-white">{character.name}</p>
-		<p class="mt-0.5 text-[11px] leading-tight text-white/55">{epithet}</p>
+		<p class="text-sm leading-tight tracking-[0.03em] text-white/85">{epithet}</p>
 		{#if detail}
-			<p class="mt-1.5 line-clamp-3 text-[11px] leading-snug text-white/45">{blurb}</p>
+			<p class="mt-1.5 line-clamp-3 text-xs leading-relaxed text-white/70">{blurb}</p>
 		{/if}
 	</div>
 </div>
