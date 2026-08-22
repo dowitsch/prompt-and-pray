@@ -56,13 +56,19 @@ const settled = async () => {
 	await page.waitForTimeout(5000);
 };
 
-const tap = async (what, { optional = false } = {}) => {
-	const target = page.locator(`[data-shot="${what}"]`).first();
+/*
+ * The map is never unmounted — the brain is drawn over it — so both screens'
+ * bars are in the DOM at once and a bare `data-shot` can match two elements. The
+ * ones that exist twice take a mode.
+ */
+const tap = async (what, { optional = false, mode } = {}) => {
+	const sel = mode ? `[data-shot="${what}"][data-mode="${mode}"]` : `[data-shot="${what}"]`;
+	const target = page.locator(sel).first();
 	try {
 		await target.waitFor({ state: 'visible', timeout: optional ? 2500 : 20000 });
 	} catch {
 		if (optional) return false;
-		throw new Error(`never saw [data-shot="${what}"]`);
+		throw new Error(`never saw ${sel}`);
 	}
 	await target.click();
 	return true;
@@ -100,6 +106,43 @@ await page.waitForURL('**/game/**', { timeout: 20000 });
 await settled();
 await shot('4-map');
 
+/*
+ * The spotlight. While a round runs the screen must belong to whoever's turn it
+ * is, not to the local player — that is the whole point of the feature. With the
+ * story panel gone the only things that say whose turn it is are the phase title
+ * and the bubble, so those are what the walk watches.
+ */
+const title = page.locator('[data-shot="phase-title"]');
+const bubble = page.locator('[data-shot="step-bubble"]');
+await bubble
+	.first()
+	.waitFor({ state: 'visible', timeout: 120000 })
+	.catch(() => {});
+await shot('5-bubble');
+
+const seen = new Set();
+for (let i = 0; i < 40; i++) {
+	const label = (await title.textContent().catch(() => ''))?.trim() ?? '';
+	if (label && !seen.has(label)) {
+		seen.add(label);
+		await shot(`5-spotlight-${seen.size}`);
+	}
+	if (seen.size >= 3) break;
+	await page.waitForTimeout(1500);
+}
+console.log(`  spotlight  saw=[${[...seen].join(' | ')}]`);
+if (seen.size < 2) {
+	console.log('  WARN       the phase title never changed hands');
+}
+
+/*
+ * The other side of the toggle, and where all the writing happens now: the
+ * revised design moved the clue row off the map entirely.
+ */
+await tap('toggle-view', { mode: 'map' });
+await page.waitForTimeout(600);
+await shot('6-brain-mine');
+
 // Wait for a clue window, then spend the ration.
 const clue = page.locator('[data-shot="clue-input"]');
 await clue.waitFor({ state: 'visible', timeout: 120000 });
@@ -109,53 +152,28 @@ for (let attempt = 0; attempt < 40; attempt++) {
 }
 if (await clue.isEnabled().catch(() => false)) {
 	await clue.fill('River kills');
-	await shot('5-clue');
+	await shot('6-clue');
 	await tap('clue-send');
 	await page.waitForTimeout(600);
 }
-await shot('5-map-written');
-
-/*
- * The spotlight. While a round runs the screen must belong to whoever's turn it
- * is, not to the local player — that is the whole point of the feature, and the
- * only way to see it is to watch the panel's name change as the turns pass.
- */
-const spotlight = page.locator('[data-shot="spotlight-name"]');
-const mine = (await spotlight.textContent().catch(() => ''))?.trim() ?? '';
-const strip = page.locator('[data-shot="turn-strip"]');
-await strip.waitFor({ state: 'visible', timeout: 60000 }).catch(() => {});
-
-const seen = new Set();
-for (let i = 0; i < 40; i++) {
-	if (!(await strip.isVisible().catch(() => false))) break;
-	const name = (await spotlight.textContent().catch(() => ''))?.trim() ?? '';
-	if (name && !seen.has(name)) {
-		seen.add(name);
-		await shot(`5-spotlight-${seen.size}`);
-	}
-	await page.waitForTimeout(1500);
-}
-console.log(`  spotlight  mine=${mine} saw=[${[...seen].join(', ')}]`);
-if (![...seen].some((name) => name !== mine)) {
-	console.log('  WARN       the spotlight never left the local player');
-}
-
-// The other side of the toggle: somebody's whole history.
-await tap('toggle-view');
-await page.waitForTimeout(600);
-await shot('6-brain-mine');
+await shot('6-brain-written');
 
 // Switch to a rival and try to plant a line in their head.
-const rival = page.locator('[data-shot="roster"] button:not([data-me])').first();
+const rival = page.locator('[data-shot="roster"][data-mode="brain"] button:not([data-me])').first();
 if (await rival.count()) {
 	await rival.click();
 	await page.waitForTimeout(600);
 	await shot('6-brain-rival');
 
-	const line = page.locator('[data-shot="clue-line"]').first();
-	if (await line.count()) {
-		await line.click();
-		await page.waitForTimeout(300);
+	/*
+	 * The flask, not the line. Choosing a target is now a press on the note's own
+	 * button, which is what makes the input row appear at all.
+	 */
+	const flask = page.locator('[data-shot="poison-line"]').first();
+	if (await flask.count()) {
+		await flask.click();
+		await page.waitForTimeout(400);
+		await shot('7-inject-picked');
 		const inject = page.locator('[data-shot="clue-input"]');
 		if (await inject.isEnabled().catch(() => false)) {
 			await inject.fill('Trust the cave');

@@ -5,6 +5,11 @@
 	 * The QR is of *this* lobby, so showing your phone to somebody is the whole
 	 * joining flow. "Join a round" turns the camera the other way and reads
 	 * somebody else's.
+	 *
+	 * The revised design puts a photograph behind it rather than a gradient — the
+	 * first screen is the only place in the app that shows the *world* rather than
+	 * the game's own diagram of it, and a scrim top and bottom is what keeps the
+	 * wordmark and the button legible over whatever the picture is doing there.
 	 */
 	import QrCode from '../QrCode.svelte';
 	import Icon from '../Icon.svelte';
@@ -17,13 +22,25 @@
 
 	const t = $derived(conn.t.pp);
 
+	/** Dark at the wordmark, dark at the button, and the picture itself in between. */
+	const SCRIM =
+		'linear-gradient(180deg, rgb(28 31 34 / 34%) 0%, rgb(28 31 34 / 8%) 45%, rgb(28 31 34 / 40%) 100%)';
+
 	/** The URL the code stands for, so any camera app can open it. */
 	const target = $derived(
 		typeof location === 'undefined' ? `/j/${code}` : `${location.origin}/j/${code}`
 	);
 </script>
 
-<div class="animate-pp-fade absolute inset-0">
+<div class="animate-pp-fade absolute inset-0 bg-dark">
+	<!-- Decoration, so no alt text: the screen says everything this does not. -->
+	<img
+		src="/forest.jpg"
+		alt=""
+		class="absolute inset-0 h-full w-full object-cover brightness-[0.82] contrast-[0.97]"
+	/>
+	<div class="absolute inset-0" style="background: {SCRIM}"></div>
+
 	<div class="absolute top-[26px] right-[22px] z-[5]">
 		<DotMenu />
 	</div>

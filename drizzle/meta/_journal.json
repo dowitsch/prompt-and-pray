@@ -15,6 +15,13 @@
       "when": 1787412544757,
       "tag": "0001_dizzy_psylocke",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787429142890,
+      "tag": "0002_ordinary_kylun",
+      "breakpoints": true
     }
   ]
 }

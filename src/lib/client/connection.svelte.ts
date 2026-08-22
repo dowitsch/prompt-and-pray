@@ -6,6 +6,7 @@ import type { GameSnapshot, PublicPlayer } from '$lib/engine/game';
 import type { RoundSummary } from '$lib/engine/types';
 import type { ClientMessage, ServerEvent } from '$lib/protocol';
 import { WS_PATH } from '$lib/protocol';
+import { ui } from './ui.svelte';
 import {
 	DEFAULT_LOCALE,
 	fmt,
@@ -28,40 +29,44 @@ import {
  */
 
 /**
- * The six ways a line of the story can look.
+ * The three ways the map can speak.
  *
- * These are the design's six, not the server's: `lore` is the world talking,
- * `clue` is what a player wrote, `thought` is the agent reasoning aloud,
- * `success` and `fail` are what came of it, and `injection` is somebody else's
- * hand in your agent's head.
+ * `system` is the choice being put to the agent — where it stands and what roads
+ * it can see. `move` is the agent reasoning aloud as it sets off. `fail` is the
+ * one line that says it did not come back.
+ *
+ * `system` earns its place by owning the gap. The brain takes real time to
+ * decide, and between arriving somewhere and committing to a road there is a
+ * pause with nothing in it — long enough, against a live model, to read as the
+ * app having stalled. Posing the question there turns dead air into the most
+ * interesting moment in the turn: you see the choice before the agent makes it,
+ * and whether the note you wrote is going to be any use.
+ *
+ * Everything else the world used to say (place descriptions, epitaphs, the
+ * round's headline) is gone with the panel that held it, and was never
+ * load-bearing: the map already shows the place, the roads and the body.
  */
-export type FeedKind = 'lore' | 'clue' | 'thought' | 'success' | 'fail' | 'injection';
+export type BubbleKind = 'system' | 'move' | 'fail';
 
 /**
- * One line of the story, kept.
+ * What the agent on the board is saying, right now.
  *
- * This replaces the two half-streams the client used to keep — a localized one
- * that only held the turn being told and had no idea whose turn it was, and a
- * player-tagged one full of English debug text that nothing ever rendered.
- * Neither could draw the design's screens: the map shows your whole history and
- * the brain shows somebody else's.
+ * Exactly one of these exists at a time and it is not history: it appears when
+ * an agent commits to a road and is gone when the turn passes. That is the whole
+ * point of the change — the story is something you watch happen on the land, not
+ * a log you scroll.
+ *
+ * `id` rather than a text comparison, because an agent may well reason its way
+ * to the same sentence twice and the bubble must still re-animate.
  */
-export type FeedEntry = {
+export type Bubble = {
 	id: number;
-	kind: FeedKind;
-	/** Whose story this belongs to. Empty means it belongs to everyone's. */
+	kind: BubbleKind;
+	/** Whose turn it belongs to. Never empty: every bubble is somebody's moment. */
 	playerId: string;
 	text: string;
-	/**
-	 * For a `clue`, the memory line it is.
-	 *
-	 * Carried so the brain screen can offer that line as something to overwrite
-	 * without having to guess which one it was. Matching by text would pick the
-	 * wrong one the moment a player writes the same note twice, and the index at
-	 * the time is no good either because an overwrite renumbers nothing but a
-	 * rematch clears everything.
-	 */
-	lineId?: string;
+	/** `system` only: the place the choice is being made at. */
+	title?: string;
 };
 
 /** Short-lived visual events the tree turns into flashes and particles. */
@@ -123,18 +128,17 @@ function atTheTable(): boolean {
 	return /^\/(game|lobby)\//.test(location.pathname);
 }
 
+/**
+ * How many bubbles stand on the map at once.
+ *
+ * Three is a turn: the question, the answer, and what came of it. A fourth would
+ * start covering the land the bubbles are meant to be about.
+ */
+const BUBBLE_DEPTH = 3;
+
 const STORAGE_PLAYER = 'homeward:playerId';
 const STORAGE_LOCALE = 'homeward:locale';
 const STORAGE_CODE = 'homeward:code';
-/**
- * How much of one agent's story is kept.
- *
- * Per player rather than overall, because the brain screen promises somebody's
- * *whole* history and a single global cap would quietly delete the beginning of
- * the leader's story to make room for the loser's. Ten rounds is roughly eighty
- * entries, so this is not a limit anyone will meet in a match.
- */
-const MAX_PER_PLAYER = 200;
 
 /**
  * Reconnect backoff. 400ms, doubling to a 20s ceiling, then giving up — a match
@@ -160,16 +164,25 @@ export class Connection {
 	turnIndex = $state(0);
 	turnTotal = $state(0);
 	/**
-	 * The whole story so far, oldest first, every line tagged with whose it is.
+	 * The last few things said this turn, oldest first.
 	 *
-	 * The map filters it to you, the brain filters it to whoever is selected.
+	 * A short fading history rather than one bubble at a time. A turn is a beat of
+	 * three — here is the fork, here is what I make of it, here is what it cost —
+	 * and replacing each with the next threw away the first two before you could
+	 * put them together. Held as a stack they read as one thought, with the older
+	 * lines dimming out of the way rather than vanishing.
+	 *
+	 * Capped, because this is a map with a story on it and not a log: past
+	 * `BUBBLE_DEPTH` the oldest line has faded to nothing anyway.
 	 */
-	feed = $state<FeedEntry[]>([]);
-	/** Lines waiting their turn to appear. */
-	private queue: Omit<FeedEntry, 'id'>[] = [];
-	private reveal: ReturnType<typeof setInterval> | null = null;
-	/** True once this turn has already announced it is retracing. */
-	private saidRetracing = false;
+	bubbles = $state<Bubble[]>([]);
+	/**
+	 * True once this turn has said it recognises the road.
+	 *
+	 * A retrace is many steps over known ground and the agent is not deciding
+	 * anything on any of them, so it says so once and then gets on with it.
+	 */
+	private saidKnown = false;
 	effects = $state<Effect[]>([]);
 	/** The step being walked right now. Never cleared; the map reads the id. */
 	lastStep = $state<Step | null>(null);
@@ -232,15 +245,6 @@ export class Connection {
 	get waitingTurn(): string[] {
 		if (this.game?.phase !== 'running' || !this.order.length) return [];
 		return this.order.slice(this.turnIndex + 1);
-	}
-
-	/**
-	 * One player's story: their own lines, plus the ones the world says to
-	 * everybody. The map calls it with you, the brain with whoever is selected.
-	 */
-	feedFor(playerId: string | null): FeedEntry[] {
-		if (!playerId) return this.feed.filter((e) => !e.playerId);
-		return this.feed.filter((e) => e.playerId === playerId || !e.playerId);
 	}
 
 	get isHost(): boolean {
@@ -392,20 +396,22 @@ export class Connection {
 	}
 
 	/**
-	 * Add one line to the story, trimming only the player it belongs to.
+	 * Put one sentence on the board, belonging to the agent whose turn it is.
+	 *
+	 * Nothing here schedules a hand-off: a bubble simply stands until the next one
+	 * replaces it. That is what makes each of them last as long as it possibly can
+	 * — the question holds for as long as the brain is thinking, and the answer
+	 * holds for as long as the agent is walking.
 	 */
-	private keep(entry: Omit<FeedEntry, 'id'>): void {
-		const next = [...this.feed, { ...entry, id: ++this.seq }];
-		// One line goes in at a time, so at most one can need to come out.
-		let held = 0;
-		for (const line of next) if (line.playerId === entry.playerId) held++;
-		if (held > MAX_PER_PLAYER) {
-			next.splice(
-				next.findIndex((line) => line.playerId === entry.playerId),
-				1
-			);
-		}
-		this.feed = next;
+	private speak(kind: BubbleKind, playerId: string, text: string, title?: string): void {
+		const next = [...this.bubbles, { id: ++this.seq, kind, playerId, text, title }];
+		this.bubbles = next.slice(-BUBBLE_DEPTH);
+	}
+
+	/** Nobody is talking. Between turns, and between rounds. */
+	private hush(): void {
+		this.bubbles = [];
+		this.saidKnown = false;
 	}
 
 	private flash(kind: Effect['kind'], playerId: string, nodeId: string): void {
@@ -416,57 +422,9 @@ export class Connection {
 		}, 1400);
 	}
 
-	/**
-	 * Tell some of the story. Lines surface one at a time so the telling has a
-	 * rhythm; if the server gets ahead of us the queue drains faster rather than
-	 * falling behind the board.
-	 *
-	 * The pacing lives here rather than in the component that used to own it,
-	 * because the design has no narration card to own it any more — and without
-	 * it a whole turn would land in the feed in a single frame.
-	 */
-	private say(playerId: string, ...lines: { kind: FeedKind; text: string }[]): void {
-		this.queue.push(...lines.map((line) => ({ ...line, playerId })));
-		if (this.reveal) return;
-
-		const step = () => {
-			const next = this.queue.shift();
-			if (!next) {
-				if (this.reveal) clearInterval(this.reveal);
-				this.reveal = null;
-				return;
-			}
-			this.keep(next);
-		};
-
-		step();
-		// Sentences are spread across the server's beat, so turning PACE_SCALE up
-		// slows the telling itself rather than just adding dead air after it.
-		const stagger = 420 * (this.game?.paceScale ?? 1);
-		this.reveal = setInterval(() => {
-			// Backed up behind a fast server: catch up two at a time.
-			if (this.queue.length > 3) step();
-			step();
-		}, stagger);
-	}
-
-	/**
-	 * A new teller takes over.
-	 *
-	 * Drops anything still queued from the last turn, but keeps the story: the
-	 * feed is a history now, not a page that gets wiped.
-	 */
-	private newPage(): void {
-		if (this.reveal) clearInterval(this.reveal);
-		this.reveal = null;
-		this.queue = [];
-		this.saidRetracing = false;
-	}
-
 	/** Everything a new match must not inherit. */
 	private forgetStory(): void {
-		this.newPage();
-		this.feed = [];
+		this.hush();
 		this.summary = null;
 		this.effects = [];
 		this.lastStep = null;
@@ -565,17 +523,7 @@ export class Connection {
 				this.game = event.game;
 				this.activeId = null;
 				this.order = event.order;
-				this.newPage();
-				const n = this.t.narration;
-				const first = this.playerName(event.order[0] ?? '');
-				// The round belongs to nobody in particular, so it shows in every feed.
-				this.say(
-					'',
-					// Plain numerals: the roman ones belonged to the old storybook identity.
-					{ kind: 'lore', text: fmt(n.roundIs, { n: event.round }) },
-					{ kind: 'lore', text: n.backToStart },
-					{ kind: 'lore', text: fmt(n.goesFirst, { name: first }) }
-				);
+				this.hush();
 				return;
 			}
 
@@ -584,35 +532,14 @@ export class Connection {
 				this.activeId = event.playerId;
 				this.turnIndex = event.index;
 				this.turnTotal = event.total;
-				this.newPage();
-
-				const n = this.t.narration;
-				const carried = event.player.memory.length;
-				const lies = event.player.memory.filter((line) => line.sabotagedBy).length;
-				const who = event.playerId;
-				this.say(who, { kind: 'lore', text: fmt(n.setsOut, { name: event.player.name }) });
-				if (carried === 0) {
-					this.say(who, { kind: 'lore', text: n.knowsNothing });
-				} else {
-					this.say(who, {
-						kind: 'lore',
-						text: carried === 1 ? n.carriesOne : fmt(n.carriesMany, { n: carried })
-					});
-					// The best beat in the game: watching an agent walk off on a lie. It
-					// takes the injection styling because a planted line is exactly what
-					// it is warning about.
-					if (lies) {
-						this.say(who, {
-							kind: 'injection',
-							text: lies === 1 ? n.oneIsFalse : fmt(n.manyAreFalse, { n: lies })
-						});
-					}
-				}
+				// A new mouth: the last agent's turn must not hang over this one.
+				this.hush();
 				return;
 			}
 
 			case 'TURN_ENDED': {
 				this.replacePlayer(event.player);
+				this.hush();
 				return;
 			}
 
@@ -620,29 +547,46 @@ export class Connection {
 				this.game = event.game;
 				this.summary = event.summary;
 				this.activeId = null;
-				this.newPage();
-				this.say('', { kind: 'lore', text: event.summary.headline });
+				this.hush();
 				return;
 			}
 
 			case 'TEACHING_STARTED': {
 				this.game = event.game;
 				this.activeId = null;
-				this.newPage();
+				this.hush();
+				/*
+				 * The round is over and the writing window is open, so put the player
+				 * where the writing happens.
+				 *
+				 * This is the one screen change the game itself should make. The clue
+				 * row lives only in your own head now — the revised design took it off
+				 * the map — so leaving the player on a map with a dead clock means the
+				 * thirty seconds they get to teach their agent tick away behind a
+				 * screen with nothing to do on it. Landing on your own memory is also
+				 * what the mockup does.
+				 *
+				 * Your own head, explicitly: whoever you were reading last was probably
+				 * a rival, and the first thing to do with a new window is your own note.
+				 */
+				ui.view = 'brain';
+				ui.selectedId = this.you ?? '';
 				return;
 			}
 
 			case 'AGENT_THINKING': {
 				this.replacePlayer(event.player);
 				if (this.game) applyChoicesRevealed(this.game.tree, event.reveal);
+				// Ground it has already argued about gets no question: on a retrace the
+				// agent is hurrying, and re-posing a settled choice at every step would
+				// bury the one moment this bubble exists for.
 				if (!event.familiar) {
-					const n = this.t.narration;
 					const ways = event.reveal.choices.map((c) => c.label);
-					this.say(
+					this.speak(
+						'system',
 						event.playerId,
-						{ kind: 'lore', text: fmt(n.comesTo, { place: event.nodeTitle }) },
-						{ kind: 'lore', text: event.nodeDescription },
-						{ kind: 'lore', text: listWays(this.locale, ways) }
+						listWays(this.locale, ways),
+						fmt(this.t.narration.comesTo, { place: event.nodeTitle })
 					);
 				}
 				return;
@@ -657,20 +601,17 @@ export class Connection {
 					retrace: event.retrace
 				};
 				if (event.retrace) {
-					// Known road: said once, not once per step.
-					if (!this.saidRetracing) {
-						this.saidRetracing = true;
-						this.say(event.playerId, { kind: 'lore', text: this.t.narration.hurriesOn });
+					// Known ground: the agent is not deciding, it is recognising. Said once
+					// and then it gets on with it — once per step down a road it has
+					// already walked would be the same sentence eight times.
+					if (!this.saidKnown) {
+						this.saidKnown = true;
+						this.speak('move', event.playerId, this.t.narration.knowsTheWay);
 					}
 				} else {
-					this.say(
-						event.playerId,
-						{ kind: 'thought', text: event.reasoning },
-						{
-							kind: 'lore',
-							text: fmt(this.t.narration.takes, { choice: event.choiceLabel })
-						}
-					);
+					// Back on new ground, so the next known stretch earns the line again.
+					this.saidKnown = false;
+					this.speak('move', event.playerId, event.reasoning);
 				}
 				return;
 			}
@@ -678,14 +619,9 @@ export class Connection {
 			case 'AGENT_SURVIVED': {
 				this.replacePlayer(event.player);
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
+				// The flash on the board is the whole announcement now; the road holding
+				// is something you can see.
 				this.flash('survive', event.playerId, event.revealed.node.id);
-				// A step past everything anyone has ever managed deserves its own line.
-				this.say(
-					event.playerId,
-					event.record
-						? { kind: 'success', text: this.t.narration.record }
-						: { kind: 'success', text: this.t.narration.wayHolds }
-				);
 				return;
 			}
 
@@ -693,64 +629,38 @@ export class Connection {
 				this.replacePlayer(event.player);
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
 				this.flash('death', event.playerId, event.revealed.node.id);
-				this.say(
-					event.playerId,
-					{ kind: 'fail', text: this.t.narration.doesNotReturn },
-					{ kind: 'lore', text: event.epitaph }
-				);
+				this.speak('fail', event.playerId, this.t.narration.doesNotReturn);
 				return;
 			}
 
 			case 'AGENT_REACHED_HOME': {
 				this.replacePlayer(event.player);
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
+				// No bubble: reaching home ends the match, and the end card is a louder
+				// way of saying it than a sentence that would be swept away with it.
 				this.flash('win', event.playerId, event.revealed.node.id);
-				this.say(
-					event.playerId,
-					{ kind: 'success', text: this.t.narration.gateOpens },
-					{ kind: 'success', text: this.t.narration.isHome }
-				);
 				return;
 			}
 
 			case 'MEMORY_UPDATED': {
-				this.replacePlayer(event.player);
 				/*
-				 * Every player's clues, not just your own.
+				 * The player *is* the memory now.
 				 *
-				 * This used to be guarded to `event.playerId === this.you`, which was
-				 * fine when nothing rendered the log — but the brain screen shows a
-				 * rival's history, and their notes are the most interesting thing in
-				 * it. Nothing leaks: `PublicPlayer.memory` is already public to the
+				 * The brain screen reads `PublicPlayer.memory` straight, so replacing
+				 * the player is the whole update — there is no second copy of the notes
+				 * to keep in step. Nothing leaks: that memory is already public to the
 				 * whole table, which is what makes overwriting a line possible at all.
-				 *
-				 * Kept rather than said: a note is something a player just did, not a
-				 * beat of the narration, so it must not queue behind a turn being told.
 				 */
-				const added = event.memory.at(-1);
-				if (added) {
-					this.keep({
-						kind: 'clue',
-						playerId: event.playerId,
-						text: added.text,
-						lineId: added.id
-					});
-				}
+				this.replacePlayer(event.player);
 				return;
 			}
 
 			case 'SABOTAGE_USED': {
 				this.replacePlayer(event.player);
 				this.replacePlayer(event.actor);
-				/*
-				 * The injection belongs in the *victim's* story, not the actor's.
-				 *
-				 * It used to be filed under `actorId`, which read as "I did a thing"
-				 * in a log nobody looked at. The design puts it in the head it landed
-				 * in, which is where it does its damage and where the victim will
-				 * find it.
-				 */
-				this.keep({ kind: 'injection', playerId: event.targetId, text: event.after });
+				// The lie shows itself: the victim's own memory now carries both the
+				// line they wrote and the one that replaced it, in the liar's colour.
+				// The toast is only so they find out without being on that screen.
 				if (event.targetId === this.you) {
 					this.notify(
 						this.t.toast.sabotagedTitle,

@@ -9,6 +9,11 @@
 	 * how many rounds it took, how many letters were spent, the road that worked,
 	 * what you had written. That is the part players actually talk about
 	 * afterwards, and the design's card had nowhere to put it, so it scrolls.
+	 *
+	 * There is no way out of it but "play again", which is the revised design's call
+	 * and the right one: dismissing it left you looking at a finished board with a
+	 * dead clock and no way back to the card, which read as the app having lost the
+	 * result. The match is over — the only thing left to do is start another.
 	 */
 	import CharacterCard from './CharacterCard.svelte';
 	import Icon from './Icon.svelte';
@@ -17,8 +22,8 @@
 	import { fmt } from '$lib/i18n';
 	import { PLAYER_COLORS } from '$lib/client/theme';
 
-	type Props = { onPlayAgain: () => void; onClose: () => void };
-	let { onPlayAgain, onClose }: Props = $props();
+	type Props = { onPlayAgain: () => void };
+	let { onPlayAgain }: Props = $props();
 
 	const t = $derived(conn.t.end);
 	const tv = $derived(conn.t.victory);
@@ -41,16 +46,6 @@
 		role="dialog"
 		aria-modal="true"
 	>
-		<button
-			type="button"
-			onclick={onClose}
-			aria-label={t.close}
-			class="absolute -top-3.5 -right-2 z-10 grid h-14 w-14 place-items-center rounded-[18px]
-				bg-dark shadow-[0_10px_24px_rgba(0,0,0,0.3)] transition hover:bg-[#2A2E31]"
-		>
-			<Icon name="close" size={22} width={2.8} colour="#fff" />
-		</button>
-
 		<div class="pp-scroll max-h-[600px] overflow-y-auto px-[26px] pt-[34px] pb-[30px]">
 			<h2 class="text-center display text-4xl leading-tight text-balance text-white">
 				{youWon ? t.youWin : fmt(t.wins, { name: winner?.name ?? tv.nobody })}

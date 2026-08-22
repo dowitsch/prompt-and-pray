@@ -30,6 +30,20 @@ export function preferredLocale(candidates: readonly string[]): Locale {
 }
 
 /**
+ * "a, b or c" in the right language and with the right conjunction.
+ * Used for the list of paths at a crossroads.
+ */
+export function listWays(locale: Locale, ways: string[]): string {
+	const s = strings(locale);
+	if (ways.length === 1) return fmt(s.narration.waysOne, { a: ways[0] });
+	if (ways.length === 2) return fmt(s.narration.waysTwo, { a: ways[0], b: ways[1] });
+	return fmt(s.narration.waysMany, {
+		list: ways.slice(0, -1).join(', '),
+		last: ways.at(-1) ?? ''
+	});
+}
+
+/**
  * Split a template around one placeholder, so a component can wrap that part in
  * markup without `{@html}`.
  *
@@ -44,18 +58,4 @@ export function parts(
 ): { before: string; after: string } {
 	const [before = '', after = ''] = fmt(template, values).split(`{${key}}`);
 	return { before, after };
-}
-
-/**
- * "a, b or c" in the right language and with the right conjunction.
- * Used for the list of paths at a crossroads.
- */
-export function listWays(locale: Locale, ways: string[]): string {
-	const s = strings(locale);
-	if (ways.length === 1) return fmt(s.narration.waysOne, { a: ways[0] });
-	if (ways.length === 2) return fmt(s.narration.waysTwo, { a: ways[0], b: ways[1] });
-	return fmt(s.narration.waysMany, {
-		list: ways.slice(0, -1).join(', '),
-		last: ways.at(-1) ?? ''
-	});
 }

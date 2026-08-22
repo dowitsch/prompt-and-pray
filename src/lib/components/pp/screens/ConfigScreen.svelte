@@ -66,7 +66,7 @@
 		class="absolute top-[110px] right-8 left-8 flex h-[78px] items-center overflow-hidden
 			rounded-[39px] transition-colors duration-300"
 		style:background={mine}
-		style:border="2px solid {mine}"
+		style:border="4px solid {mine}"
 	>
 		{#if ui.editingName}
 			<!-- svelte-ignore a11y_autofocus -->
@@ -173,10 +173,12 @@
 					hover:scale-105 disabled:cursor-not-allowed disabled:hover:scale-100"
 				style:background={colour}
 				style:opacity={isTaken ? 0.35 : 1}
-				style:box-shadow={isMine ? '0 0 0 3px #fff' : 'none'}
+				style:box-shadow={isMine ? '0 0 0 4px #fff' : 'none'}
 			>
 				{#if isTaken}
-					<span class="absolute inset-x-1.5 h-0.5 -rotate-45 bg-white/75"></span>
+					<!-- A hairline read as a rendering artefact at this size; the revised
+						 design strikes the swatch with something you cannot mistake. -->
+					<span class="absolute inset-x-[3px] h-1 -rotate-45 rounded-sm bg-white/90"></span>
 				{/if}
 			</button>
 		{/each}

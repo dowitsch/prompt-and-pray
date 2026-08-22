@@ -72,29 +72,32 @@ export type Strings = {
 		/** Marks a SUCCESS ending on the board. */
 		mapHome: string;
 	};
+	/**
+	 * What the map says out loud.
+	 *
+	 * A handful of lines, and that is the whole of it: the revised design tells the
+	 * story in bubbles belonging to the agent that is walking, so most of the
+	 * world's old commentary has nowhere to be said and is no longer written.
+	 *
+	 * What survives is the decision itself — where the agent is standing and what
+	 * is in front of it — because that is what the pause before a choice is *for*.
+	 */
 	narration: {
-		roundIs: string;
-		backToStart: string;
-		goesFirst: string;
-		setsOut: string;
-		knowsNothing: string;
-		carriesOne: string;
-		carriesMany: string;
-		oneIsFalse: string;
-		manyAreFalse: string;
+		/** Where the agent has arrived. Heads the bubble that poses the choice. */
 		comesTo: string;
+		/** The roads on offer, as a question. One, two, and three-or-more. */
+		waysOne: string;
 		waysTwo: string;
 		waysMany: string;
-		waysOne: string;
-		hurriesOn: string;
-		takes: string;
-		wayHolds: string;
-		record: string;
+		/**
+		 * Said once when an agent starts down ground it has already proven.
+		 *
+		 * In the agent's own voice, like its reasoning, because that is what it is:
+		 * it is not deciding anything here, it is recognising the road.
+		 */
+		knowsTheWay: string;
+		/** The one line a death gets, in the dead agent's colour. */
 		doesNotReturn: string;
-		gateOpens: string;
-		isHome: string;
-		yourAgent: string;
-		turnOf: string;
 		/** Read out when a run spends its whole step budget without arriving. */
 		wandered: string;
 	};
@@ -250,6 +253,16 @@ export type Strings = {
 		mischiefSpent: string;
 		noNotes: string;
 		selectPlayer: string;
+		/** The flask on one of a rival's notes. Takes {n}, the line's number. */
+		poisonLine: string;
+		/** Read out on a poisoned line. Takes {name}, the rival who wrote over it. */
+		poisonedBy: string;
+		/** Your own list, before you have written anything. */
+		noNotesYet: string;
+		/** A rival's list, before they have. */
+		theirNoNotes: string;
+		/** Backing out of a chosen sabotage target. */
+		cancelInject: string;
 	};
 	/** The global menu and its sheets. */
 	menu: {
@@ -262,6 +275,8 @@ export type Strings = {
 	};
 	rules: {
 		title: string;
+		/** The one sentence that says what the game is. Set in bold above the rest. */
+		lead: string;
 		/** The body, one paragraph per entry. */
 		paragraphs: string[];
 	};

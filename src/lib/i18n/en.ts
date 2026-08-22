@@ -53,28 +53,12 @@ export const en: Strings = {
 		mapHome: 'HOME'
 	},
 	narration: {
-		roundIs: 'Round {n}.',
-		backToStart: 'All four go back to the beginning.',
-		goesFirst: '{name} goes first.',
-		setsOut: '{name} sets out.',
-		knowsNothing: 'It knows nothing at all.',
-		carriesOne: 'It carries one line.',
-		carriesMany: 'It carries {n} lines.',
-		oneIsFalse: 'One of them is false.',
-		manyAreFalse: '{n} of them are false.',
 		comesTo: 'It comes to {place}.',
+		waysOne: '{a}?',
 		waysTwo: '{a} or {b}?',
 		waysMany: '{list} or {last}?',
-		waysOne: '{a}?',
-		hurriesOn: 'It hurries along the road it knows.',
-		takes: 'It takes the {choice}.',
-		wayHolds: 'The way holds.',
-		record: 'No one has ever come this far.',
+		knowsTheWay: 'I know this road. I can feel the way in my bones.',
 		doesNotReturn: 'It does not come back.',
-		gateOpens: 'The gate opens.',
-		isHome: 'It is home.',
-		yourAgent: 'your agent',
-		turnOf: '{n} of {total}',
 		wandered: 'It walked until the light failed, and was no nearer home.'
 	},
 	carried: {
@@ -215,7 +199,12 @@ export const en: Strings = {
 		overwrites: 'overwrites \u201C{line}\u201D',
 		mischiefSpent: 'Your one mischief is spent',
 		noNotes: 'Nothing written yet',
-		selectPlayer: 'Show {name}'
+		selectPlayer: 'Show {name}',
+		poisonLine: 'Overwrite note {n}',
+		poisonedBy: 'Overwritten by {name}',
+		noNotesYet: 'You have not written anything yet.',
+		theirNoNotes: 'This agent has not been told anything yet.',
+		cancelInject: 'Leave this note alone'
 	},
 	menu: {
 		title: 'Menu',
@@ -227,12 +216,9 @@ export const en: Strings = {
 	},
 	rules: {
 		title: 'The rules',
+		lead: 'Four AI agents wander an undiscovered world, looking for the way home.',
 		paragraphs: [
-			'Your agent is lost in a strange land and trying to get home. At every place it must choose exactly one road. One road goes on. The others end its journey.',
-			'You never control it. Between rounds you get twenty characters to add to its memory, and that memory is the whole of what it carries into the next round. It trusts those notes more than its own instinct.',
-			'It remembers nothing else. Every round it sets out from the beginning again, knowing only what you have written down.',
-			'Once per match you may reach into a rival\u2019s memory and overwrite one of their lines with your own. They will not be told which one. Watching an agent walk off a cliff on a lie you planted is the best moment in the game.',
-			'The first agent to reach home wins the round.'
+			'You are their operator, and you never steer your agent directly. Between rounds you write a short prompt into its memory, and it trusts your notes more than its own instinct. Once per match you may overwrite one of a rival\u2019s prompts and send them into the dark on your lie. Whoever gets their agent safely home first wins.'
 		]
 	},
 	confirm: {

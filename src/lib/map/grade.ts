@@ -16,10 +16,16 @@
  */
 
 /** How much of the original colour survives. 0 is greyscale. */
-const SATURATION = 0.42;
+const SATURATION = 0.8;
 
-/** Overall exposure. The land wants to sit well below the UI's text. */
-const GAIN = 0.4;
+/**
+ * Overall exposure.
+ *
+ * The land still has to sit below the white narration and the coloured roads,
+ * but the first pass took that too literally and left the terrain closer to a
+ * silhouette than a place. Brighter reads as somewhere you could actually walk.
+ */
+const GAIN = 1.4;
 
 /**
  * How far everything is pulled towards the app's own dark.
@@ -28,7 +34,7 @@ const GAIN = 0.4;
  * (snow, sand) as glaring plates. Mixing towards a single near-black closes the
  * gap between biomes so the whole map reads as one place at one time of day.
  */
-const SETTLE = 0.34;
+const SETTLE = 0.2;
 
 /** `--color-dark`, so the ground and the chrome agree about what black is. */
 const BASE = [0x1c, 0x1f, 0x22];

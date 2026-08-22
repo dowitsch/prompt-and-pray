@@ -155,7 +155,9 @@ export function saveMatch(db: Db, game: Game): void {
 						lineId: line.id,
 						text: line.text,
 						writtenOnRound: line.addedOnRun,
-						sabotagedBy: line.sabotagedBy ?? null
+						sabotagedBy: line.sabotagedBy ?? null,
+						sabotagedById: line.sabotagedById ?? null,
+						originalText: line.originalText ?? null
 					})
 					.run();
 			}
@@ -393,7 +395,9 @@ function loadPlayers(db: Db, matchId: number, graph: StoryGraph): Player[] {
 					id: m.lineId,
 					text: m.text,
 					addedOnRun: m.writtenOnRound,
-					sabotagedBy: m.sabotagedBy ?? undefined
+					sabotagedBy: m.sabotagedBy ?? undefined,
+					sabotagedById: m.sabotagedById ?? undefined,
+					originalText: m.originalText ?? undefined
 				})),
 			agent,
 			runCount: row.runCount,

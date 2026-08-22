@@ -25,7 +25,8 @@
 		| 'question'
 		| 'cross'
 		| 'bang'
-		| 'map';
+		| 'map'
+		| 'flask';
 
 	type Props = {
 		name: Name;
@@ -99,6 +100,20 @@
 		<circle cx="12" cy="12" r="9" />
 		<path d="M12 11v6" />
 		<path d="M12 7.6v.6" />
+	</svg>
+{:else if name === 'flask'}
+	<!--
+		The poison bottle, filled. It is the only glyph in the set that has to read
+		as an *object* rather than a mark: it is what a player presses to lie to
+		somebody else's agent, and a stroked outline at 26px looked like a battery.
+	-->
+	<svg {...{ 'aria-hidden': 'true' }} width={size} height={size} viewBox="0 0 24 24" fill={colour}>
+		<path
+			d="M10.6 2.6h2.8v1.1h1.1v1.5l1.9 1.9c.7.7 1.1 1.6 1.1 2.6v7.2a2.6 2.6 0 01-2.6 2.6H9.1a2.6
+				2.6 0 01-2.6-2.6V9.7c0-1 .4-1.9 1.1-2.6l1.9-1.9V3.7h1.1zM12 8.6a3.4 3.4 0 00-3.4 3.4c0
+				1.2.6 2.2 1.5 2.8v1.3h1.2v-1h1.4v1h1.2v-1.3c.9-.6 1.5-1.6 1.5-2.8A3.4 3.4 0 0012
+				8.6zm-1.5 3a.9.9 0 110 1.8.9.9 0 010-1.8zm3 0a.9.9 0 110 1.8.9.9 0 010-1.8z"
+		/>
 	</svg>
 {:else if name === 'qr'}
 	<!-- Filled rather than stroked: at 24px the design's QR mark reads as blocks. -->

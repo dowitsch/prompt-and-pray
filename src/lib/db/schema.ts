@@ -340,7 +340,11 @@ export const memoryLines = sqliteTable(
 		text: text('text').notNull(),
 		writtenOnRound: integer('written_on_round').notNull(),
 		/** Name of the rival who overwrote this line, if any. */
-		sabotagedBy: text('sabotaged_by')
+		sabotagedBy: text('sabotaged_by'),
+		/** That rival's player id, which is what resolves to their colour. */
+		sabotagedById: text('sabotaged_by_id'),
+		/** What the line said before it was overwritten. The victim gets to see it. */
+		originalText: text('original_text')
 	},
 	(t) => [
 		unique('memory_lines_position').on(t.matchPlayerId, t.position),

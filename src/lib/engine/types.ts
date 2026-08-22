@@ -215,6 +215,24 @@ export type MemoryLine = {
 	addedOnRun: number;
 	/** Set when an opponent overwrote this line. */
 	sabotagedBy?: string;
+	/**
+	 * Who overwrote it, by id.
+	 *
+	 * `sabotagedBy` is a name, which is what a sentence needs; this is what a
+	 * *colour* needs. The brain screen shows a poisoned line in the poisoner's
+	 * colour, and colour lives on the player, not on their name — two players may
+	 * legitimately share a name, and a name cannot be looked up in the roster
+	 * without guessing.
+	 */
+	sabotagedById?: string;
+	/**
+	 * What the line said before it was overwritten.
+	 *
+	 * Kept so the victim can see what was taken from them: the brain screen draws
+	 * the original above the lie. The agent still reads only `text` — this is a
+	 * record for the player, not an input to the brain.
+	 */
+	originalText?: string;
 };
 
 /**

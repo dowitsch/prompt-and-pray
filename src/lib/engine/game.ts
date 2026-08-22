@@ -787,8 +787,12 @@ export class Game {
 		}
 
 		const before = line.text;
+		// First hit only: a line poisoned twice should still show what its *owner*
+		// wrote, not the previous liar's version.
+		line.originalText ??= line.text;
 		line.text = text || '…';
 		line.sabotagedBy = actor.name;
+		line.sabotagedById = actor.id;
 		actor.sabotageUsed = true;
 		target.wasSabotaged = true;
 		target.sabotagedThisRound = true;

@@ -55,8 +55,6 @@ export const ui = $state({
 	 * is only the note of what was tapped.
 	 */
 	peekId: '',
-	/** Set while the feed is scrolled away from the newest entry. */
-	feedStuck: false,
 
 	/* ---- config draft, before it is sent ---- */
 	character: 0,

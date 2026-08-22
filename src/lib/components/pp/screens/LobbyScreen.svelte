@@ -2,10 +2,11 @@
 	/**
 	 * Screen 3: who is here, and are we going.
 	 *
-	 * Five slots, as the design draws them, but the game seats four — so the fifth
-	 * is permanently the empty pill. That is not a bug to hide: an empty slot is
-	 * also what the fourth one looks like until somebody joins, and every empty seat
-	 * is taken by a simulated rival when the round starts.
+	 * Four slots, one per seat. The design used to draw five and the fifth was
+	 * permanently the empty pill; the revised design drops it, which is the honest
+	 * count — an empty slot means a seat somebody could still take, and a row that
+	 * never fills was only ever telling you the design was drawn before the rule.
+	 * Every seat still empty when the round starts is taken by a simulated rival.
 	 *
 	 * "Ready" becomes "Waiting" becomes the count. The count itself comes from the
 	 * server, so all four phones say the same number.
@@ -16,6 +17,7 @@
 	import { conn } from '$lib/client/connection.svelte';
 	import { colorOf } from '$lib/client/identity';
 	import { clock, secondsUntil, tick } from '$lib/client/clock.svelte';
+	import { MAX_PLAYERS } from '$lib/engine/types';
 
 	type Props = { onEditMine: () => void; onShowQr: () => void };
 	let { onEditMine, onShowQr }: Props = $props();
@@ -26,9 +28,13 @@
 	const game = $derived(conn.game);
 	const me = $derived(conn.me);
 
-	/** The design's five rows. `maxPlayers` decides how many can ever fill. */
-	const SLOTS = 5;
-	const slots = $derived(Array.from({ length: SLOTS }, (_, i) => (game?.players ?? [])[i] ?? null));
+	/** One row per seat, from the server rather than from the drawing. */
+	const slots = $derived(
+		Array.from(
+			{ length: game?.maxPlayers ?? MAX_PLAYERS },
+			(_, i) => (game?.players ?? [])[i] ?? null
+		)
+	);
 
 	const counting = $derived(secondsUntil(game?.startsAt ?? 0, clock.now));
 	const ready = $derived(Boolean(me?.ready));

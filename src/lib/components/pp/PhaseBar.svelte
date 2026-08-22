@@ -5,7 +5,6 @@
 	 * The countdown is `teachingEndsAt - now`: the server owns when the phase ends,
 	 * so this can never drift away from it or keep counting after it closed.
 	 */
-	import Icon from './Icon.svelte';
 	import { conn } from '$lib/client/connection.svelte';
 	import { clock, secondsUntil, tick } from '$lib/client/clock.svelte';
 	import { colorOf } from '$lib/client/identity';
@@ -31,20 +30,27 @@
 </script>
 
 <div
+	data-shot="phase-title"
 	class="min-w-0 flex-1 truncate display text-[19px] transition-colors duration-300"
 	style:color={teaching ? '#fff' : mine}
 >
 	{label}
 </div>
 
-<div class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl bg-dark">
+<!--
+	The badge is a countdown and nothing else, so it fades out rather than standing
+	there holding a clock face. A round has no deadline you can act on — that is
+	the server's business — and a ticking icon only invited you to wait for it.
+-->
+<div
+	class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl bg-dark
+		transition-opacity duration-300"
+	style:opacity={teaching ? 1 : 0}
+	aria-hidden={!teaching}
+>
 	{#if teaching}
 		<span class="display text-[22px] tabular-nums" style:color={mine} aria-live="polite">
 			{left}
-		</span>
-	{:else}
-		<span class="animate-pp-pulse">
-			<Icon name="clock" size={24} colour="#fff" />
 		</span>
 	{/if}
 </div>

@@ -79,14 +79,19 @@
 	/* ------------------------------------------------------------- constants */
 
 	/**
-	 * Pixels per world unit. Fixed — the map never zooms.
+	 * Pixels per world unit. Fixed — the map never zooms during play.
 	 *
 	 * The authored graph steps 150 units between rows, so this puts one step at
-	 * roughly 360px: most of a phone screen of travel per decision. The old board
-	 * drew the same step at 93px because it was trying to fit a whole tree in.
-	 * Nothing has to fit any more, which is the point.
+	 * about 240px: a decision costs most of the clear band above the story panel,
+	 * and roughly two steps of country are in frame at once. The old board drew
+	 * the same step at 93px because it had a whole tree to fit; nothing has to fit
+	 * any more, so this is set by how much land reads well rather than by extent.
+	 *
+	 * Everything else in the scene is authored in screen pixels and divided by
+	 * this, so tokens, pins and labels hold their size when it changes — the one
+	 * number to turn to reframe the map.
 	 */
-	const SCALE = 2.4;
+	const SCALE = 1.5;
 
 	/**
 	 * Where the watched token sits vertically, as a fraction of the frame.
@@ -108,20 +113,20 @@
 	const STUB_PX = 13;
 
 	/**
-	 * How far a signpost stub reaches before the fog takes it, in world units.
+	 * How far a signpost stub reaches before the fog takes it.
 	 *
-	 * A fixed distance, not a fraction of the road. A fraction was the first
-	 * attempt and it was wrong twice over: it made the fan visibly lopsided —
-	 * stubs to distant places were more than twice as long as stubs to near ones —
-	 * and, worse, it leaked. The length of a stub would have told the player how
-	 * far away a place is that nobody has been to yet, which is exactly the sort
-	 * of thing the fog exists to withhold. Every way out now looks the same until
-	 * someone walks it.
+	 * One fixed length for every way out, not a fraction of the road. A fraction
+	 * was the first attempt and it was wrong twice over: it made the fan visibly
+	 * lopsided — stubs to distant places were more than twice as long as stubs to
+	 * near ones — and, worse, it leaked. The length of a stub would have told the
+	 * player how far away a place is that nobody has been to yet, which is exactly
+	 * what the fog exists to withhold.
 	 *
-	 * Around 110px on screen: the story panel covers everything below 52%, so the
-	 * fan has roughly 150px of clear band to live in.
+	 * In screen pixels rather than world units so the fan keeps its proportions
+	 * if the map is reframed. The story panel covers everything below 52%, which
+	 * leaves the fan about 150px of clear band to live in.
 	 */
-	const STUB_LEN = 46;
+	const STUB_LEN = 110 / SCALE;
 
 	/** Never more than this much of a road, so a stub cannot reach its far end. */
 	const STUB_MAX = 0.4;

@@ -20,6 +20,8 @@
 		</button>
 	</div>
 	<div class="flex pp-scroll min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-[26px] pb-[26px]">
+		<!-- The lead says what the game *is*; the rest says how it works. -->
+		<p class="text-[15px] leading-relaxed font-bold text-white">{t.lead}</p>
 		{#each t.paragraphs as paragraph, i (i)}
 			<p class="text-sm leading-relaxed text-white/[0.82]">{paragraph}</p>
 		{/each}

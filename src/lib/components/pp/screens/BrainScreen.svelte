@@ -3,19 +3,20 @@
 	 * Screen 5: inside somebody's head.
 	 *
 	 * The ground is the selected player's colour, so which head you are in is never
-	 * in doubt. Your own is a read of your whole history; a rival's is where you
-	 * plant a lie.
+	 * in doubt. Your own is the list of prompts you have written; a rival's is
+	 * where you plant a lie.
 	 *
-	 * The design draws that as free text. The game gives you exactly one act of
-	 * mischief per match, and it *overwrites* a line rather than adding one — so
-	 * here you tap one of their notes to choose it, and only then can you type. That
-	 * keeps the rule intact and, better, makes the target visible: you can see
-	 * which of their beliefs you are about to replace.
+	 * The revised design makes the mischief a property of a *line* rather than of
+	 * the screen: each of a rival's notes carries its own flask, and pressing one
+	 * is how you choose what to overwrite. That is a better fit for the rule than
+	 * the free-text row it replaces — sabotage overwrites, so the target has to be
+	 * visible before you type, and now you cannot help but see which belief you are
+	 * about to replace.
 	 */
-	import Feed from '../Feed.svelte';
+	import PromptList from '../PromptList.svelte';
 	import ClueInput from '../ClueInput.svelte';
 	import BottomBar from '../BottomBar.svelte';
-	import Avatar from '../Avatar.svelte';
+	import ReachDots from '../ReachDots.svelte';
 	import Icon from '../Icon.svelte';
 	import DotMenu from '../DotMenu.svelte';
 	import { conn } from '$lib/client/connection.svelte';
@@ -34,7 +35,6 @@
 	);
 	const isMine = $derived(selected?.id === conn.you);
 	const ground = $derived(selected ? colorOf(selected) : '#F59D89');
-	const entries = $derived(conn.feedFor(selected?.id ?? null));
 
 	const teaching = $derived(game.phase === 'teaching');
 	const left = $derived(secondsUntil(game.teachingEndsAt, clock.now));
@@ -47,7 +47,17 @@
 	const spent = $derived(Boolean(me?.sabotageUsed));
 	const noNotes = $derived(!isMine && (selected?.memory.length ?? 0) === 0);
 
+	/** Why you cannot lie to this agent, if you cannot. */
 	const blocked = $derived(isMine ? null : spent ? t.mischiefSpent : noNotes ? t.noNotes : null);
+
+	/** A line may only be picked while there is still a lie left to tell. */
+	const canPick = $derived(!isMine && teaching && !spent && !noNotes);
+
+	/**
+	 * The row is not standing furniture any more: on your own list it is where you
+	 * write, on a rival's it only exists once you have chosen a line to overwrite.
+	 */
+	const showInput = $derived(isMine || Boolean(target));
 
 	// A different head means a different set of notes; the old pick is meaningless.
 	$effect(() => {
@@ -61,57 +71,79 @@
 	style:background="linear-gradient(178deg, {ground} 0%, {ground}DD 55%, {ground}B8 100%)"
 >
 	<div class="absolute top-[26px] right-5 left-6 z-[4] flex items-center gap-3.5">
-		{#if selected}
-			<Avatar player={selected} size={52} ring={2.5} ringColour="#fff" />
-		{/if}
-		<span class="min-w-0 flex-1 truncate display text-[22px] text-white">
-			{isMine ? t.yourOwn : (selected?.name ?? '')}
-		</span>
-		<span class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl bg-dark">
+		<div class="flex min-w-0 flex-1 flex-col gap-2">
+			<span data-shot="brain-name" class="truncate display text-[26px] text-white">
+				{isMine ? t.yourOwn : (selected?.name ?? '')}
+			</span>
+			<!-- How far this agent has ever got: the only score in the game. -->
+			<ReachDots reached={selected?.bestDepth ?? 0} total={game.depth} />
+		</div>
+		<!--
+			The badge is the clock, so it goes when there is nothing to count. The
+			mockup fades it rather than removing it, which keeps the row's rhythm while
+			a round runs.
+		-->
+		<span
+			class="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-2xl bg-dark
+				transition-opacity duration-300"
+			style:opacity={teaching ? 1 : 0}
+			aria-hidden={!teaching}
+		>
 			{#if teaching}
 				<span class="display text-[22px] text-white tabular-nums">{left}</span>
-			{:else}
-				<span class="animate-pp-pulse">
-					<Icon name="clock" size={24} colour="#fff" />
-				</span>
 			{/if}
 		</span>
 		<DotMenu padded={false} />
 	</div>
 
-	<!-- On this ground the tint is white; the colour is already the background. -->
-	<div class="absolute inset-x-0 top-24 bottom-[196px] flex flex-col">
-		<Feed
-			{entries}
-			tint="#fff"
-			injectionFill="rgba(255,255,255,0.42)"
-			selectableLineId={isMine || spent || noNotes ? null : ''}
-			selectedLineId={ui.injectLineId}
-			onSelectLine={(lineId) => (ui.injectLineId = lineId)}
-			gap={16}
-			padding="8px 18px 20px"
-			jumpBottom={12}
-		/>
-	</div>
-
-	<div
-		class="absolute inset-x-3.5 bottom-24 flex h-[88px] flex-col justify-end rounded-3xl bg-dark"
-	>
-		{#if isMine}
-			<ClueInput tint="#fff" onSend={(text) => conn.addMemory(text)} />
-		{:else}
-			<ClueInput
-				mode="inject"
-				tint="#fff"
-				targetLine={target?.text ?? null}
-				disabledReason={blocked}
-				onSend={(text) => {
-					ui.pendingInject = text;
-					ask('inject');
-				}}
+	<div class="absolute inset-x-0 top-[130px] bottom-[196px] flex flex-col">
+		{#if selected}
+			<PromptList
+				player={selected}
+				players={game.players}
+				mine={isMine}
+				selectable={canPick}
+				selectedLineId={ui.injectLineId}
+				onSelect={(lineId) => (ui.injectLineId = lineId)}
 			/>
 		{/if}
 	</div>
+
+	{#if showInput}
+		<div
+			class="animate-pp-rise absolute inset-x-[18px] bottom-24 flex h-[88px] flex-col justify-end
+				rounded-3xl bg-dark"
+		>
+			{#if isMine}
+				<ClueInput tint="#fff" onSend={(text) => conn.addMemory(text)} />
+			{:else}
+				<div class="flex items-end">
+					<!-- Backing out of a lie has to be as easy as starting one. -->
+					<button
+						type="button"
+						onclick={() => (ui.injectLineId = null)}
+						aria-label={t.cancelInject}
+						class="flex h-[52px] w-11 shrink-0 items-center justify-start pl-3.5 transition
+							hover:opacity-60"
+					>
+						<Icon name="cross" size={20} width={2.8} colour="#fff" />
+					</button>
+					<div class="min-w-0 flex-1">
+						<ClueInput
+							mode="inject"
+							tint="#fff"
+							targetLine={target?.text ?? null}
+							disabledReason={blocked}
+							onSend={(text) => {
+								ui.pendingInject = text;
+								ask('inject');
+							}}
+						/>
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<BottomBar
 		players={game.players}

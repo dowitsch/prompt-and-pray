@@ -55,28 +55,12 @@ export const de: Strings = {
 		mapHome: 'HEIM'
 	},
 	narration: {
-		roundIs: 'Runde {n}.',
-		backToStart: 'Alle vier kehren an den Anfang zurück.',
-		goesFirst: '{name} geht zuerst.',
-		setsOut: '{name} bricht auf.',
-		knowsNothing: 'Es weiß überhaupt nichts.',
-		carriesOne: 'Es trägt eine Zeile bei sich.',
-		carriesMany: 'Es trägt {n} Zeilen bei sich.',
-		oneIsFalse: 'Eine davon ist falsch.',
-		manyAreFalse: '{n} davon sind falsch.',
 		comesTo: 'Vor ihm: {place}.',
+		waysOne: '{a}?',
 		waysTwo: '{a} oder {b}?',
 		waysMany: '{list} oder {last}?',
-		waysOne: '{a}?',
-		hurriesOn: 'Es eilt den Weg entlang, den es kennt.',
-		takes: 'Es nimmt {choice}.',
-		wayHolds: 'Der Weg trägt.',
-		record: 'So weit ist noch niemand gekommen.',
+		knowsTheWay: 'Diesen Weg kenne ich. Ich spüre ihn in den Knochen.',
 		doesNotReturn: 'Es kehrt nicht zurück.',
-		gateOpens: 'Das Tor öffnet sich.',
-		isHome: 'Es ist zu Hause.',
-		yourAgent: 'dein Agent',
-		turnOf: '{n} von {total}',
 		wandered: 'Es ging, bis das Licht schwand, und war dem Heim nicht näher.'
 	},
 	carried: {
@@ -217,7 +201,12 @@ export const de: Strings = {
 		overwrites: '\u00fcberschreibt \u00ab{line}\u00bb',
 		mischiefSpent: 'Dein Streich ist verbraucht',
 		noNotes: 'Noch keine Notizen',
-		selectPlayer: '{name} anzeigen'
+		selectPlayer: '{name} anzeigen',
+		poisonLine: 'Hinweis {n} \u00fcberschreiben',
+		poisonedBy: 'Von {name} \u00fcberschrieben',
+		noNotesYet: 'Du hast noch nichts geschrieben.',
+		theirNoNotes: 'Dieser Charakter hat noch keine Hinweise erhalten.',
+		cancelInject: 'Diesen Hinweis in Ruhe lassen'
 	},
 	menu: {
 		title: 'Men\u00fc',
@@ -229,12 +218,9 @@ export const de: Strings = {
 	},
 	rules: {
 		title: 'Spielregeln',
+		lead: 'Vier KI-Agenten irren durch eine unentdeckte Welt auf der Suche nach dem Weg nach Hause.',
 		paragraphs: [
-			'Dein Agent hat sich in einem fremden Land verirrt und will nach Hause. An jedem Ort muss er genau einen Weg w\u00e4hlen. Ein Weg f\u00fchrt weiter. Die anderen beenden seine Reise.',
-			'Du f\u00fchrst ihn nie. Zwischen den Runden darfst du seinem Ged\u00e4chtnis zwanzig Buchstaben hinzuf\u00fcgen, und dieses Ged\u00e4chtnis ist alles, was er in die n\u00e4chste Runde mitnimmt. Er vertraut diesen Notizen mehr als seinem Gef\u00fchl.',
-			'Sonst erinnert er sich an nichts. Jede Runde bricht er wieder von vorne auf und weiss nur, was du aufgeschrieben hast.',
-			'Einmal pro Spiel darfst du in das Ged\u00e4chtnis eines Gegners greifen und eine seiner Zeilen durch deine ersetzen. Er erf\u00e4hrt nicht, welche. Einem Agenten zuzusehen, wie er auf deine L\u00fcge hin in den Abgrund l\u00e4uft, ist der sch\u00f6nste Moment im Spiel.',
-			'Wer als Erster nach Hause kommt, gewinnt die Runde.'
+			'Du steuerst als Operator deinen Agenten nicht direkt. \u00dcber die Runden schreibst du limitierte Prompts in sein Ged\u00e4chtnis. Er vertraut deinen Notizen mehr als seinem Gef\u00fchl. Einmal pro Spiel kannst du einen Prompt eines Rivalen \u00fcberschreiben und ihn mit deiner L\u00fcge ins Verderben senden. Wer seinen Agenten als erstes sicher nach Hause f\u00fchrt, gewinnt.'
 		]
 	},
 	confirm: {
