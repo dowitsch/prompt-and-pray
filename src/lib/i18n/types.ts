@@ -234,6 +234,10 @@ export type Strings = {
 		jumpToLatest: string;
 		toBrain: string;
 		toMap: string;
+		/** The title while somebody else's agent is walking. */
+		nowRunning: string;
+		/** Names the feed panel: whose history is in it. */
+		storyOf: string;
 		focusOn: string;
 		lettersLeft: string;
 	};

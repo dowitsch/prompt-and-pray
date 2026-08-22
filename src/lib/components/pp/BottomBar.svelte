@@ -28,6 +28,8 @@
 	let { players, youId, activeId, mode, onToggle, onPick }: Props = $props();
 
 	const t = $derived(conn.t.map);
+	/** Whose turn it is, so the roster shows the spotlight too. */
+	const telling = $derived(conn.game?.phase === 'running' ? conn.activeId : null);
 </script>
 
 <div class="absolute inset-x-3.5 bottom-[22px] flex items-center gap-3">
@@ -62,6 +64,7 @@
 			{@const picked = player.id === activeId}
 			<button
 				type="button"
+				class:animate-pp-pulse={mode === 'map' && player.id === telling}
 				data-me={player.id === youId ? '' : undefined}
 				onclick={() => onPick(player.id)}
 				aria-label={fmt(mode === 'map' ? t.focusOn : conn.t.brain.selectPlayer, {

@@ -16,3 +16,11 @@ bun.lockb
 
 # Imported design output — not ours to format.
 doc/Design/
+
+# Vendored PixiJS terrain spike, kept as the reference the real map was ported
+# from. A separate project with its own toolchain — not ours to format.
+doc/testmap-main/
+
+# Installed skill packs. Third-party docs, checked in by the skill installer.
+.agents/
+skills-lock.json

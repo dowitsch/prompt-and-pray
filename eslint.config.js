@@ -13,6 +13,11 @@ export default defineConfig(
 	// The imported design prototype and its runtime are build output from Claude
 	// Design, kept in the repo as the reference for the UI. Not ours to lint.
 	{ ignores: ['doc/Design/**'] },
+	// The PixiJS terrain spike src/lib/map was ported from. Its own project,
+	// with its own dependencies that are not installed here.
+	{ ignores: ['doc/testmap-main/**'] },
+	// Installed skill packs, not project source.
+	{ ignores: ['.agents/**'] },
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,

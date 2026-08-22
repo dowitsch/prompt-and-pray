@@ -47,8 +47,14 @@ export const ui = $state({
 	view: 'map' as GameView,
 	/** Whose brain is being read. Empty means "mine". */
 	selectedId: '',
-	/** Whose token the map camera is on. Empty means "mine". */
-	focusId: '',
+	/**
+	 * The player you tapped out of turn, if any. Empty means "follow the story".
+	 *
+	 * A peek takes the whole stage — camera and feed both — and lasts until the
+	 * next agent sets out. See `spotlight.svelte.ts`, which owns that rule; this
+	 * is only the note of what was tapped.
+	 */
+	peekId: '',
 	/** Set while the feed is scrolled away from the newest entry. */
 	feedStuck: false,
 

@@ -37,6 +37,25 @@ const shot = async (name) => {
 	console.log(`  ${OUT}/${name}.png`);
 };
 
+/**
+ * Hold until the map has land under it.
+ *
+ * The terrain is generated in a worker and streamed in a section at a time, so
+ * a fixed pause races it: on a cold cache the shot caught bare background, and
+ * the reviewer could not tell a slow worker from a broken one. Waiting on the
+ * canvas and then giving the first sections a beat makes the frames comparable
+ * between runs. The canvas is optional on purpose — a machine with no working
+ * WebGL still plays the game, and the run should say so rather than fail.
+ */
+const settled = async () => {
+	await page
+		.locator('[data-shot="map-canvas"] canvas')
+		.first()
+		.waitFor({ state: 'attached', timeout: 15000 })
+		.catch(() => console.log('  (no map canvas — flat ground)'));
+	await page.waitForTimeout(5000);
+};
+
 const tap = async (what, { optional = false } = {}) => {
 	const target = page.locator(`[data-shot="${what}"]`).first();
 	try {
@@ -78,7 +97,7 @@ await page.waitForTimeout(1200);
 await shot('3-countdown');
 
 await page.waitForURL('**/game/**', { timeout: 20000 });
-await page.waitForTimeout(5000);
+await settled();
 await shot('4-map');
 
 // Wait for a clue window, then spend the ration.
@@ -95,6 +114,31 @@ if (await clue.isEnabled().catch(() => false)) {
 	await page.waitForTimeout(600);
 }
 await shot('5-map-written');
+
+/*
+ * The spotlight. While a round runs the screen must belong to whoever's turn it
+ * is, not to the local player — that is the whole point of the feature, and the
+ * only way to see it is to watch the panel's name change as the turns pass.
+ */
+const spotlight = page.locator('[data-shot="spotlight-name"]');
+const mine = (await spotlight.textContent().catch(() => ''))?.trim() ?? '';
+const strip = page.locator('[data-shot="turn-strip"]');
+await strip.waitFor({ state: 'visible', timeout: 60000 }).catch(() => {});
+
+const seen = new Set();
+for (let i = 0; i < 40; i++) {
+	if (!(await strip.isVisible().catch(() => false))) break;
+	const name = (await spotlight.textContent().catch(() => ''))?.trim() ?? '';
+	if (name && !seen.has(name)) {
+		seen.add(name);
+		await shot(`5-spotlight-${seen.size}`);
+	}
+	await page.waitForTimeout(1500);
+}
+console.log(`  spotlight  mine=${mine} saw=[${[...seen].join(', ')}]`);
+if (![...seen].some((name) => name !== mine)) {
+	console.log('  WARN       the spotlight never left the local player');
+}
 
 // The other side of the toggle: somebody's whole history.
 await tap('toggle-view');

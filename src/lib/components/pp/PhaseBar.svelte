@@ -10,15 +10,19 @@
 	import { clock, secondsUntil, tick } from '$lib/client/clock.svelte';
 	import { colorOf } from '$lib/client/identity';
 
-	type Props = { title?: string | null };
-	let { title = null }: Props = $props();
+	type Props = {
+		title?: string | null;
+		/** The colour of whoever the screen currently belongs to. */
+		tint?: string | null;
+	};
+	let { title = null, tint = null }: Props = $props();
 
 	$effect(tick);
 
 	const t = $derived(conn.t.map);
 	const phase = $derived(conn.game?.phase ?? 'lobby');
 	const teaching = $derived(phase === 'teaching');
-	const mine = $derived(conn.me ? colorOf(conn.me) : '#fff');
+	const mine = $derived(tint ?? (conn.me ? colorOf(conn.me) : '#fff'));
 	const left = $derived(secondsUntil(conn.game?.teachingEndsAt ?? 0, clock.now));
 
 	const label = $derived(

@@ -203,6 +203,8 @@ export const en: Strings = {
 		jumpToLatest: 'Jump to the newest',
 		toBrain: 'Open the memory',
 		toMap: 'Open the map',
+		nowRunning: '{name} is walking',
+		storyOf: "{name}'s story",
 		focusOn: 'Show {name} on the map',
 		lettersLeft: '{n}/{total}'
 	},

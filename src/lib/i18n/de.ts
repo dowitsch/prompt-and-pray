@@ -205,6 +205,8 @@ export const de: Strings = {
 		jumpToLatest: 'Zum neuesten',
 		toBrain: 'Ged\u00e4chtnis \u00f6ffnen',
 		toMap: 'Karte \u00f6ffnen',
+		nowRunning: '{name} ist unterwegs',
+		storyOf: 'Verlauf von {name}',
 		focusOn: '{name} auf der Karte zeigen',
 		lettersLeft: '{n}/{total}'
 	},

@@ -24,6 +24,14 @@
 		padding?: string;
 		/** Where the jump-to-latest button sits, in px from the bottom. */
 		jumpBottom?: number;
+		/**
+		 * Change this when the entries stop being the same story.
+		 *
+		 * The spotlight swaps the whole set as the turn passes; without a reset the
+		 * reader inherits the last player's scroll position, landing in the middle
+		 * of a stranger's history with the jump button stuck on.
+		 */
+		resetKey?: string;
 	};
 
 	let {
@@ -35,7 +43,8 @@
 		onSelectLine,
 		gap = 14,
 		padding = '20px 18px 8px',
-		jumpBottom = 74
+		jumpBottom = 74,
+		resetKey = ''
 	}: Props = $props();
 
 	const t = $derived(conn.t.map);
@@ -56,6 +65,13 @@
 		box.scrollTo({ top: box.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
 		away = false;
 	}
+
+	// A different story: nobody chose to be scrolled up in it.
+	$effect(() => {
+		void resetKey;
+		away = false;
+		jump(false);
+	});
 
 	// Follow the newest line, unless the reader has deliberately gone looking.
 	$effect(() => {

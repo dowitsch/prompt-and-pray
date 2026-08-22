@@ -74,6 +74,25 @@ export type Effect = {
 };
 
 /**
+ * The step an agent has just committed to, for as long as it takes to walk it.
+ *
+ * The map needs `retrace`, and `retrace` exists only on the wire: the server
+ * replays proven ground more than ten times faster than it walks new ground
+ * (`RETRACE_ARRIVE` against `ARRIVE` in the runner's pace table), so a map that
+ * could not tell the two apart would either crawl through a known stretch or
+ * sprint through a discovery. Nothing else in the snapshot records which it was.
+ *
+ * `id` rather than a boolean because two identical steps in a row — a cycle
+ * walked twice — must still read as two separate departures.
+ */
+export type Step = {
+	id: number;
+	playerId: string;
+	choiceId: string;
+	retrace: boolean;
+};
+
+/**
  * One beat of the story, built up as the events arrive: where the agent is,
  * what it said, what it chose, and what came of it. The narration card renders
  * this single object, so the tale fills in rather than flickering.
@@ -152,6 +171,8 @@ export class Connection {
 	/** True once this turn has already announced it is retracing. */
 	private saidRetracing = false;
 	effects = $state<Effect[]>([]);
+	/** The step being walked right now. Never cleared; the map reads the id. */
+	lastStep = $state<Step | null>(null);
 	toast = $state<Toast | null>(null);
 	error = $state<string | null>(null);
 	/** True once the server has answered our opening HELLO. */
@@ -448,6 +469,7 @@ export class Connection {
 		this.feed = [];
 		this.summary = null;
 		this.effects = [];
+		this.lastStep = null;
 		this.activeId = null;
 		this.order = [];
 		this.turnIndex = 0;
@@ -628,6 +650,12 @@ export class Connection {
 
 			case 'AGENT_CHOICE': {
 				this.replacePlayer(event.player);
+				this.lastStep = {
+					id: ++this.seq,
+					playerId: event.playerId,
+					choiceId: event.choiceId,
+					retrace: event.retrace
+				};
 				if (event.retrace) {
 					// Known road: said once, not once per step.
 					if (!this.saidRetracing) {
