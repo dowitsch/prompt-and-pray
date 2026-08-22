@@ -14,7 +14,13 @@ const OUT = 'screenshots';
 mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({ channel: 'chrome' });
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+// The home page offers the language the browser asks for, and a match is told in
+// whichever one it was created with. Pin it, or the selectors below are a
+// coin toss on the machine running this. Set SHOT_LOCALE=de-DE for a German pass.
+const page = await browser.newPage({
+	viewport: { width: 1440, height: 900 },
+	locale: process.env.SHOT_LOCALE ?? 'en-US'
+});
 
 const errors = [];
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -42,7 +48,7 @@ await page.waitForURL('**/lobby/**');
 await page.waitForTimeout(400);
 await shot('2-lobby');
 
-await page.click('button:has-text("Start game")');
+await page.click('button:has-text("Begin the tale")');
 await page.waitForURL('**/game/**');
 
 // Round one: everyone sets out together.
@@ -50,7 +56,7 @@ await page.waitForTimeout(4500);
 await shot('3-round-one');
 
 const teach = page.locator('input[maxlength="20"]').first();
-const ready = page.locator('button:has-text("Start round")');
+const ready = page.locator('button:has-text("Send them out")');
 const written = new Set();
 let shotTeaching = false;
 let shotSabotage = false;
@@ -59,7 +65,7 @@ let shotMidRound = false;
 for (let round = 0; round < 40; round++) {
 	if (
 		await page
-			.locator('text=made it home')
+			.locator('text=And so')
 			.isVisible()
 			.catch(() => false)
 	)
@@ -77,7 +83,7 @@ for (let round = 0; round < 40; round++) {
 	}
 
 	// The recap panel names the choice that killed each agent this round.
-	const recap = page.locator('section:has-text("what happened")').first();
+	const recap = page.locator('section:has-text("Round")').first();
 	const mine = recap.locator('li:has-text("you")').first();
 	const killer = (
 		await mine
@@ -108,18 +114,18 @@ for (let round = 0; round < 40; round++) {
 			await shot('5-teaching');
 			shotTeaching = true;
 		}
-		await page.click('button:has-text("Add knowledge")');
+		await page.click('button:has-text("Inscribe")');
 		await page.waitForTimeout(200);
 	}
 
 	if (!shotSabotage) {
-		const sabotage = page.locator('button:has-text("Sabotage")').first();
+		const sabotage = page.locator('button:has-text("Mislead")').first();
 		if (await sabotage.isEnabled().catch(() => false)) {
 			await sabotage.click();
 			await page.waitForTimeout(400);
 			await shot('6-sabotage');
-			await page.fill('input[placeholder="Valley kills"]', 'Valley kills');
-			await page.click('button:has-text("Corrupt memory")');
+			await page.fill('input[placeholder="The valley kills"]', 'Valley kills');
+			await page.click('button:has-text("Write the lie")');
 			shotSabotage = true;
 			await page.waitForTimeout(300);
 		}
@@ -129,7 +135,7 @@ for (let round = 0; round < 40; round++) {
 	await page.waitForTimeout(3000);
 }
 
-await page.waitForSelector('text=made it home', { timeout: 180000 }).catch(() => {});
+await page.waitForSelector('text=And so', { timeout: 180000 }).catch(() => {});
 await page.waitForTimeout(1200);
 await shot('7-victory');
 

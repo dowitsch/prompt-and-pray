@@ -10,6 +10,11 @@ import type { Locale } from '../i18n/index.ts';
  */
 
 export type BrainChoice = {
+	/**
+	 * The choice's word-shaped handle (`StoryChoice.slug`), not its database id.
+	 * The prompt shows it to the model and the offline brain reads it as a
+	 * keyword, so it has to be a word — the runner translates it back.
+	 */
 	id: string;
 	label: string;
 };

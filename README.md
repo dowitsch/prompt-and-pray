@@ -58,8 +58,9 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-That's the whole setup. No API key, no database, no second process. Create a game, press
-**START**, and the three empty seats fill with simulated agents so one browser tab is enough.
+That's the whole setup. No API key, no second process, and no database step — the schema is
+migrated and the built-in stories seeded on boot. Create a game, press **START**, and the three
+empty seats fill with simulated agents so one browser tab is enough.
 
 To play with a real LLM instead of the offline brain, copy `.env.example` to `.env` and fill in
 one of the Apertus blocks. See **[docs/ai-integration.md](docs/ai-integration.md)** for the
@@ -69,11 +70,12 @@ provider, the prompt, the response contract, validation, and how to swap provide
 
 Three layers, deliberately separated:
 
-| Layer  | Path                                 | Responsibility                                                                                                                      |
-| ------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Engine | `src/lib/engine/`                    | Pure TypeScript. The map, the rules, and the **only** code that knows which choice is correct. No Svelte, no I/O, no `Math.random`. |
-| Server | `src/lib/server/`                    | Authoritative. In-memory games, the lockstep round loop, bots, and the WebSocket hub.                                               |
-| Client | `src/lib/components/`, `src/routes/` | Svelte 5 runes. Renders events and sends requests; decides nothing.                                                                 |
+| Layer  | Path                                 | Responsibility                                                                                                                            |
+| ------ | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Engine | `src/lib/engine/`                    | Pure TypeScript. The story graph, the rules, and the **only** code that knows where each road leads. No Svelte, no I/O, no `Math.random`. |
+| Data   | `src/lib/db/`                        | Drizzle + SQLite. Authored stories, and match state written through so a restart costs nothing.                                           |
+| Server | `src/lib/server/`                    | Authoritative. Live matches, the round loop, bots, and the WebSocket hub.                                                                 |
+| Client | `src/lib/components/`, `src/routes/` | Svelte 5 runes. Renders events and sends requests; decides nothing.                                                                       |
 
 The client never receives the map — only a **fogged** view of it (`src/lib/engine/fog.ts`).
 Node names and lethality arrive as agents discover them, so the solution is not in the browser
@@ -82,12 +84,14 @@ legal are all decided server-side and broadcast as events (`AGENT_THINKING`, `AG
 `SABOTAGE_USED`, …).
 
 WebSockets are mounted onto Vite's own HTTP server by a plugin (`src/lib/server/ws-plugin.ts`),
-which is why one command and one port are enough — and why match state survives client HMR.
-A deployed build would run the same `Hub` from an `adapter-node` server; the prototype targets
-`npm run dev`.
+which is why one command and one port are enough. `server.ts` mounts the same `Hub` on an
+`adapter-node` build for production, so dev and deploy cannot drift apart.
 
-> Note: because `vite.config.ts` imports the hub, editing anything under `src/lib/server/`
-> restarts the dev server and drops any match in progress. Edit between matches.
+A round's hot loop runs in memory, where it belongs, but its results are written through to
+SQLite at every event, so **a restart no longer costs anyone their match**. Editing anything
+under `src/lib/server/` still restarts the dev server; the match comes back between rounds
+rather than mid-turn. See _What survives a restart_ in
+[docs/story-schema.md](docs/story-schema.md).
 
 ## Dev tools
 
@@ -97,25 +101,59 @@ node scripts/simulate.mjs --quiet  # just the round recaps and the result
 ```
 
 Useful for checking the loop end to end and tuning bot difficulty without clicking.
-`scripts/shot.mjs` drives a real browser for screenshots (needs `npm i --no-save playwright-core`).
+`scripts/shot.mjs` and `scripts/shot-design.mjs` drive a real browser through the game and the
+designer respectively (both need `npm i --no-save playwright-core`).
 
 ## Checks
 
 ```bash
-npm run check     # svelte-check
-npm run lint      # prettier + eslint
+npm run check            # svelte-check
+npm run lint             # prettier + eslint
+npm run check:languages  # the offline brain still learns, in every language
+npm run check:graph      # the graph engine and the publish validator
 npm run format
 ```
 
-## Adding a map
+`check:languages` and `check:graph` are the two that catch a broken _game_ rather than broken
+code: the first that a player's handwritten notes still reach the agent in both languages, the
+second that reconvergence, setbacks, cycles and the validator's rules all behave.
 
-`src/lib/engine/map-homeward.ts` is data: a list of levels, each with three labelled choices and
-one marked `correct`. Death nodes and their epitaphs are generated from it, and
-`src/lib/engine/tree.ts` lays any such map out automatically. Keep choice labels free of shared
-words within a level — memory notes are matched by keyword.
+## Writing a story
+
+```bash
+npm run dev
+# then http://localhost:5173/design
+```
+
+Drag places onto the map, drag from a place's rim to another to lay a road, and mark where a run
+ends. The validator runs as you build and blocks publishing until the story is playable — the
+rule it earns its place with is the **keyword collision**: two roads out of one place may not
+share a word, or one twenty-character note names both and agents quietly stop learning.
+
+The schema, the reasoning behind it, and a worked example are in
+**[docs/story-schema.md](docs/story-schema.md)**.
+
+> The designer shows every answer and there is no login, so it is on in development and **off in
+> production** unless you set `DESIGNER=on`. Turn it on for an instance you author on; leave it
+> off for one people play on.
+
+## Deploying
+
+`fly.toml`, a two-stage `Dockerfile`, and `server.ts` are set up for Fly.io:
+
+```bash
+fly volumes create homeward_data --region fra --size 1
+fly deploy --ha=false          # ONE machine: see the note in fly.toml
+```
+
+Two constraints, both already true of the architecture: **one machine only** (the hub holds live
+matches in memory, and a Fly volume attaches to a single machine anyway), and the database lives
+on that volume at `/data`. Volume snapshots are daily with short retention — add Litestream if
+the data starts to matter.
 
 ## Scope
 
-A prototype of the core loop. No auth, no database, no matchmaking, no chat, no progression
-systems — the memory mechanic _is_ the progression system. Game state lives in memory and dies
-with the dev server.
+A prototype of the core loop. No auth, no matchmaking, no chat, no inventory, no stats, no
+progression systems — the memory mechanic _is_ the progression system. Extensions worth
+considering, and why each was left out, are listed at the end of
+[docs/story-schema.md](docs/story-schema.md).

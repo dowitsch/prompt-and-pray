@@ -15,7 +15,8 @@ import type { Locale } from '../i18n/index.ts';
  * knob rather than a difficulty system.
  */
 
-export type BotSkill = 'careless' | 'steady' | 'sharp';
+import type { BotSkill } from '../engine/types.ts';
+export type { BotSkill };
 
 type Weights = { useful: number; filler: number; wrong: number };
 

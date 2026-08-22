@@ -15,3 +15,6 @@ docs
 .env
 .env.*
 !.env.example
+
+# The local SQLite database. Production keeps its own on a volume.
+data

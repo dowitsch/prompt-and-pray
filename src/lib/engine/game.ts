@@ -3,22 +3,25 @@ import {
 	MEMORY_GRANT_CHARS,
 	TEACHING_SECONDS,
 	type Agent,
+	type BotSkill,
 	type ChoiceOutcome,
-	type DecisionChoice,
-	type DecisionMap,
-	type DecisionNode,
 	type GamePhase,
 	type MemoryLine,
 	type Player,
 	type RevealState,
 	type RoundOutcome,
 	type RoundSummary,
-	type RunRecord
+	type RunEnding,
+	type RunRecord,
+	type StoryChoice,
+	type StoryGraph,
+	type StoryNode
 } from './types.ts';
-import { layoutTree, type TreeLayout } from './tree.ts';
 import { fmt, strings, type Locale } from '../i18n/index.ts';
 import {
 	buildFoggedTree,
+	nodeKind,
+	outcomeToState,
 	type ChoicesRevealed,
 	type FoggedTree,
 	type NodeRevealed
@@ -76,13 +79,47 @@ export type GameSnapshot = {
 };
 
 export type ResolveResult = {
-	choice: DecisionChoice;
+	choice: StoryChoice;
 	outcome: ChoiceOutcome;
-	toNode: DecisionNode;
+	toNode: StoryNode;
 	depth: number;
 	run: RunRecord | null;
 	revealed: NodeRevealed;
 };
+
+/**
+ * Everything about a match that is not derivable from the story.
+ *
+ * The engine hands this out and takes it back; `src/lib/db/matches.ts` is what
+ * turns it into rows. Keeping the conversion outside means the engine still has
+ * no idea a database exists, and a match can be reconstituted exactly, including
+ * the parts that are nobody's business from outside — the fog, and who died
+ * where last round.
+ */
+export type MatchState = {
+	phase: GamePhase;
+	round: number;
+	teachingEndsAt: number;
+	hostId: string;
+	winnerIds: string[];
+	startedAt: number;
+	lastSummary: RoundSummary | null;
+	reveal: RevealState;
+	/** Node each player died at last round, for spotting a repeated mistake. */
+	previousDeaths: Record<string, string>;
+	players: Player[];
+};
+
+/** How a run that spent its step budget is handed back to the runner. */
+export type WanderResult = {
+	node: StoryNode;
+	run: RunRecord;
+	epitaph: string;
+	revealed: NodeRevealed;
+};
+
+/** What makes one rival different from another. Opaque to the engine. */
+export type BotTraits = { skill: BotSkill; sabotages: boolean };
 
 export class GameError extends Error {}
 
@@ -90,8 +127,7 @@ const SEAT_COUNT = MAX_PLAYERS;
 
 export class Game {
 	readonly code: string;
-	readonly map: DecisionMap;
-	readonly layout: TreeLayout;
+	readonly story: StoryGraph;
 	readonly createdAt = Date.now();
 
 	phase: GamePhase = 'lobby';
@@ -114,18 +150,40 @@ export class Game {
 
 	constructor(
 		code: string,
-		map: DecisionMap,
+		story: StoryGraph,
 		/** Every player in a match reads and writes the same language. */
 		readonly locale: Locale
 	) {
 		this.code = code;
-		this.map = map;
-		this.layout = layoutTree(map);
+		this.story = story;
+	}
+
+	/** The authoritative node record. Throws rather than return undefined. */
+	node(id: string): StoryNode {
+		const node = this.story.nodes[id];
+		if (!node) throw new GameError(`No node "${id}" in story ${this.story.id}.`);
+		return node;
+	}
+
+	/**
+	 * How much of the journey an agent standing here has actually completed.
+	 *
+	 * Measured as ground closed towards home, not as steps walked. A detour that
+	 * loops back to where it started took four steps and earns nothing, which is
+	 * the honest reading — and it stops a cycle from inflating the score.
+	 *
+	 * Somewhere home cannot be reached from at all scores zero; the agent keeps
+	 * whatever it had already earned, since `depth` only ever moves up.
+	 */
+	progressAt(nodeId: string): number {
+		const remaining = this.story.distanceHome[nodeId];
+		if (remaining === undefined) return 0;
+		return Math.max(0, this.story.parSteps - remaining);
 	}
 
 	/* ------------------------------------------------------------- lobby */
 
-	addPlayer(id: string, name: string, isBot = false): Player {
+	addPlayer(id: string, name: string, isBot = false, bot?: BotTraits): Player {
 		if (this.players.length >= SEAT_COUNT) throw new GameError('This game is full.');
 		if (this.phase !== 'lobby') throw new GameError('This game has already started.');
 		if (this.players.some((p) => p.id === id)) throw new GameError('You are already in this game.');
@@ -135,6 +193,8 @@ export class Game {
 			name: name.slice(0, 18) || `Agent ${this.players.length + 1}`,
 			seat: this.players.length,
 			isBot,
+			botSkill: bot?.skill,
+			botSabotages: bot?.sabotages,
 			// Bots are always present; only humans can drop out.
 			connected: true,
 			ready: false,
@@ -181,14 +241,14 @@ export class Game {
 		if (this.phase !== 'lobby') throw new GameError('Already started.');
 		if (this.players.length < 2) throw new GameError('Need at least two agents.');
 		this.startedAt = Date.now();
-		this.markVisited(this.map.startNode);
+		this.markVisited(this.story.startNode);
 	}
 
 	/* -------------------------------------------------------------- rounds */
 
 	private freshAgent(): Agent {
 		return {
-			currentNode: this.map.startNode,
+			currentNode: this.story.startNode,
 			status: 'idle',
 			decisions: [],
 			depth: 0,
@@ -224,7 +284,7 @@ export class Game {
 			};
 		}
 
-		this.markVisited(this.map.startNode);
+		this.markVisited(this.story.startNode);
 		return this.round;
 	}
 
@@ -261,8 +321,10 @@ export class Game {
 	endRound(): RoundSummary {
 		const outcomes: RoundOutcome[] = this.players.map((player) => {
 			const run = player.runs.at(-1) ?? null;
-			const fatal = run && !run.survived ? (run.decisions.at(-1) ?? null) : null;
-			const deathNode = run && !run.survived ? run.endedAt : null;
+			// Only an actual death has a road that killed it. A run that merely
+			// stopped, or ran out of daylight, was nobody's fault.
+			const fatal = run?.ending === 'died' ? (run.decisions.at(-1) ?? null) : null;
+			const deathNode = run?.ending === 'died' ? run.endedAt : null;
 
 			return {
 				playerId: player.id,
@@ -271,8 +333,9 @@ export class Game {
 				isBot: player.isBot,
 				depth: player.agent.depth,
 				survived: player.agent.status === 'home',
+				ending: run?.ending ?? 'wandered',
 				killedBy: fatal?.choiceLabel ?? null,
-				epitaph: deathNode ? (this.map.nodes[deathNode]?.epitaph ?? null) : null,
+				epitaph: deathNode ? (this.story.nodes[deathNode]?.description ?? null) : null,
 				repeatedMistake: Boolean(deathNode && this.previousDeaths.get(player.id) === deathNode),
 				wasSabotaged: player.sabotagedThisRound
 			};
@@ -280,7 +343,7 @@ export class Game {
 
 		for (const player of this.players) {
 			const run = player.runs.at(-1);
-			if (run && !run.survived) this.previousDeaths.set(player.id, run.endedAt);
+			if (run?.ending === 'died') this.previousDeaths.set(player.id, run.endedAt);
 			else this.previousDeaths.delete(player.id);
 		}
 
@@ -350,8 +413,8 @@ export class Game {
 		return fmt(h.furthest, { name: deepest.name, levels });
 	}
 
-	nodeFor(id: string): DecisionNode {
-		return this.map.nodes[this.getPlayer(id).agent.currentNode];
+	nodeFor(id: string): StoryNode {
+		return this.node(this.getPlayer(id).agent.currentNode);
 	}
 
 	/** Reveals the choice labels at the agent's current node. */
@@ -369,8 +432,62 @@ export class Game {
 	}
 
 	/**
-	 * The single source of truth for correct / wrong / dead / continue / HOME.
-	 * The LLM chose a label; this decides what that label costs.
+	 * Terminality is read off the node the agent lands on, never off the road it
+	 * took to get there. One source of truth: there is no way for an edge to
+	 * claim a death the destination disagrees with.
+	 */
+	private outcomeOf(node: StoryNode): ChoiceOutcome {
+		switch (node.endingType) {
+			case 'SUCCESS':
+				return 'win';
+			case 'FAILURE':
+				return 'death';
+			case 'NEUTRAL':
+				return 'end';
+			default:
+				return 'continue';
+		}
+	}
+
+	private revealOf(node: StoryNode, outcome: ChoiceOutcome, choiceId: string): NodeRevealed {
+		return {
+			choiceId,
+			state: outcomeToState(outcome),
+			node: {
+				id: node.id,
+				kind: nodeKind(node, node.id === this.story.startNode),
+				title: node.title,
+				description: node.description,
+				epitaph: node.endingType ? node.description : null
+			}
+		};
+	}
+
+	private finishRun(player: Player, node: StoryNode, ending: RunEnding): RunRecord {
+		player.agent.status = ending === 'home' ? 'home' : 'dead';
+		player.agent.thinking = false;
+
+		const run: RunRecord = {
+			index: this.round,
+			decisions: [...player.agent.decisions],
+			endedAt: node.id,
+			ending,
+			survived: ending === 'home',
+			depthReached: player.agent.depth
+		};
+		player.runs.push(run);
+
+		// Several agents can arrive in the same round; they all win. Turn order
+		// must never be what decides a match.
+		if (ending === 'home' && !this.winnerIds.includes(player.id)) {
+			this.winnerIds.push(player.id);
+		}
+		return run;
+	}
+
+	/**
+	 * The single source of truth for what a choice costs. The brain picked a
+	 * road; this decides where it goes and whether the story continues.
 	 */
 	resolveChoice(id: string, choiceId: string, reasoning: string): ResolveResult {
 		const player = this.getPlayer(id);
@@ -378,8 +495,8 @@ export class Game {
 		const choice = node.choices.find((c) => c.id === choiceId);
 		if (!choice) throw new GameError(`No such choice "${choiceId}" at ${node.id}.`);
 
-		const toNode = this.map.nodes[choice.nextNode];
-		const outcome = choice.outcome;
+		const toNode = this.node(choice.nextNode);
+		const outcome = this.outcomeOf(toNode);
 
 		player.agent.decisions.push({
 			nodeId: node.id,
@@ -394,30 +511,18 @@ export class Game {
 		this.reveal.takenChoices[choice.id] = outcome;
 		player.agent.currentNode = toNode.id;
 
-		if (outcome !== 'death') {
-			player.agent.depth += 1;
-			player.agent.bestDepth = Math.max(player.agent.bestDepth, player.agent.depth);
-		}
+		// Ground closed towards home, and only ever upwards: a setback that costs
+		// an agent progress does not un-earn what it already showed it could do.
+		player.agent.depth = Math.max(player.agent.depth, this.progressAt(toNode.id));
+		player.agent.bestDepth = Math.max(player.agent.bestDepth, player.agent.depth);
+
+		const ENDINGS = { win: 'home', death: 'died', end: 'ended' } as const;
 
 		let run: RunRecord | null = null;
-
-		if (outcome === 'death' || outcome === 'win') {
-			player.agent.status = outcome === 'win' ? 'home' : 'dead';
-			player.agent.thinking = false;
-			run = {
-				index: this.round,
-				decisions: [...player.agent.decisions],
-				endedAt: toNode.id,
-				survived: outcome === 'win',
-				depthReached: player.agent.depth
-			};
-			player.runs.push(run);
-			// Several agents can arrive in the same step; they all win.
-			if (outcome === 'win' && !this.winnerIds.includes(player.id)) {
-				this.winnerIds.push(player.id);
-			}
-		} else {
+		if (outcome === 'continue') {
 			this.markVisited(toNode.id);
+		} else {
+			run = this.finishRun(player, toNode, ENDINGS[outcome]);
 		}
 
 		return {
@@ -426,17 +531,32 @@ export class Game {
 			toNode,
 			depth: player.agent.depth,
 			run,
-			revealed: {
-				choiceId: choice.id,
-				state: outcome === 'death' ? 'lethal' : 'safe',
-				node: {
-					id: toNode.id,
-					kind: toNode.kind ?? 'path',
-					title: toNode.title,
-					description: toNode.description,
-					epitaph: toNode.epitaph ?? null
-				}
-			}
+			revealed: this.revealOf(toNode, outcome, choice.id)
+		};
+	}
+
+	/**
+	 * End a run that spent its whole step budget without reaching an ending.
+	 *
+	 * The alternative was to forbid cycles, but an agent walking in circles
+	 * because its notes contradict each other is one of the better things this
+	 * game produces. So the loop is legal and the daylight is finite.
+	 *
+	 * Note what this deliberately does *not* do: it does not mark the last road
+	 * taken as lethal. That road was survivable — the agent is standing on the
+	 * far side of it. Recording otherwise would teach every later round a lie.
+	 */
+	wander(id: string): WanderResult {
+		const player = this.getPlayer(id);
+		const node = this.nodeFor(id);
+		const run = this.finishRun(player, node, 'wandered');
+		const lastChoice = player.agent.decisions.at(-1)?.choiceId ?? '';
+
+		return {
+			node,
+			run,
+			epitaph: strings(this.locale).narration.wandered,
+			revealed: this.revealOf(node, 'continue', lastChoice)
 		};
 	}
 
@@ -503,6 +623,58 @@ export class Game {
 		return { target, before, after: line.text, lineIndex };
 	}
 
+	/* --------------------------------------------------- saving and loading */
+
+	exportState(): MatchState {
+		return {
+			phase: this.phase,
+			round: this.round,
+			teachingEndsAt: this.teachingEndsAt,
+			hostId: this.hostId,
+			winnerIds: this.winnerIds,
+			startedAt: this.startedAt,
+			lastSummary: this.lastSummary,
+			reveal: this.reveal,
+			previousDeaths: Object.fromEntries(this.previousDeaths),
+			players: this.players
+		};
+	}
+
+	/**
+	 * Put a match back the way it was.
+	 *
+	 * One thing deliberately does not survive: a round that was **in flight**. The
+	 * turn loop lives in the runner's stack and is not persisted, so a match
+	 * restored mid-round is reopened for teaching instead of resumed halfway
+	 * through somebody's turn. Everything that was earned — memory, the fog, who
+	 * has spent their sabotage, the round number — is kept.
+	 */
+	restore(state: MatchState): void {
+		this.phase = state.phase === 'running' ? 'teaching' : state.phase;
+		this.round = state.round;
+		this.teachingEndsAt = state.teachingEndsAt;
+		this.hostId = state.hostId;
+		this.winnerIds = state.winnerIds;
+		this.startedAt = state.startedAt;
+		this.lastSummary = state.lastSummary;
+		this.reveal = state.reveal;
+		this.previousDeaths = new Map(Object.entries(state.previousDeaths));
+		this.players = state.players;
+		this.memoryLineSeq = state.players.reduce(
+			(highest, player) =>
+				player.memory.reduce((max, line) => Math.max(max, Number(line.id.slice(1)) || 0), highest),
+			0
+		);
+
+		// An agent left standing in the middle of the land goes back to the start,
+		// because its run is not going to be finished.
+		for (const player of this.players) {
+			if (player.agent.status === 'running') {
+				player.agent = { ...this.freshAgent(), bestDepth: player.agent.bestDepth };
+			}
+		}
+	}
+
 	/* --------------------------------------------------------- snapshots */
 
 	private markVisited(nodeId: string): void {
@@ -512,7 +684,7 @@ export class Game {
 	}
 
 	foggedTree(): FoggedTree {
-		return buildFoggedTree(this.map, this.layout, this.reveal);
+		return buildFoggedTree(this.story, this.reveal);
 	}
 
 	publicPlayer(player: Player): PublicPlayer {
@@ -543,7 +715,7 @@ export class Game {
 			round: this.round,
 			teachingEndsAt: this.teachingEndsAt,
 			hostId: this.hostId,
-			depth: this.map.depth,
+			depth: this.story.parSteps,
 			players: this.players.map((p) => this.publicPlayer(p)),
 			tree: this.foggedTree(),
 			winnerIds: this.winnerIds,

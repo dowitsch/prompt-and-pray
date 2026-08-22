@@ -33,15 +33,21 @@
 	 * "the River", not "The River (a place you have never been)". Unwalked paths
 	 * show as ???, which is the whole point of the fog.
 	 */
+	const t = $derived(conn.t.game);
+	const homeNodes = $derived(new Set(tree.homeNodes));
+
 	const nodeLabel = $derived.by(() => {
-		const labels: Record<string, string> = {
-			[tree.startNode]: 'START',
-			[tree.homeNode]: 'HOME'
-		};
+		const labels: Record<string, string> = { [tree.startNode]: t.mapStart };
+		for (const home of tree.homeNodes) labels[home] = t.mapHome;
+
+		// Where several roads lead to one place — which a graph allows and a tree
+		// did not — any road whose name is known gets to name it, in preference to
+		// one still under fog.
 		for (const edge of tree.edges) {
-			if (edge.to === tree.homeNode) continue;
-			labels[edge.to] = edge.label ?? '???';
+			if (edge.label && !labels[edge.to]) labels[edge.to] = edge.label;
 		}
+		for (const edge of tree.edges) labels[edge.to] ??= '???';
+
 		return labels;
 	});
 
@@ -223,9 +229,11 @@
 			<!-- Nodes -->
 			<g>
 				{#each tree.nodes as node (node.id)}
-					{@const isHome = node.id === tree.homeNode}
+					{@const isHome = homeNodes.has(node.id)}
 					{@const isDeath = node.kind === 'death'}
 					{@const isUnknown = node.kind === 'unknown'}
+					<!-- A NEUTRAL ending: the road just stops. Neither a grave nor a gate. -->
+					{@const isStop = node.kind === 'end'}
 					{@const radius = isHome ? 26 : node.kind === 'start' ? 18 : 15}
 
 					<g class="node" style:transform="translate({node.x}px, {node.y}px)">
@@ -239,10 +247,26 @@
 
 						<circle
 							r={radius}
-							fill={isHome ? '#e8b45c' : isDeath ? '#1b1218' : isUnknown ? '#12131f' : '#1a1c2e'}
-							stroke={isHome ? '#f6d9a0' : isDeath ? '#5b2f33' : isUnknown ? '#2a2c42' : '#e8b45c'}
+							fill={isHome
+								? '#e8b45c'
+								: isDeath
+									? '#1b1218'
+									: isUnknown
+										? '#12131f'
+										: isStop
+											? '#171a24'
+											: '#1a1c2e'}
+							stroke={isHome
+								? '#f6d9a0'
+								: isDeath
+									? '#5b2f33'
+									: isUnknown
+										? '#2a2c42'
+										: isStop
+											? '#4a4636'
+											: '#e8b45c'}
 							stroke-width={isUnknown ? 1 : 1.8}
-							stroke-dasharray={isUnknown ? '3 4' : undefined}
+							stroke-dasharray={isUnknown ? '3 4' : isStop ? '5 3' : undefined}
 							filter={isHome
 								? 'url(#hard-glow)'
 								: !isUnknown && !isDeath

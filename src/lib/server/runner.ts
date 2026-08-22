@@ -97,6 +97,17 @@ export class MatchRunner {
 		void this.runRound();
 	}
 
+	/**
+	 * Pick a restored match back up between rounds.
+	 *
+	 * A restart takes the round that was in flight with it, so the match resumes
+	 * at the interval rather than mid-turn: everyone gets the teaching window they
+	 * were owed, and the next round runs normally from there.
+	 */
+	reopenTeaching(): void {
+		this.openTeaching();
+	}
+
 	stop(): void {
 		this.stopped = true;
 		for (const timer of this.timers) clearTimeout(timer);
@@ -188,7 +199,9 @@ export class MatchRunner {
 		});
 		await this.beat(PACE.TURN_INTRO);
 
-		for (let step = 0; step < this.game.map.depth + 2; step++) {
+		// The budget is the story's, not the turn's: a graph can loop, and this is
+		// what guarantees a run ends. Spending it all is its own ending.
+		for (let step = 0; step < this.game.story.stepBudget; step++) {
 			if (this.stopped) return;
 			if (player.agent.status !== 'running') break;
 
@@ -218,14 +231,15 @@ export class MatchRunner {
 				locale: this.game.locale,
 				nodeTitle: node.title,
 				nodeDescription: node.description,
-				choices: node.choices.map((c) => ({ id: c.id, label: c.label })),
+				// The brain picks by handle, never by database id.
+				choices: node.choices.map((c) => ({ id: c.slug, label: c.label })),
 				memory: player.memory.map((line) => line.text),
 				pathSoFar: player.agent.decisions.map((d) => d.choiceLabel)
 			};
 			const decision = await this.brain.decide(context);
 			// Last line of defence: the engine must never be handed a choice it
 			// does not offer, whatever the model said.
-			const chosen = node.choices.find((c) => c.id === decision.choice) ?? node.choices[0];
+			const chosen = node.choices.find((c) => c.slug === decision.choice) ?? node.choices[0];
 
 			// Stepping off the known road is worth watching even at a familiar
 			// crossroads, so the brisk pace needs both conditions together.
@@ -278,17 +292,35 @@ export class MatchRunner {
 				break;
 			}
 
+			// A FAILURE ending killed it; a NEUTRAL ending simply stopped it. Both
+			// end the run here, and the node's own text says which it was.
 			this.broadcast({
 				type: 'AGENT_DIED',
 				playerId: player.id,
 				player: this.game.publicPlayer(player),
 				choiceId: chosen.id,
-				epitaph: result.toNode.epitaph ?? result.toNode.description,
+				epitaph: result.toNode.description,
 				revealed: result.revealed,
 				run: result.run!
 			});
 			await this.beat(PACE.DEATH_HOLD);
 			break;
+		}
+
+		// Still walking with the budget spent: the daylight went before the road
+		// did. Ends the run without blaming the last road it took.
+		if (player.agent.status === 'running') {
+			const wandered = this.game.wander(player.id);
+			this.broadcast({
+				type: 'AGENT_DIED',
+				playerId: player.id,
+				player: this.game.publicPlayer(player),
+				choiceId: wandered.revealed.choiceId,
+				epitaph: wandered.epitaph,
+				revealed: wandered.revealed,
+				run: wandered.run
+			});
+			await this.beat(PACE.DEATH_HOLD);
 		}
 
 		this.broadcast({

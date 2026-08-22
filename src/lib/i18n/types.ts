@@ -38,6 +38,8 @@ export type Strings = {
 		join: string;
 		footer: string;
 		language: string;
+		/** Shown only when more than one tale is published in that language. */
+		whichTale: string;
 	};
 	lobby: {
 		passphrase: string;
@@ -65,6 +67,10 @@ export type Strings = {
 		teachingHint: string;
 		wholeLand: string;
 		follow: string;
+		/** Marks the opening node on the board. */
+		mapStart: string;
+		/** Marks a SUCCESS ending on the board. */
+		mapHome: string;
 	};
 	narration: {
 		roundIs: string;
@@ -89,6 +95,8 @@ export type Strings = {
 		isHome: string;
 		yourAgent: string;
 		turnOf: string;
+		/** Read out when a run spends its whole step budget without arriving. */
+		wandered: string;
 	};
 	carried: {
 		title: string;
@@ -129,6 +137,10 @@ export type Strings = {
 		home: string;
 		furthest: string;
 		lostAt: string;
+		/** Spent its whole step budget without arriving anywhere. */
+		wandered: string;
+		/** Reached an ending that was neither home nor a death. */
+		stopped: string;
 		asBefore: string;
 		onFalsePage: string;
 	};

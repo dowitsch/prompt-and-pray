@@ -16,7 +16,10 @@ export const en: Strings = {
 		seatsNote: 'Any empty seats are taken by agents of the tale, so one window is enough.',
 		passphrase: 'The word of passage',
 		join: 'Join',
-		footer: 'No name kept · no account · no record',
+		// Matches are stored on the server now, so they survive a restart. "No
+		// record" was true of the prototype and would be a lie here.
+		footer: 'No account · no password · nothing to sign up for',
+		whichTale: 'Which tale',
 		language: 'Language of the tale'
 	},
 	lobby: {
@@ -45,7 +48,9 @@ export const en: Strings = {
 		teachingHint:
 			'The four are back at the beginning. Give yours one more line before they set out again.',
 		wholeLand: 'The whole land',
-		follow: 'Follow'
+		follow: 'Follow',
+		mapStart: 'START',
+		mapHome: 'HOME'
 	},
 	narration: {
 		roundIs: 'Round {n}.',
@@ -69,7 +74,8 @@ export const en: Strings = {
 		gateOpens: 'The gate opens.',
 		isHome: 'It is home.',
 		yourAgent: 'your agent',
-		turnOf: '{n} of {total}'
+		turnOf: '{n} of {total}',
+		wandered: 'It walked until the light failed, and was no nearer home.'
 	},
 	carried: {
 		title: 'What {name} carries',
@@ -110,6 +116,8 @@ export const en: Strings = {
 		home: 'home',
 		furthest: 'furthest',
 		lostAt: 'lost at the {place}',
+		wandered: 'still walking when the light went',
+		stopped: 'the road simply ran out',
 		asBefore: '— as before',
 		onFalsePage: '— on a false page'
 	},

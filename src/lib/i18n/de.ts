@@ -20,7 +20,8 @@ export const de: Strings = {
 		seatsNote: 'Leere Plätze übernehmen Agenten der Geschichte, ein Fenster genügt also.',
 		passphrase: 'Das Losungswort',
 		join: 'Beitreten',
-		footer: 'Kein Name bleibt · kein Konto · keine Spur',
+		footer: 'Kein Konto · kein Passwort · nichts anzumelden',
+		whichTale: 'Welche Geschichte',
 		language: 'Sprache der Geschichte'
 	},
 	lobby: {
@@ -49,7 +50,9 @@ export const de: Strings = {
 		teachingHint:
 			'Die vier stehen wieder am Anfang. Schreib deinem noch eine Zeile, bevor sie erneut aufbrechen.',
 		wholeLand: 'Das ganze Land',
-		follow: 'Folgen'
+		follow: 'Folgen',
+		mapStart: 'START',
+		mapHome: 'HEIM'
 	},
 	narration: {
 		roundIs: 'Runde {n}.',
@@ -73,7 +76,8 @@ export const de: Strings = {
 		gateOpens: 'Das Tor öffnet sich.',
 		isHome: 'Es ist zu Hause.',
 		yourAgent: 'dein Agent',
-		turnOf: '{n} von {total}'
+		turnOf: '{n} von {total}',
+		wandered: 'Es ging, bis das Licht schwand, und war dem Heim nicht näher.'
 	},
 	carried: {
 		title: 'Was {name} bei sich trägt',
@@ -114,6 +118,8 @@ export const de: Strings = {
 		home: 'zu Hause',
 		furthest: 'am weitesten',
 		lostAt: 'verloren — {place}',
+		wandered: 'ging noch, als das Licht schwand',
+		stopped: 'der Weg hörte einfach auf',
 		asBefore: '— wie zuvor',
 		onFalsePage: '— auf einer falschen Seite'
 	},

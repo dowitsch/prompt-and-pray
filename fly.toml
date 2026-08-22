@@ -11,9 +11,34 @@ primary_region = "fra"
   auto_start_machines = true
   min_machines_running = 1
 
-# One machine only. A second would split the hub's in-memory state — the same
-# reason Vercel Functions cannot host this.
+# ONE MACHINE ONLY. A second machine splits the hub's in-memory state: the host
+# creates a game on machine A, a joiner lands on machine B, and they get
+# "No game with code XXXX" (hub.ts:196). This is the same reason Vercel Functions
+# cannot host this app.
+#
+# fly.toml cannot cap the count, and `fly launch`/`fly deploy` provision TWO
+# machines by default for HA. So always deploy with:
+#     fly deploy --ha=false
+# and verify with `fly status` that exactly one machine is listed
+# (`fly scale count 1` to fix it after the fact).
 [[vm]]
   memory = "512mb"
   cpu_kind = "shared"
   cpus = 1
+
+# The database. A volume attaches to exactly one machine, which is the same
+# single-machine rule the hub already imposes — so SQLite fits the architecture
+# rather than constraining it. Create it once, in the primary region:
+#     fly volumes create homeward_data --region fra --size 1
+#
+# Snapshots are daily with short retention. If the data starts to matter, add
+# Litestream for continuous replication; see docs/story-schema.md.
+[mounts]
+  source = "homeward_data"
+  destination = "/data"
+
+[env]
+  DATABASE_PATH = "/data/homeward.db"
+  # The designer shows every answer and there is no login. Off in production
+  # unless this instance is one you author on. See src/lib/server/designer.ts.
+  DESIGNER = "off"

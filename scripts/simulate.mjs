@@ -9,8 +9,9 @@
  * checking the loop end to end and for tuning bot difficulty without clicking.
  *
  * Options:
- *   --quiet      only round recaps and the result
- *   --rounds=N   give up after N rounds (default 25)
+ *   --quiet        only round recaps and the result
+ *   --rounds=N     give up after N rounds (default 25)
+ *   --story=<slug> play a designed tale rather than the built-in one
  */
 
 import WebSocket from 'ws';
@@ -26,6 +27,8 @@ const socket = new WebSocket(URL);
 const send = (message) => socket.send(JSON.stringify(message));
 
 let me = null;
+/** Par for this story: the recap's denominator. Every snapshot carries it. */
+let par = 0;
 let roundStartedAt = 0;
 const matchStartedAt = Date.now();
 const names = new Map();
@@ -64,10 +67,14 @@ function nextNote(outcome) {
 	return null;
 }
 
-socket.on('open', () => send({ type: 'CREATE_GAME', name: 'SIM' }));
+// --story=<slug> plays a designed tale instead of the built-in one.
+const STORY = args.find((a) => a.startsWith('--story='))?.split('=')[1];
+
+socket.on('open', () => send({ type: 'CREATE_GAME', name: 'SIM', storySlug: STORY }));
 
 socket.on('message', (raw) => {
 	const event = JSON.parse(String(raw));
+	if (event.game?.depth) par = event.game.depth;
 
 	switch (event.type) {
 		case 'GAME_CREATED': {
@@ -130,9 +137,9 @@ socket.on('message', (raw) => {
 				`\n  ROUND ${summary.round} (${((Date.now() - roundStartedAt) / 1000).toFixed(0)}s): ${summary.headline}`
 			);
 			for (const o of [...summary.outcomes].sort((a, b) => b.depth - a.depth)) {
-				const tag = o.survived ? 'HOME' : `died at ${o.killedBy}`;
+				const tag = o.survived ? 'HOME' : o.killedBy ? `died at ${o.killedBy}` : o.ending;
 				console.log(
-					`    ${o.name.padEnd(8)} ${String(o.depth).padStart(2)}/8  ${tag}${o.repeatedMistake ? ' (again)' : ''}${o.wasSabotaged ? ' (sabotaged)' : ''}`
+					`    ${o.name.padEnd(8)} ${String(o.depth).padStart(2)}/${par}  ${tag}${o.repeatedMistake ? ' (again)' : ''}${o.wasSabotaged ? ' (sabotaged)' : ''}`
 				);
 			}
 			if (summary.round >= MAX_ROUNDS) {
@@ -167,7 +174,7 @@ socket.on('message', (raw) => {
 			console.log('  standings:');
 			for (const p of [...event.game.players].sort((a, b) => b.bestDepth - a.bestDepth)) {
 				console.log(
-					`    ${p.name.padEnd(8)} best ${p.bestDepth}/8  memory ${p.memoryChars} chars${p.wasSabotaged ? '  (sabotaged)' : ''}`
+					`    ${p.name.padEnd(8)} best ${p.bestDepth}/${par}  memory ${p.memoryChars} chars${p.wasSabotaged ? '  (sabotaged)' : ''}`
 				);
 			}
 			console.log('');

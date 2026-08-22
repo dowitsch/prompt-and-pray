@@ -1,26 +1,33 @@
-import type { DecisionMap, RevealState, ChoiceOutcome } from './types.ts';
-import type { TreeLayout } from './tree.ts';
+import { edgeGeometry, viewBoxFor, type ViewBox } from './geometry.ts';
+import type { ChoiceOutcome, RevealState, StoryGraph } from './types.ts';
 
 /**
- * The fogged tree is the *only* view of the map a client ever receives.
+ * The fogged graph is the *only* view of the story a client ever receives.
  *
- * The silhouette is public — every player can see that the land is eight levels
- * deep and three ways wide. What is secret is which of the three ways at each
- * level is survivable. So geometry ships immediately, while labels and
+ * The silhouette is public — every player can see the shape of the land, how
+ * many ways lead out of each place, and where home is. What is secret is which
+ * of those ways is survivable. So geometry ships immediately, while names and
  * lethality arrive only as agents discover them.
  *
- * Because the browser never imports the map module, the solution is not in the
+ * Because the browser never imports the story loader, the answer is not in the
  * client bundle. Peeking at devtools shows fog, same as everyone else.
  */
 
-export type FoggedNodeKind = 'start' | 'path' | 'death' | 'home' | 'unknown';
+export type FoggedNodeKind =
+	| 'start'
+	| 'path'
+	/** A FAILURE ending. */
+	| 'death'
+	/** A SUCCESS ending. */
+	| 'home'
+	/** A NEUTRAL ending: the road simply stops. */
+	| 'end'
+	| 'unknown';
 
 export type FoggedNode = {
 	id: string;
 	x: number;
 	y: number;
-	level: number;
-	lane: 'spine' | 'left' | 'right';
 	kind: FoggedNodeKind;
 	/** Null until discovered. */
 	title: string | null;
@@ -45,12 +52,14 @@ export type FoggedEdge = {
 export type FoggedTree = {
 	mapName: string;
 	tagline: string;
+	/** Par for the course: the shortest route home, as a progress denominator. */
 	depth: number;
 	startNode: string;
-	homeNode: string;
+	/** Every SUCCESS ending, marked from the start as HOME always was. */
+	homeNodes: string[];
 	nodes: FoggedNode[];
 	edges: FoggedEdge[];
-	viewBox: { minX: number; minY: number; width: number; height: number };
+	viewBox: ViewBox;
 };
 
 /** The delta emitted when an agent arrives somewhere and sees its options. */
@@ -72,77 +81,97 @@ export type NodeRevealed = {
 	};
 };
 
-function outcomeToState(outcome: ChoiceOutcome): FoggedEdgeState {
+/**
+ * Only a FAILURE ending marks a road lethal. Everything else — including a run
+ * that merely stopped there — leaves the road honestly drawn as survivable, so
+ * later rounds are not taught something untrue.
+ */
+export function outcomeToState(outcome: ChoiceOutcome): FoggedEdgeState {
 	return outcome === 'death' ? 'lethal' : 'safe';
 }
 
+export function nodeKind(
+	node: { endingType: string | null },
+	isStart: boolean
+): Exclude<FoggedNodeKind, 'unknown'> {
+	if (node.endingType === 'SUCCESS') return 'home';
+	if (node.endingType === 'FAILURE') return 'death';
+	if (node.endingType === 'NEUTRAL') return 'end';
+	return isStart ? 'start' : 'path';
+}
+
 /**
- * Build the client's view of the map from the authoritative map plus what has
- * been discovered so far. Used for the initial sync and for reconnects.
+ * An ending node's body text *is* its epitaph — the line read out when a run
+ * stops there. Anywhere else there is nothing to read out.
  */
-export function buildFoggedTree(
-	map: DecisionMap,
-	layout: TreeLayout,
-	reveal: RevealState
-): FoggedTree {
+function epitaphOf(node: { endingType: string | null; description: string }): string | null {
+	return node.endingType ? node.description : null;
+}
+
+/**
+ * Build the client's view of the story from the authoritative graph plus what
+ * has been discovered so far. Used for the initial sync and for reconnects.
+ */
+export function buildFoggedTree(graph: StoryGraph, reveal: RevealState): FoggedTree {
 	const visited = new Set(reveal.visitedNodes);
 	const taken = reveal.takenChoices;
 
+	const nodes = Object.values(graph.nodes);
+
 	// A node is discovered if an agent stood on it, or if a choice leading into
-	// it has been taken (you learn what a place is by dying in it).
+	// it has been taken (you learn what a place is by dying in it). SUCCESS
+	// endings are public: you can always see what you are walking towards.
 	const discovered = new Set(visited);
-	for (const edge of layout.edges) {
-		if (taken[edge.choiceId]) discovered.add(edge.to);
+	discovered.add(graph.startNode);
+	for (const home of graph.homeNodes) discovered.add(home);
+
+	const edges: FoggedEdge[] = [];
+	for (const from of nodes) {
+		for (const choice of from.choices) {
+			const to = graph.nodes[choice.nextNode];
+			if (!to) continue;
+
+			const outcome = taken[choice.id];
+			if (outcome) discovered.add(to.id);
+
+			const geometry = edgeGeometry(from.x, from.y, to.x, to.y);
+			edges.push({
+				choiceId: choice.id,
+				from: from.id,
+				to: to.id,
+				...geometry,
+				// Labels become visible once an agent has stood at the parent node: it
+				// is looking at the same signposts the player is.
+				label: visited.has(from.id) || outcome ? choice.label : null,
+				state: outcome ? outcomeToState(outcome) : 'unknown'
+			});
+		}
 	}
-	discovered.add(map.startNode);
-
-	const nodes: FoggedNode[] = layout.orderedNodes.map((n) => {
-		const source = map.nodes[n.id];
-		const known = discovered.has(n.id);
-		return {
-			id: n.id,
-			x: n.x,
-			y: n.y,
-			level: n.level,
-			lane: n.lane,
-			kind: known ? n.kind : 'unknown',
-			title: known ? source.title : null,
-			description: known ? source.description : null,
-			epitaph: known ? (source.epitaph ?? null) : null
-		};
-	});
-
-	const edges: FoggedEdge[] = layout.edges.map((e) => {
-		const outcome = taken[e.choiceId];
-		// Labels become visible once an agent has stood at the parent node: it
-		// is looking at the same three signposts the player is.
-		const labelKnown = visited.has(e.from) || Boolean(outcome);
-		return {
-			choiceId: e.choiceId,
-			from: e.from,
-			to: e.to,
-			d: e.d,
-			labelX: e.labelX,
-			labelY: e.labelY,
-			label: labelKnown ? e.label : null,
-			state: outcome ? outcomeToState(outcome) : 'unknown'
-		};
-	});
 
 	return {
-		mapName: map.name,
-		tagline: map.tagline,
-		depth: map.depth,
-		startNode: map.startNode,
-		homeNode: map.homeNode,
-		nodes,
+		mapName: graph.name,
+		tagline: graph.tagline,
+		depth: graph.parSteps,
+		startNode: graph.startNode,
+		homeNodes: graph.homeNodes,
+		nodes: nodes
+			.map((node) => {
+				const known = discovered.has(node.id);
+				return {
+					id: node.id,
+					x: node.x,
+					y: node.y,
+					kind: known ? nodeKind(node, node.id === graph.startNode) : ('unknown' as FoggedNodeKind),
+					title: known ? node.title : null,
+					description: known ? node.description : null,
+					epitaph: known ? epitaphOf(node) : null
+				};
+			})
+			// Painted top to bottom, so a node's card overlaps the one above it
+			// rather than the other way round.
+			.sort((a, b) => a.y - b.y || a.x - b.x),
 		edges,
-		viewBox: {
-			minX: layout.minX,
-			minY: layout.minY,
-			width: layout.width,
-			height: layout.height
-		}
+		viewBox: viewBoxFor(nodes)
 	};
 }
 

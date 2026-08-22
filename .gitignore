@@ -28,3 +28,9 @@ doc/apertus-*.md
 
 # Local dev artefacts
 screenshots/
+# The SQLite database is per-environment; `npm run db:migrate && npm run db:seed`
+# rebuilds it. On Fly it lives on a volume at /data.
+data/
+# Scratch worktrees. Left in place they shadow the tsconfig root and eslint
+# reports a parse error for every file in the project.
+.claude/worktrees/

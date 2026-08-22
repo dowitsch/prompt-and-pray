@@ -14,7 +14,12 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"simulate": "node scripts/simulate.mjs",
-		"check:languages": "node --experimental-strip-types scripts/check-languages.ts"
+		"check:languages": "node --experimental-strip-types scripts/check-languages.ts",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "node --experimental-strip-types scripts/migrate.ts",
+		"db:seed": "node --experimental-strip-types scripts/seed.ts",
+		"db:studio": "drizzle-kit studio",
+		"check:graph": "node --experimental-transform-types scripts/check-graph.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -24,8 +29,10 @@
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.3.0",
+		"@types/better-sqlite3": "^9.6.0",
 		"@types/node": "^22",
 		"@types/ws": "^8.18.1",
+		"drizzle-kit": "^0.31.10",
 		"eslint": "^10.4.1",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.19.0",
@@ -41,6 +48,8 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
+		"better-sqlite3": "^13.0.3",
+		"drizzle-orm": "^0.45.2",
 		"ws": "^8.21.3"
 	}
 }

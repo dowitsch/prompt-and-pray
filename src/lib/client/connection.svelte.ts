@@ -90,6 +90,17 @@ export type Toast = {
 	tone: 'danger' | 'good';
 };
 
+/**
+ * Whether the page we are on is part of a match.
+ *
+ * The socket is opened by the root layout, so it is live on every page in the
+ * app — including the story designer, which has nothing to do with a match. Only
+ * the pages that are actually a match may be navigated by what the socket says.
+ */
+function atTheTable(): boolean {
+	return /^\/(game|lobby)\//.test(location.pathname);
+}
+
 const STORAGE_PLAYER = 'homeward:playerId';
 const STORAGE_LOCALE = 'homeward:locale';
 const STORAGE_CODE = 'homeward:code';
@@ -259,9 +270,9 @@ export class Connection {
 
 	/* ---------------------------------------------------------------- intents */
 
-	createGame(name: string): void {
+	createGame(name: string, storySlug?: string): void {
 		this.error = null;
-		this.send({ type: 'CREATE_GAME', name, locale: this.preference });
+		this.send({ type: 'CREATE_GAME', name, locale: this.preference, storySlug });
 	}
 
 	joinGame(code: string, name: string): void {
@@ -395,7 +406,10 @@ export class Connection {
 				this.synced = true;
 				if (!event.game || !event.you) {
 					// The server has no memory of us — start over from the front door.
-					if (browser && location.pathname !== '/') {
+					// Only from a table we were supposedly sitting at: this connection is
+					// opened on every page, and pages that are not the game (the story
+					// designer, say) have no business being redirected by it.
+					if (browser && atTheTable()) {
 						this.leave();
 						void goto(resolve('/'));
 					}
@@ -404,7 +418,10 @@ export class Connection {
 				this.you = event.you;
 				this.game = event.game;
 				this.summary = event.game.lastSummary;
-				if (browser) {
+				// Rejoining carries you back to your match — but only from the front
+				// door or from another of its own pages. Being dragged out of the
+				// designer into a match you left open is not a rescue.
+				if (browser && (location.pathname === '/' || atTheTable())) {
 					const target =
 						event.game.phase === 'lobby'
 							? resolve('/lobby/[code]', { code: event.game.code })

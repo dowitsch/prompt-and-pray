@@ -20,7 +20,13 @@ export const WS_PATH = '/ws';
 
 export type ClientMessage =
 	| { type: 'HELLO'; playerId: string | null; code: string | null }
-	| { type: 'CREATE_GAME'; name: string; locale: Locale }
+	| {
+			type: 'CREATE_GAME';
+			name: string;
+			locale: Locale;
+			/** Slug of a published story; the built-in one for this language if absent. */
+			storySlug?: string;
+	  }
 	| { type: 'JOIN_GAME'; code: string; name: string }
 	| { type: 'SET_READY'; ready: boolean }
 	| { type: 'START_GAME' }

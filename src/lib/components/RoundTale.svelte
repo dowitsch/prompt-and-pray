@@ -57,6 +57,15 @@
 								{t.onFalsePage}</span
 							>{/if}
 					</p>
+				{:else if outcome.ending === 'wandered' || outcome.ending === 'ended'}
+					<!-- Neither home nor killed: nothing to blame, so nothing is named. -->
+					<p class="mt-0.5 text-[13px] text-quill">
+						{outcome.ending === 'wandered' ? t.wandered : t.stopped}{#if outcome.wasSabotaged}<span
+								class="text-rose/80 italic"
+							>
+								{t.onFalsePage}</span
+							>{/if}
+					</p>
 				{/if}
 			</li>
 		{/each}
