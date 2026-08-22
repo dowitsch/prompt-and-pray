@@ -147,7 +147,8 @@ export const en: Strings = {
 		sabotagedBody: '{actor} rewrote line {line}: "{before}" became "{after}".',
 		joinedTitle: 'ANOTHER TELLER',
 		joinedBody: '{name} joined the tale.',
-		reconnecting: 'The thread broke — finding it again'
+		reconnecting: 'The thread broke — finding it again',
+		offline: 'The thread is lost — reload to begin again'
 	},
 	headlines: {
 		oneHome: '{name} walked through the gate.',

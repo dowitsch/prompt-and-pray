@@ -166,6 +166,8 @@ export type Strings = {
 		joinedTitle: string;
 		joinedBody: string;
 		reconnecting: string;
+		/** Terminal: retrying gave up and the page needs a reload. */
+		offline: string;
 	};
 	/** One line of story for a whole round, chosen by the engine. */
 	headlines: {

@@ -36,10 +36,10 @@
 	</div>
 {/if}
 
-{#if conn.status === 'closed'}
+{#if conn.status === 'closed' || conn.status === 'offline'}
 	<div class="fixed top-0 right-0 left-0 z-40 bg-rose/90 py-1 text-center">
 		<span class="font-mono text-[10px] tracking-[0.2em] text-night uppercase">
-			{conn.t.toast.reconnecting}
+			{conn.status === 'offline' ? conn.t.toast.offline : conn.t.toast.reconnecting}
 		</span>
 	</div>
 {/if}

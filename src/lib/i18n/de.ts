@@ -151,7 +151,8 @@ export const de: Strings = {
 		sabotagedBody: '{actor} schrieb Zeile {line} um: aus „{before}“ wurde „{after}“.',
 		joinedTitle: 'NOCH EIN ERZÄHLER',
 		joinedBody: '{name} ist der Geschichte beigetreten.',
-		reconnecting: 'Der Faden riss — er wird wieder gesucht'
+		reconnecting: 'Der Faden riss — er wird wieder gesucht',
+		offline: 'Der Faden ist verloren — neu laden, um neu zu beginnen'
 	},
 	headlines: {
 		oneHome: '{name} ging durch das Tor.',

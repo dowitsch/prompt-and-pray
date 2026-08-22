@@ -18,7 +18,9 @@ import WebSocket from 'ws';
 const args = process.argv.slice(2);
 const QUIET = args.includes('--quiet');
 const MAX_ROUNDS = Number(args.find((a) => a.startsWith('--rounds='))?.split('=')[1] ?? 25);
-const URL = process.env.HOMEWARD_URL ?? 'ws://localhost:5173/ws';
+// 5173 is `npm run dev`; the built server (`npm start`) listens on 3000.
+// Override wholesale with HOMEWARD_URL to point at a deployed wss:// host.
+const URL = process.env.HOMEWARD_URL ?? `ws://localhost:${process.env.PORT ?? 5173}/ws`;
 
 const socket = new WebSocket(URL);
 const send = (message) => socket.send(JSON.stringify(message));

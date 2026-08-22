@@ -1,8 +1,6 @@
 import type { Plugin, ViteDevServer } from 'vite';
-import { WebSocketServer } from 'ws';
-import { WS_PATH } from '../protocol.ts';
-import { createBrain, describeBrain, type Env } from '../agent/index.ts';
-import { Hub } from './hub.ts';
+import type { Env } from '../agent/index.ts';
+import { attachHub } from './attach.ts';
 
 /**
  * Mounts the game's WebSocket hub on Vite's own HTTP server.
@@ -11,15 +9,9 @@ import { Hub } from './hub.ts';
  * one origin — and game state survives client HMR, because this module lives in
  * the Vite config's context rather than in the app's module graph.
  *
- * (A deployed build would run the same Hub from an adapter-node server instead;
- * see the README. The prototype targets `npm run dev`.)
+ * Production uses the same `attachHub` from `server.ts`, so the two cannot drift.
  */
 export function homewardServer(env: Env): Plugin {
-	const { brain, settings } = createBrain(env);
-	// How slowly the tale is told. 1 is the tuned default; 1.5 is a leisurely
-	// read-aloud pace, 0.6 is brisk. Restarting the dev server applies it.
-	const paceScale = Number(env.PACE_SCALE) > 0 ? Number(env.PACE_SCALE) : 1;
-	const hub = new Hub(brain, paceScale);
 	let announced = false;
 
 	// Vite types this as `http.Server | Http2SecureServer`; we only need `on`.
@@ -28,25 +20,13 @@ export function homewardServer(env: Env): Plugin {
 	const attach = (httpServer: HttpServerLike | null | undefined) => {
 		if (!httpServer) return;
 
-		const wss = new WebSocketServer({ noServer: true });
-		wss.on('connection', (socket) => hub.handleConnection(socket));
-
-		httpServer.on('upgrade', (request, socket, head) => {
-			// Vite's HMR socket shares this server: only claim our own path, and
-			// leave every other upgrade completely untouched.
-			const { pathname } = new URL(request.url ?? '/', 'http://localhost');
-			if (pathname !== WS_PATH) return;
-
-			wss.handleUpgrade(request, socket, head, (ws) => wss.emit('connection', ws, request));
-		});
+		// Vite's HMR socket shares this server, so upgrades we don't own must be
+		// left completely untouched.
+		const { describe } = attachHub(httpServer, env, { claimOnly: true });
 
 		if (!announced) {
 			announced = true;
-			console.log(
-				`\n  \x1b[35m➜\x1b[0m  HOMEWARD: ${describeBrain(settings)}` +
-					(paceScale === 1 ? '' : `\n  \x1b[35m➜\x1b[0m  HOMEWARD: telling at ${paceScale}× pace`) +
-					'\n'
-			);
+			console.log(`\n  \x1b[35m➜\x1b[0m  HOMEWARD: ${describe}\n`);
 		}
 	};
 

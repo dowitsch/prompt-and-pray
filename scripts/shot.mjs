@@ -31,7 +31,9 @@ const short = (label) =>
 		.filter((w) => w.toLowerCase() !== 'the')
 		.at(-1);
 
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+await page.goto(process.env.HOMEWARD_ORIGIN ?? `http://localhost:${process.env.PORT ?? 5173}/`, {
+	waitUntil: 'networkidle'
+});
 await shot('1-home');
 
 await page.fill('#name', 'DOWITSCH');

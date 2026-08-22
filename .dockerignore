@@ -1,0 +1,17 @@
+node_modules
+.svelte-kit
+build
+.git
+.github
+screenshots
+doc
+docs
+.vscode
+.claude
+.vercel
+.netlify
+.wrangler
+# Real keys must not reach the image; production reads process.env.
+.env
+.env.*
+!.env.example

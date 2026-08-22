@@ -1,0 +1,19 @@
+app = "prompt-and-pray"
+primary_region = "fra"
+
+[build]
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # A suspended machine loses every match in flight: state is in memory by design.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+# One machine only. A second would split the hub's in-memory state — the same
+# reason Vercel Functions cannot host this.
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

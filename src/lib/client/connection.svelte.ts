@@ -95,8 +95,18 @@ const STORAGE_LOCALE = 'homeward:locale';
 const STORAGE_CODE = 'homeward:code';
 const MAX_LOG = 140;
 
+/**
+ * Reconnect backoff. 400ms, doubling to a 20s ceiling, then giving up — a match
+ * that has been unreachable for this long is not coming back on its own, and a
+ * tight retry loop against a server that isn't there just floods the console.
+ */
+const RETRY_BASE_MS = 400;
+const RETRY_CEILING_MS = 20_000;
+const RETRY_LIMIT = 10;
+
 export class Connection {
-	status = $state<'idle' | 'connecting' | 'open' | 'closed'>('idle');
+	/** `offline` is terminal: we stopped retrying and the page needs a reload. */
+	status = $state<'idle' | 'connecting' | 'open' | 'closed' | 'offline'>('idle');
 	you = $state<string | null>(null);
 	game = $state<GameSnapshot | null>(null);
 	/** Last completed round’s story, shown between rounds. */
@@ -217,11 +227,19 @@ export class Connection {
 
 		socket.addEventListener('close', () => {
 			this.socket = null;
-			this.status = 'closed';
 			if (this.closing) return;
-			// Reconnect and re-sync; the match kept running without us.
-			this.retry = Math.min(this.retry + 1, 6);
-			setTimeout(() => this.connect(), 400 * this.retry);
+
+			// Reconnect and re-sync; the match kept running without us. Exponential,
+			// because a server that is simply not there should not be hammered — a
+			// linear retry against a missing endpoint floods the console.
+			this.retry += 1;
+			if (this.retry > RETRY_LIMIT) {
+				this.status = 'offline';
+				return;
+			}
+			this.status = 'closed';
+			const delay = Math.min(RETRY_BASE_MS * 2 ** (this.retry - 1), RETRY_CEILING_MS);
+			setTimeout(() => this.connect(), delay);
 		});
 
 		socket.addEventListener('error', () => socket.close());
