@@ -201,6 +201,9 @@ export type Strings = {
 		showQr: string;
 		forward: string;
 		menu: string;
+		/** The lobby's speaker button, in both of its states. */
+		readAloud: string;
+		readAloudStop: string;
 	};
 	/** Screen 2: name, portrait, colour. */
 	config: {
@@ -280,6 +283,10 @@ export type Strings = {
 		newRound: string;
 		playAgain: string;
 		showRules: string;
+		/** The three switches. All are a property of this device and of nothing else. */
+		readAloud: string;
+		backgroundMusic: string;
+		soundEffects: string;
 		storyAndLanguage: string;
 		close: string;
 	};

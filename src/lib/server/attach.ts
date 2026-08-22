@@ -48,7 +48,10 @@ export function attachHub(
 	// How slowly the tale is told. 1 is the tuned default; 1.5 is a leisurely
 	// read-aloud pace, 0.6 is brisk. Restarting applies it.
 	const paceScale = Number(env.PACE_SCALE) > 0 ? Number(env.PACE_SCALE) : 1;
-	const hub = new Hub(brain, paceScale);
+	// The longest a beat will hold for a phone reading the tale aloud. A ceiling,
+	// not a duration: it is only ever reached by a phone that stopped answering.
+	const ceiling = Number(env.SPEECH_CEILING_MS) > 0 ? Number(env.SPEECH_CEILING_MS) : 30_000;
+	const hub = new Hub(brain, paceScale, ceiling);
 
 	// Matches outlive the process now. Editing anything under `src/lib/server/`
 	// still restarts the dev server, but it no longer costs anyone their match.

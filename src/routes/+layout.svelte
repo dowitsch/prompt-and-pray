@@ -20,6 +20,8 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { conn } from '$lib/client/connection.svelte';
+	import { loadAudioPrefs } from '$lib/client/audio.svelte';
+	import { unlockSound } from '$lib/client/sound';
 	import { closeOverlay, ui } from '$lib/client/ui.svelte';
 	import { openingName } from '$lib/client/names';
 	import type { Locale } from '$lib/i18n';
@@ -37,6 +39,12 @@
 
 	onMount(() => {
 		conn.loadPreference();
+		// Before the socket: whether this device reads the tale aloud is announced
+		// as soon as it opens, and it has to be known by then.
+		loadAudioPrefs();
+		// Nothing is played until somebody touches the page; this only starts
+		// listening for the tap that says we may.
+		unlockSound();
 		conn.connect();
 		return () => conn.disconnect();
 	});

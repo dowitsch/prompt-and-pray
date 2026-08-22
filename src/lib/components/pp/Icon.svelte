@@ -26,7 +26,10 @@
 		| 'cross'
 		| 'bang'
 		| 'map'
-		| 'flask';
+		| 'flask'
+		| 'speaker'
+		| 'speakerOff'
+		| 'music';
 
 	type Props = {
 		name: Name;
@@ -114,6 +117,49 @@
 				1.2.6 2.2 1.5 2.8v1.3h1.2v-1h1.4v1h1.2v-1.3c.9-.6 1.5-1.6 1.5-2.8A3.4 3.4 0 0012
 				8.6zm-1.5 3a.9.9 0 110 1.8.9.9 0 010-1.8zm3 0a.9.9 0 110 1.8.9.9 0 010-1.8z"
 		/>
+	</svg>
+{:else if name === 'speaker' || name === 'speakerOff'}
+	<!--
+		The cone is filled and the rest is stroked, which is the only way a speaker
+		reads as a speaker at 24px: an outlined cone is a triangle, and a triangle
+		next to a QR block is not obviously about sound. Two glyphs rather than one
+		with a slash through it, because this is a control whose state has to be
+		legible without a label beside it.
+	-->
+	<svg {...{ 'aria-hidden': 'true' }} width={size} height={size} viewBox="0 0 24 24" fill="none">
+		<path d="M3.4 9h3.3L12 4.7v14.6L6.7 15H3.4z" fill={colour} />
+		{#if name === 'speaker'}
+			<path
+				d="M15.6 9.4a3.9 3.9 0 010 5.2M18.4 7a7.4 7.4 0 010 10"
+				stroke={colour}
+				stroke-width={width}
+				stroke-linecap="round"
+			/>
+		{:else}
+			<path
+				d="M15.8 9.8l4.8 4.4M20.6 9.8l-4.8 4.4"
+				stroke={colour}
+				stroke-width={width}
+				stroke-linecap="round"
+			/>
+		{/if}
+	</svg>
+{:else if name === 'music'}
+	<!-- Two notes on a beam. Needs circles, so it cannot live in the path table. -->
+	<svg
+		{...{ 'aria-hidden': 'true' }}
+		width={size}
+		height={size}
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke={colour}
+		stroke-width={width}
+		stroke-linecap="round"
+		stroke-linejoin="round"
+	>
+		<path d="M9.7 16.4V5.5l9.4-1.9v10.9" />
+		<circle cx="7" cy="16.8" r="2.7" />
+		<circle cx="16.4" cy="14.5" r="2.7" />
 	</svg>
 {:else if name === 'qr'}
 	<!-- Filled rather than stroked: at 24px the design's QR mark reads as blocks. -->

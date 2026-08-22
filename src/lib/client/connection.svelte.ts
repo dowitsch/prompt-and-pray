@@ -7,6 +7,9 @@ import type { RoundSummary } from '$lib/engine/types';
 import type { ClientMessage, ServerEvent } from '$lib/protocol';
 import { WS_PATH } from '$lib/protocol';
 import { ui } from './ui.svelte';
+import { audio, rememberVoice } from './audio.svelte';
+import { say, silence } from './voice';
+import { soundFor } from './sound';
 import {
 	DEFAULT_LOCALE,
 	fmt,
@@ -192,6 +195,15 @@ export class Connection {
 	 * anything on any of them, so it says so once and then gets on with it.
 	 */
 	private saidKnown = false;
+	/**
+	 * The line just put on the board, not yet read out.
+	 *
+	 * `speak` records it and `read` consumes it, one event later in the same
+	 * reducer case. Two steps rather than one because the two halves know different
+	 * things: `speak` knows what was said and by whom, `read` holds the id the
+	 * server is waiting to hear back.
+	 */
+	private said: { text: string; character: number | null } | null = null;
 	effects = $state<Effect[]>([]);
 	/** The step being walked right now. Never cleared; the map reads the id. */
 	lastStep = $state<Step | null>(null);
@@ -287,6 +299,8 @@ export class Connection {
 				playerId: sessionStorage.getItem(STORAGE_PLAYER),
 				code: sessionStorage.getItem(STORAGE_CODE)
 			});
+			// The server holds this per socket, so a reconnect has forgotten it.
+			if (audio.voice) this.send({ type: 'SET_VOICE', on: true });
 		});
 
 		socket.addEventListener('message', (event) => {
@@ -358,6 +372,20 @@ export class Connection {
 		this.send({ type: 'SET_READY', ready });
 	}
 
+	/**
+	 * Read the tale aloud on this device, or stop.
+	 *
+	 * Both halves, because it has two. The phone remembers it, the way it remembers
+	 * the language. And the table is told — not because it is anyone else's
+	 * business, but because a tale being read out has to wait for the reading, and
+	 * the runner is the only thing that can hold it (`src/lib/server/speechgate.ts`).
+	 */
+	setVoice(on: boolean): void {
+		rememberVoice(on);
+		if (!on) silence();
+		this.send({ type: 'SET_VOICE', on });
+	}
+
 	startGame(): void {
 		this.send({ type: 'START_GAME' });
 	}
@@ -421,12 +449,52 @@ export class Connection {
 	): void {
 		const next = [...this.bubbles, { id: ++this.seq, kind, playerId, text, title, improvised }];
 		this.bubbles = next.slice(-BUBBLE_DEPTH);
+
+		/*
+		 * Held for `read`, not spoken here.
+		 *
+		 * The place is part of the sentence when it is read out even though it is set
+		 * as a label when it is drawn — "It comes to the Old Ford. The river or the
+		 * ridge?" is one thing said, and a voice that skipped the first half would be
+		 * answering a question nobody had asked.
+		 *
+		 * Only the middle line is the agent itself talking. The fork it has arrived
+		 * at, and the line that says it did not come back, are the world's — which is
+		 * the same distinction the three bubble shapes already draw.
+		 */
+		this.said = {
+			text: title ? `${title} ${text}` : text,
+			character: kind === 'move' ? this.characterOf(playerId) : null
+		};
+	}
+
+	private characterOf(id: string): number | null {
+		return this.game?.players.find((p) => p.id === id)?.character ?? null;
+	}
+
+	/**
+	 * Read the line that was just put on the board, then say it has been read.
+	 *
+	 * Every one of the three speaking events comes through here, including the ones
+	 * that said nothing at all: an arrival at a familiar crossroads is silent, and
+	 * "I know this road" is said once per stretch and not once per step. Both of
+	 * those are rules of this file, decided here, and the server has no idea about
+	 * either. Answering unconditionally is what keeps it that way.
+	 */
+	private async read(utterance: number): Promise<void> {
+		const line = this.said;
+		this.said = null;
+		if (line && audio.voice) await say(line.text, line.character, this.locale);
+		this.send({ type: 'SPOKEN', utterance });
 	}
 
 	/** Nobody is talking. Between turns, and between rounds. */
 	private hush(): void {
 		this.bubbles = [];
 		this.saidKnown = false;
+		this.said = null;
+		// Whoever was talking has stopped being the one talking.
+		silence();
 	}
 
 	private flash(kind: Effect['kind'], playerId: string, nodeId: string): void {
@@ -458,6 +526,12 @@ export class Connection {
 	}
 
 	private receive(event: ServerEvent): void {
+		// Before the switch, not inside it: a cue belongs to the arrival of an
+		// event, not to any of the state it happens to change, and putting it here
+		// means a new case cannot forget it. Which events are audible — and which
+		// emphatically are not, `STATE_SYNC` first among them — is `sound.ts`.
+		soundFor(event);
+
 		switch (event.type) {
 			case 'STATE_SYNC': {
 				this.synced = true;
@@ -604,6 +678,7 @@ export class Connection {
 						fmt(this.t.narration.comesTo, { place: event.nodeTitle })
 					);
 				}
+				void this.read(event.utterance);
 				return;
 			}
 
@@ -628,6 +703,7 @@ export class Connection {
 					this.saidKnown = false;
 					this.speak('move', event.playerId, event.reasoning, undefined, event.improvised);
 				}
+				void this.read(event.utterance);
 				return;
 			}
 
@@ -645,6 +721,7 @@ export class Connection {
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
 				this.flash('death', event.playerId, event.revealed.node.id);
 				this.speak('fail', event.playerId, this.t.narration.doesNotReturn);
+				void this.read(event.utterance);
 				return;
 			}
 

@@ -336,3 +336,53 @@ and applies automatically.
 - **Cost and abuse.** One request per decision, ~200 input tokens. `AI_CONCURRENCY` bounds
   parallelism and `AI_TIMEOUT_MS` bounds latency. There is no auth on the lobby, so do not expose
   a keyed instance to the public internet as-is.
+
+## 11. Reading the tale aloud (ElevenLabs)
+
+The second provider in the app, and structurally the same bargain as the first: a key buys
+something better, and there is a working fallback without one.
+
+| Variable                    | Default             | Meaning                                                              |
+| --------------------------- | ------------------- | -------------------------------------------------------------------- |
+| `ELEVENLABS_API_KEY`        | —                   | Absent, the browser's own voices read the tale instead.              |
+| `ELEVENLABS_MODEL`          | `eleven_flash_v2_5` | Low latency. `eleven_multilingual_v2` sounds better and waits.       |
+| `ELEVENLABS_VOICE_NARRATOR` | George (premade)    | The world's own lines: the fork, and the one that does not end well. |
+| `ELEVENLABS_VOICE_KROTZ`    | Callum (premade)    | Recast with any voice id available to your account.                  |
+| `ELEVENLABS_VOICE_AURELIA`  | Alice (premade)     | ″                                                                    |
+| `ELEVENLABS_VOICE_PENGU`    | Charlie (premade)   | ″                                                                    |
+| `ELEVENLABS_VOICE_MALAKOR`  | Bill (premade)      | ″                                                                    |
+| `ELEVENLABS_TIMEOUT_MS`     | `8000`              | Per-line deadline. On expiry that one line falls back.               |
+| `SPEECH_CEILING_MS`         | `30000`             | Longest a beat waits for a phone to finish reading.                  |
+
+Read in `src/lib/server/speech.ts` via `$env/dynamic/private` — not the injected `env` object the
+hub uses, because this half is a SvelteKit route rather than the WebSocket server. A key added to a
+running machine therefore takes effect without a rebuild.
+
+### How it hangs together
+
+1. Reading aloud is a **per-device switch**, remembered in `localStorage`
+   (`src/lib/client/audio.svelte.ts`). It is the speaker button in the lobby, and an item in the dot
+   menu once a match has begun.
+2. The device tells the server, over the socket, that it is reading aloud (`SET_VOICE`). Per socket,
+   never persisted, never broadcast — it is not table truth, and a reconnect says it again.
+3. The three events that put a sentence on the board — `AGENT_THINKING`, `AGENT_CHOICE`,
+   `AGENT_DIED` — carry an `utterance` id. The device answers each with `SPOKEN`.
+4. `MatchRunner.told` holds the next beat until every listening device has answered
+   (`src/lib/server/speechgate.ts`). **So a match being read aloud is genuinely slower** — that is
+   the point of it, and the honest consequence of a spoken sentence taking as long as it takes.
+5. Nothing listening costs nothing: with no voiced socket, the gate resolves before it returns and
+   the pace is exactly what the `PACE` table says.
+
+### The two invariants, again
+
+- **The key never leaves the server.** The browser posts text to `/api/speak` and gets MP3 back.
+- **Nothing can stall a match.** Every fetch is bounded (`ELEVENLABS_TIMEOUT_MS`), every wait on the
+  client is bounded, and every wait on the server is bounded (`SPEECH_CEILING_MS`). A device that
+  closed its tab, backgrounded it, or simply stopped answering cannot wedge three other people's
+  match — the same discipline as the teaching window's hard deadline.
+
+### Cost
+
+One request per spoken line, one sentence long. Repeated lines are cached server-side by text and
+voice, which matters more than it looks: `It does not come back`, `I know this road` and every place
+name in the land are said again every round, by four agents, for as long as the match lasts.

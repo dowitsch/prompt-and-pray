@@ -155,7 +155,9 @@ export const de: Strings = {
 		cameraBlocked: 'Keine Kamera verf\u00fcgbar. Gib stattdessen den Code der Runde ein.',
 		showQr: 'QR-Code zeigen',
 		forward: 'Weiter',
-		menu: 'Men\u00fc'
+		menu: 'Men\u00fc',
+		readAloud: 'Geschichte vorlesen',
+		readAloudStop: 'Vorlesen beenden'
 	},
 	config: {
 		namePlaceholder: 'Name',
@@ -215,6 +217,9 @@ export const de: Strings = {
 		newRound: 'Neue Runde',
 		playAgain: 'Erneut spielen',
 		showRules: 'Spielregeln anzeigen',
+		readAloud: 'Geschichte vorlesen',
+		backgroundMusic: 'Hintergrundmusik',
+		soundEffects: 'Soundeffekte',
 		storyAndLanguage: 'Geschichte & Sprache',
 		close: 'Schlie\u00dfen'
 	},

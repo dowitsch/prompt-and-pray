@@ -41,7 +41,23 @@ export type ClientMessage =
 	| { type: 'START_GAME' }
 	| { type: 'ADD_MEMORY'; text: string }
 	| { type: 'SABOTAGE'; targetPlayerId: string; lineIndex: number; text: string }
-	| { type: 'PLAY_AGAIN' };
+	| { type: 'PLAY_AGAIN' }
+	/**
+	 * This device is reading the tale aloud — or has stopped.
+	 *
+	 * Per device, not per player: it is a property of the phone in your hand and of
+	 * nothing else at the table, so it is never broadcast and never stored. The
+	 * server keeps it only for as long as the socket lives, and a reconnect has to
+	 * say it again.
+	 */
+	| { type: 'SET_VOICE'; on: boolean }
+	/**
+	 * That line has finished being read.
+	 *
+	 * The one thing a client tells the server about pace. It still asserts nothing:
+	 * a sound stopped, which the server is free to have already stopped waiting for.
+	 */
+	| { type: 'SPOKEN'; utterance: number };
 
 /* -------------------------------------------------------- server -> client */
 
@@ -49,6 +65,15 @@ export type ClientMessage =
  * Agent lifecycle events carry the updated player snapshot. It costs a little
  * bandwidth and removes a whole class of client/server divergence bugs: the
  * client never has to derive state, it just adopts it.
+ *
+ * The three events that put a sentence on the board — AGENT_THINKING,
+ * AGENT_CHOICE and AGENT_DIED — also carry an `utterance` id, and a client that
+ * is reading the tale aloud answers each of them with SPOKEN. The runner holds
+ * the next beat until it has. Every one of the three is answered whether or not
+ * anything was actually said: whether a line is spoken depends on client-side
+ * rules the server has no business knowing (a familiar arrival is silent, and
+ * "I know this road" is said once per stretch), and an unconditional answer is
+ * what keeps those rules out of here.
  */
 export type ServerEvent =
 	| { type: 'STATE_SYNC'; you: string | null; game: GameSnapshot | null }
@@ -87,6 +112,7 @@ export type ServerEvent =
 			reveal: ChoicesRevealed;
 			/** The world has stood here before — the client keeps the arrival quiet. */
 			familiar: boolean;
+			utterance: number;
 	  }
 	| {
 			type: 'AGENT_CHOICE';
@@ -99,6 +125,7 @@ export type ServerEvent =
 			improvised: boolean;
 			/** Walking proven ground: collapsed into a single line rather than narrated. */
 			retrace: boolean;
+			utterance: number;
 	  }
 	| {
 			type: 'AGENT_SURVIVED';
@@ -118,6 +145,7 @@ export type ServerEvent =
 			epitaph: string;
 			revealed: NodeRevealed;
 			run: RunRecord;
+			utterance: number;
 	  }
 	| {
 			type: 'AGENT_REACHED_HOME';

@@ -153,7 +153,9 @@ export const en: Strings = {
 		cameraBlocked: 'No camera here. Type the code of the round instead.',
 		showQr: 'Show the QR code',
 		forward: 'Onward',
-		menu: 'Menu'
+		menu: 'Menu',
+		readAloud: 'Read the tale aloud',
+		readAloudStop: 'Stop reading the tale aloud'
 	},
 	config: {
 		namePlaceholder: 'Name',
@@ -213,6 +215,9 @@ export const en: Strings = {
 		newRound: 'New round',
 		playAgain: 'Play again',
 		showRules: 'Show the rules',
+		readAloud: 'Read the tale aloud',
+		backgroundMusic: 'Background music',
+		soundEffects: 'Sound effects',
 		storyAndLanguage: 'Story & language',
 		close: 'Close'
 	},

@@ -7,6 +7,7 @@ import type { ClientMessage, ServerEvent } from '../protocol.ts';
 import type { AgentBrain } from '../agent/index.ts';
 import { BotController, makeBots } from './bots.ts';
 import { MatchRunner } from './runner.ts';
+import { SpeechGate } from './speechgate.ts';
 import { adoptGame, createGame, getGame, newPlayerId, sweepStaleGames } from './store.ts';
 import { getDb } from '../db/db.ts';
 import { deleteMatch, loadMatches, saveMatch } from '../db/matches.ts';
@@ -23,6 +24,15 @@ type Session = {
 	socket: WebSocket;
 	playerId: string | null;
 	code: string | null;
+	/**
+	 * True while this device is reading the tale aloud.
+	 *
+	 * Per socket, not per player, and never persisted: it is a property of the
+	 * phone in somebody's hand. `SpeechGate` holds the same fact keyed the other
+	 * way round; this copy is what lets a reconnecting socket be told apart from
+	 * one that simply never asked.
+	 */
+	voice: boolean;
 };
 
 export class Hub {
@@ -35,16 +45,31 @@ export class Hub {
 	 * runner yet, and the hub is already the thing that decides a match may begin.
 	 */
 	private readonly starts = new Map<string, ReturnType<typeof setTimeout>>();
+	/**
+	 * Who is reading the tale aloud, and what they are still reading.
+	 *
+	 * Here rather than in `Game` on purpose: `Game` is written to SQLite between
+	 * events, and "this socket is playing a sound right now" is the least
+	 * persistable fact in the system. It belongs beside the sockets.
+	 */
+	private readonly speech = new SpeechGate();
 	private saveWarnings = 0;
 
 	constructor(
 		private readonly brain: AgentBrain,
 		/** Multiplies every storytelling beat; see PACE_SCALE in .env.example. */
-		private readonly paceScale = 1
+		private readonly paceScale = 1,
+		/**
+		 * How long a beat will wait for a phone to finish reading a line aloud.
+		 *
+		 * The same discipline as the teaching window's hard deadline: the tale never
+		 * waits forever on somebody who wandered off. See SPEECH_CEILING_MS.
+		 */
+		private readonly speechCeilingMs = 30_000
 	) {}
 
 	handleConnection(socket: WebSocket): void {
-		const session: Session = { socket, playerId: null, code: null };
+		const session: Session = { socket, playerId: null, code: null, voice: false };
 		this.sessions.set(socket, session);
 
 		socket.on('message', (raw: unknown) => {
@@ -67,6 +92,8 @@ export class Hub {
 		});
 
 		socket.on('close', () => {
+			// Before anything else: a phone that has gone is not one the tale waits for.
+			this.speech.drop(socket);
 			const game = session.code ? getGame(session.code) : undefined;
 			if (game && session.playerId) {
 				game.setConnected(session.playerId, false);
@@ -82,7 +109,10 @@ export class Hub {
 			sweepStaleGames();
 		});
 
-		socket.on('error', () => this.sessions.delete(socket));
+		socket.on('error', () => {
+			this.speech.drop(socket);
+			this.sessions.delete(socket);
+		});
 	}
 
 	/* -------------------------------------------------------------- plumbing */
@@ -195,6 +225,26 @@ export class Hub {
 				}
 				return;
 			}
+			case 'SET_VOICE': {
+				/*
+				 * Not broadcast, and not stored.
+				 *
+				 * Whether your phone is reading the tale out is nobody else's business —
+				 * it changes no player's state and no other phone's screen. The one thing
+				 * it does change is the pace, and that is the gate's job.
+				 *
+				 * Accepted before a match exists, so the toggle in the lobby works: with
+				 * no code yet there is nothing to register, and the client says it again
+				 * on every reconnect.
+				 */
+				session.voice = message.on;
+				if (session.code) this.speech.setVoice(session.code, session.socket, message.on);
+				return;
+			}
+			case 'SPOKEN': {
+				if (session.code) this.speech.ack(session.code, session.socket, message.utterance);
+				return;
+			}
 			case 'PLAY_AGAIN':
 				return this.onPlayAgain(session);
 			case 'START_GAME':
@@ -246,6 +296,9 @@ export class Hub {
 		session.playerId = player.id;
 		session.code = game.code;
 		game.setConnected(player.id, true);
+		// A socket that said SET_VOICE before it had a match — the lobby toggle, or a
+		// reconnect that spoke first — is registered now that there is one to key on.
+		if (session.voice) this.speech.setVoice(game.code, session.socket, true);
 
 		this.send(session.socket, { type: 'STATE_SYNC', you: player.id, game: game.snapshot() });
 		this.broadcast(game, { type: 'PLAYER_UPDATED', player: game.publicPlayer(player) });
@@ -264,6 +317,7 @@ export class Hub {
 
 		session.playerId = player.id;
 		session.code = game.code;
+		if (session.voice) this.speech.setVoice(game.code, session.socket, true);
 
 		// The only state change in the whole hub that nobody else is told about, so
 		// the one that needs saving by hand.
@@ -284,6 +338,7 @@ export class Hub {
 		const player = game.addPlayer(newPlayerId(), name.trim() || 'AGENT');
 		session.playerId = player.id;
 		session.code = game.code;
+		if (session.voice) this.speech.setVoice(game.code, session.socket, true);
 
 		this.send(session.socket, {
 			type: 'JOINED',
@@ -314,7 +369,8 @@ export class Hub {
 			game,
 			this.brain,
 			(event) => this.broadcast(game, event),
-			this.paceScale
+			this.paceScale,
+			(utterance) => this.speech.wait(game.code, utterance, this.speechCeilingMs)
 		);
 		this.runners.set(game.code, runner);
 
@@ -427,6 +483,9 @@ export class Hub {
 		// overwrite the entry while the old object stayed referenced.
 		this.runners.get(game.code)?.stop();
 		this.runners.delete(game.code);
+		// Nothing is being read any more. Who is listening is untouched: it is the
+		// same phones, and the rematch is about to want them.
+		this.speech.release(game.code);
 
 		game.rematch();
 

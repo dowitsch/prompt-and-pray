@@ -29,6 +29,11 @@ import { BotController } from './bots.ts';
  *
  * Everything here is multiplied by `PACE_SCALE` (see `.env.example`), so the
  * whole tale can be slowed down or sped up without touching this file.
+ *
+ * Three of them are also a *floor* rather than a duration: when a phone is
+ * reading the tale aloud, arriving somewhere, the agent's reasoning and the line
+ * that says it did not come back all hold until the sentence has actually been
+ * read. See `told` below.
  */
 export const PACE = {
 	/** The round is announced and the first agent named. Held to be read. */
@@ -65,6 +70,15 @@ export const PACE = {
 
 export type Broadcast = (event: ServerEvent) => void;
 
+/**
+ * Hold until every phone reading the tale aloud has finished the line just sent.
+ *
+ * Injected rather than reached for, so a runner built without one — the one in
+ * `scripts/simulate.mjs` — paces exactly as it always did, and so this file goes
+ * on knowing nothing about sockets.
+ */
+export type AwaitSpoken = (utterance: number) => Promise<void>;
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 
 export class MatchRunner {
@@ -78,8 +92,16 @@ export class MatchRunner {
 		private readonly brain: AgentBrain,
 		private readonly broadcast: Broadcast,
 		/** Multiplies every storytelling beat. >1 tells it slower, <1 faster. */
-		private readonly paceScale = 1
+		private readonly paceScale = 1,
+		/** No-op by default: with nobody reading along, nothing here changes. */
+		private readonly awaitSpoken: AwaitSpoken = () => Promise.resolve()
 	) {}
+
+	/**
+	 * Which line is being said. Monotonic within a match, so a phone answering
+	 * about an earlier line is recognisably answering about an earlier line.
+	 */
+	private utterances = 0;
 
 	/**
 	 * Hold a beat. Every pause in the telling goes through here, so one dial
@@ -87,6 +109,24 @@ export class MatchRunner {
 	 */
 	private beat(ms: number): Promise<unknown> {
 		return sleep(ms * this.paceScale);
+	}
+
+	/**
+	 * Hold a beat — and, if anyone is reading the tale aloud, until they have
+	 * finished reading it.
+	 *
+	 * The two run together rather than one after the other: the beat is the floor,
+	 * and being read out is what can stretch it. So a table with nobody listening
+	 * is paced by the table above and by nothing else, and a table that is
+	 * listening takes as long as the sentence takes. That is the whole trade — it
+	 * is genuinely slower, on purpose.
+	 *
+	 * Only the three moments something is said go through here. The rest of the
+	 * tale's pauses — a round being announced, the spotlight moving, a walk over
+	 * ground already proven — are silent, and stay on the clock.
+	 */
+	private async told(utterance: number, ms: number): Promise<void> {
+		await Promise.all([this.beat(ms), this.awaitSpoken(utterance)]);
 	}
 
 	registerBot(controller: BotController): void {
@@ -214,6 +254,7 @@ export class MatchRunner {
 
 			const reveal = this.game.sightAt(player.id);
 			this.game.setThinking(player.id, true);
+			const arrival = ++this.utterances;
 			this.broadcast({
 				type: 'AGENT_THINKING',
 				playerId: player.id,
@@ -222,9 +263,10 @@ export class MatchRunner {
 				nodeTitle: node.title,
 				nodeDescription: node.description,
 				reveal,
-				familiar
+				familiar,
+				utterance: arrival
 			});
-			await this.beat(familiar ? PACE.RETRACE_ARRIVE : PACE.ARRIVE);
+			await this.told(arrival, familiar ? PACE.RETRACE_ARRIVE : PACE.ARRIVE);
 
 			const startedAt = Date.now();
 			const context: DecisionContext = {
@@ -252,6 +294,7 @@ export class MatchRunner {
 			if (this.stopped) return;
 
 			this.game.setThinking(player.id, false);
+			const reasoned = ++this.utterances;
 			this.broadcast({
 				type: 'AGENT_CHOICE',
 				playerId: player.id,
@@ -260,9 +303,10 @@ export class MatchRunner {
 				choiceLabel: chosen.label,
 				reasoning: decision.reasoning,
 				improvised: decision.improvised ?? false,
-				retrace
+				retrace,
+				utterance: reasoned
 			});
-			await this.beat(retrace ? PACE.RETRACE_STEP : PACE.REVEAL + PACE.MOVE);
+			await this.told(reasoned, retrace ? PACE.RETRACE_STEP : PACE.REVEAL + PACE.MOVE);
 			if (this.stopped) return;
 
 			// Captured before resolving, so a step past it is genuinely a first.
@@ -302,6 +346,7 @@ export class MatchRunner {
 
 			// A FAILURE ending killed it; a NEUTRAL ending simply stopped it. Both
 			// end the run here, and the node's own text says which it was.
+			const epitaph = ++this.utterances;
 			this.broadcast({
 				type: 'AGENT_DIED',
 				playerId: player.id,
@@ -309,9 +354,10 @@ export class MatchRunner {
 				choiceId: chosen.id,
 				epitaph: result.toNode.description,
 				revealed: result.revealed,
-				run: result.run!
+				run: result.run!,
+				utterance: epitaph
 			});
-			await this.beat(PACE.DEATH_HOLD);
+			await this.told(epitaph, PACE.DEATH_HOLD);
 			break;
 		}
 
@@ -319,6 +365,7 @@ export class MatchRunner {
 		// did. Ends the run without blaming the last road it took.
 		if (player.agent.status === 'running') {
 			const wandered = this.game.wander(player.id);
+			const lastWords = ++this.utterances;
 			this.broadcast({
 				type: 'AGENT_DIED',
 				playerId: player.id,
@@ -326,9 +373,10 @@ export class MatchRunner {
 				choiceId: wandered.revealed.choiceId,
 				epitaph: wandered.epitaph,
 				revealed: wandered.revealed,
-				run: wandered.run
+				run: wandered.run,
+				utterance: lastWords
 			});
-			await this.beat(PACE.DEATH_HOLD);
+			await this.told(lastWords, PACE.DEATH_HOLD);
 		}
 
 		this.broadcast({

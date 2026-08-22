@@ -15,6 +15,7 @@
 	import Icon from '../Icon.svelte';
 	import DotMenu from '../DotMenu.svelte';
 	import { conn } from '$lib/client/connection.svelte';
+	import { audio } from '$lib/client/audio.svelte';
 	import { colorOf } from '$lib/client/identity';
 	import { clock, secondsUntil, tick } from '$lib/client/clock.svelte';
 	import { MAX_PLAYERS } from '$lib/engine/types';
@@ -115,14 +116,46 @@
 		</button>
 	</div>
 
-	<button
-		type="button"
-		onclick={onShowQr}
-		aria-label={conn.t.pp.showQr}
-		class="absolute bottom-7 left-6 grid h-[54px] w-[54px] place-items-center rounded-2xl bg-white
-			shadow-[0_10px_22px_rgba(28,31,34,0.25)] transition hover:-translate-y-0.5
-			hover:bg-[#F2F2F2]"
-	>
-		<Icon name="qr" size={24} colour="#1C1F22" />
-	</button>
+	<!--
+		Stacked rather than side by side: the ready button starts at 110px from the
+		left, which is not enough room for two of these next to each other, and the
+		column above the QR code is empty.
+
+		The voice switch belongs here specifically. This is the last screen before
+		the tale begins, and reading it aloud is a decision about the tale — it
+		changes the pace of the whole thing for everyone at the table, so it wants
+		asking before the first agent sets out rather than discovering mid-round.
+		It stays reachable from the menu once one has.
+	-->
+	<div class="absolute bottom-7 left-6 flex flex-col gap-3.5">
+		<button
+			type="button"
+			data-shot="voice"
+			onclick={() => conn.setVoice(!audio.voice)}
+			aria-pressed={audio.voice}
+			aria-label={audio.voice ? conn.t.pp.readAloudStop : conn.t.pp.readAloud}
+			class="grid h-[54px] w-[54px] place-items-center rounded-2xl transition
+				hover:-translate-y-0.5 {audio.voice
+				? 'bg-p1 shadow-[0_10px_22px_rgba(28,31,34,0.25)]'
+				: 'bg-white/15 hover:bg-white/25'}"
+		>
+			<Icon
+				name={audio.voice ? 'speaker' : 'speakerOff'}
+				size={24}
+				width={2.2}
+				colour={audio.voice ? '#1C1F22' : '#fff'}
+			/>
+		</button>
+
+		<button
+			type="button"
+			onclick={onShowQr}
+			aria-label={conn.t.pp.showQr}
+			class="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-white
+				shadow-[0_10px_22px_rgba(28,31,34,0.25)] transition hover:-translate-y-0.5
+				hover:bg-[#F2F2F2]"
+		>
+			<Icon name="qr" size={24} colour="#1C1F22" />
+		</button>
+	</div>
 </div>
