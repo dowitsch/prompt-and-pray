@@ -453,6 +453,17 @@ function walk(game: Game, label: string) {
 		`PALETTE_SIZE=${PALETTE_SIZE} MAX_PLAYERS=${MAX_PLAYERS}`
 	);
 
+	// The same rule one field over. `Game.freeCharacter()` walks the roster looking
+	// for an unused index; with fewer characters than seats the last joiner would
+	// silently double up on somebody else's figure — and a character now decides
+	// how an agent reads its notes, so that is a duplicated *player*, not a
+	// duplicated costume.
+	check(
+		CHARACTER_COUNT >= MAX_PLAYERS,
+		'there are at least as many characters as seats',
+		`CHARACTER_COUNT=${CHARACTER_COUNT} MAX_PLAYERS=${MAX_PLAYERS}`
+	);
+
 	const story = graph('start', [
 		{
 			id: 'start',

@@ -1,6 +1,8 @@
 import type { AgentBrain, AgentDecision, DecisionContext } from './brain.ts';
 import { systemPrompt, buildUserPrompt, parseDecision } from './prompt.ts';
+import { personaFor } from './personas.ts';
 import { DEFAULT_LOCALE } from '../i18n/index.ts';
+import { hashSeed } from '../engine/rng.ts';
 
 /**
  * OpenAI-compatible chat-completions adapter.
@@ -20,8 +22,20 @@ export type ApertusConfig = {
 	model: string;
 	/** Send `response_format: {type: "json_object"}` (supported by vLLM servers). */
 	jsonMode: boolean;
+	/**
+	 * Baselines, not settings.
+	 *
+	 * Each is what a call uses when the agent's persona does not name its own
+	 * value — and with `personas: false` they are the whole of the sampling, for
+	 * every agent, which is the A/B against the four characters.
+	 */
 	maxTokens: number;
 	temperature: number;
+	topP?: number;
+	frequencyPenalty?: number;
+	presencePenalty?: number;
+	/** Let each character's doctrine and sampling apply. `AI_PERSONAS`. */
+	personas: boolean;
 	timeoutMs: number;
 };
 
@@ -48,20 +62,59 @@ export class ApertusBrain implements AgentBrain {
 		this.url = completionsUrl(config.baseUrl);
 	}
 
-	async decide(ctx: DecisionContext): Promise<AgentDecision> {
+	/**
+	 * The request body for one decision.
+	 *
+	 * Two agents standing at the same crossroads with the same notes send
+	 * genuinely different requests: a different doctrine in the system prompt and
+	 * a different point in the sampling space. Everything a persona leaves unsaid
+	 * still comes from the environment, so `AI_TEMPERATURE` and friends stay live
+	 * as baselines rather than becoming decoration.
+	 */
+	private buildBody(ctx: DecisionContext): Record<string, unknown> {
 		const locale = ctx.locale ?? DEFAULT_LOCALE;
+		const config = this.config;
+		const persona = config.personas ? personaFor(ctx.character) : null;
+		const sampling = persona?.sampling;
+
 		const body: Record<string, unknown> = {
-			model: this.config.model,
-			max_tokens: this.config.maxTokens,
-			temperature: this.config.temperature,
+			model: config.model,
+			max_tokens: sampling?.maxTokens ?? config.maxTokens,
+			temperature: sampling?.temperature ?? config.temperature,
 			messages: [
-				{ role: 'system', content: systemPrompt(locale) },
-				{ role: 'user', content: buildUserPrompt(ctx) }
+				{
+					role: 'system',
+					content: systemPrompt(locale, persona ? ctx.character : null)
+				},
+				{ role: 'user', content: buildUserPrompt(ctx, persona !== null) }
 			]
 		};
-		if (this.config.jsonMode) {
+
+		const topP = sampling?.topP ?? config.topP;
+		const frequencyPenalty = sampling?.frequencyPenalty ?? config.frequencyPenalty;
+		const presencePenalty = sampling?.presencePenalty ?? config.presencePenalty;
+		if (topP !== undefined) body.top_p = topP;
+		if (frequencyPenalty) body.frequency_penalty = frequencyPenalty;
+		if (presencePenalty) body.presence_penalty = presencePenalty;
+
+		// Aurelia's "mathematical perfection", made literal: the same figure at the
+		// same place with the same notes sends the same seed and gets the same
+		// answer back. Derived exactly the way the offline brain derives its own
+		// tie-break seed. A provider that ignores `seed` simply leaves her at her
+		// very low temperature, which is the same character with softer edges.
+		if (sampling?.deterministic) {
+			body.seed = hashSeed(`${ctx.agentName}|${ctx.nodeTitle}|${ctx.memory.join('|')}`);
+		}
+
+		if (config.jsonMode) {
 			body.response_format = { type: 'json_object' };
 		}
+		return body;
+	}
+
+	async decide(ctx: DecisionContext): Promise<AgentDecision> {
+		const locale = ctx.locale ?? DEFAULT_LOCALE;
+		const body = this.buildBody(ctx);
 
 		const response = await fetch(this.url, {
 			method: 'POST',

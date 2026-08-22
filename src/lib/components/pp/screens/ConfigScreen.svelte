@@ -5,7 +5,13 @@
 	 * Name, figure, colour. The colour is the one that is contested, so it is the
 	 * server that decides: a swatch somebody else holds is drawn struck through and
 	 * refuses the tap, and if two people reach for the same one in the same instant
-	 * the loser gets told rather than quietly ending up as a twin.
+	 * the loser gets told rather than quietly ending up as a twin. The figure is
+	 * *not* contested — two players may both be Krotz, in two different colours.
+	 *
+	 * The name follows the figure until it doesn't. Nobody has to type anything to
+	 * get past this screen, so swiping the carousel renames you to whoever is on
+	 * it; the first name typed by hand ends that for good (`storedName()` is the
+	 * flag) and is remembered for the next match.
 	 */
 	import CharacterCard from '../CharacterCard.svelte';
 	import Icon from '../Icon.svelte';
@@ -14,7 +20,8 @@
 	import { nextCharacter, ui } from '$lib/client/ui.svelte';
 	import { CHARACTER_COUNT, colorOf } from '$lib/client/identity';
 	import { PLAYER_COLORS } from '$lib/client/theme';
-	import { rememberName } from '$lib/client/names';
+	import { rememberName, storedName } from '$lib/client/names';
+	import { characterAt } from '$lib/engine/characters';
 
 	type Props = { onDone: () => void; onShowQr: () => void };
 	let { onDone, onShowQr }: Props = $props();
@@ -37,20 +44,39 @@
 		const name = ui.nameDraft.trim();
 		ui.editingName = false;
 		if (!name || name === me?.name) return;
-		// Only a hand-typed name is remembered; that is what stops the random one
-		// from being rerolled out from under someone who liked it.
+		// Only a hand-typed name is remembered, and remembering it is what stops the
+		// carousel renaming them from under themselves on the next swipe.
 		rememberName(name);
 		conn.configure({ name });
 	}
 
+	/** The name that goes with a figure, for as long as the player has not chosen. */
+	function followName(index: number): string | undefined {
+		return storedName() === null ? characterAt(index).name : undefined;
+	}
+
 	function pickCharacter(step: number) {
 		nextCharacter(step);
-		conn.configure({ character: ui.character });
+		conn.configure({ character: ui.character, name: followName(ui.character) });
 	}
 
 	/* The carousel follows the server, so a refused change snaps back. */
 	$effect(() => {
 		if (me) ui.character = me.character;
+	});
+
+	/*
+	 * The seat was dealt a figure before this screen existed, and an unnamed
+	 * player is still called whatever `Game.cleanName` fell back to. Put the two
+	 * in step once, on the first snapshot, so the pill is right before anything
+	 * is touched. Guarded on the name it would send, so this cannot loop.
+	 */
+	let synced = false;
+	$effect(() => {
+		if (synced || !me) return;
+		const name = followName(me.character);
+		synced = true;
+		if (name && name !== me.name) conn.configure({ name });
 	});
 
 	let swipeFrom = 0;
@@ -116,7 +142,7 @@
 	<div
 		role="group"
 		aria-label={t.next}
-		class="absolute top-[216px] right-0 left-0 h-[378px] touch-pan-y overflow-hidden"
+		class="absolute top-[206px] right-0 left-0 h-[378px] touch-pan-y"
 		onpointerdown={(event) => (swipeFrom = event.clientX)}
 		onpointerup={(event) => {
 			const dx = event.clientX - swipeFrom;
@@ -125,12 +151,12 @@
 		}}
 	>
 		<div
-			class="absolute inset-0 flex transition-transform duration-[380ms]
+			class="absolute inset-0 flex overflow-visible transition-transform duration-[380ms]
 				ease-[cubic-bezier(0.22,0.8,0.3,1)]"
 			style:transform="translateX({-390 * ui.character}px)"
 		>
 			{#each Array.from({ length: CHARACTER_COUNT }, (_, i) => i) as index (index)}
-				<div class="flex w-[390px] shrink-0 items-center justify-center">
+				<div class="flex w-[390px] shrink-0 items-start justify-center">
 					<CharacterCard {index} />
 				</div>
 			{/each}

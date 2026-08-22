@@ -1,4 +1,5 @@
 import type { AgentBrain, DecisionContext } from '../agent/index.ts';
+import { characterAt } from '../engine/characters.ts';
 import type { Game } from '../engine/game.ts';
 import { GameError } from '../engine/game.ts';
 import type { Player } from '../engine/types.ts';
@@ -227,7 +228,9 @@ export class MatchRunner {
 
 			const startedAt = Date.now();
 			const context: DecisionContext = {
-				agentName: player.name,
+				// The character is the agent; `player.name` belongs to its operator.
+				agentName: characterAt(player.character).name,
+				character: player.character,
 				locale: this.game.locale,
 				nodeTitle: node.title,
 				nodeDescription: node.description,
@@ -264,7 +267,12 @@ export class MatchRunner {
 
 			// Captured before resolving, so a step past it is genuinely a first.
 			const highWater = this.game.deepestSoFar();
-			const result = this.game.resolveChoice(player.id, chosen.id, decision.reasoning);
+			const result = this.game.resolveChoice(
+				player.id,
+				chosen.id,
+				decision.reasoning,
+				decision.improvised ?? false
+			);
 
 			if (result.outcome === 'continue') {
 				this.broadcast({

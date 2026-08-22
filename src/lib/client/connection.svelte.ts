@@ -67,6 +67,15 @@ export type Bubble = {
 	text: string;
 	/** `system` only: the place the choice is being made at. */
 	title?: string;
+	/**
+	 * `move` only: the model did not answer and the offline brain stood in.
+	 *
+	 * Worth marking now that agents are characters. The sentence is still true
+	 * about the road taken, but it is not Krotz or Malakor saying it, and a game
+	 * whose whole premise is "watch what your notes did to *your* agent" should
+	 * not quietly put words in its mouth.
+	 */
+	improvised?: boolean;
 };
 
 /** Short-lived visual events the tree turns into flashes and particles. */
@@ -403,8 +412,14 @@ export class Connection {
 	 * — the question holds for as long as the brain is thinking, and the answer
 	 * holds for as long as the agent is walking.
 	 */
-	private speak(kind: BubbleKind, playerId: string, text: string, title?: string): void {
-		const next = [...this.bubbles, { id: ++this.seq, kind, playerId, text, title }];
+	private speak(
+		kind: BubbleKind,
+		playerId: string,
+		text: string,
+		title?: string,
+		improvised = false
+	): void {
+		const next = [...this.bubbles, { id: ++this.seq, kind, playerId, text, title, improvised }];
 		this.bubbles = next.slice(-BUBBLE_DEPTH);
 	}
 
@@ -611,7 +626,7 @@ export class Connection {
 				} else {
 					// Back on new ground, so the next known stretch earns the line again.
 					this.saidKnown = false;
-					this.speak('move', event.playerId, event.reasoning);
+					this.speak('move', event.playerId, event.reasoning, undefined, event.improvised);
 				}
 				return;
 			}

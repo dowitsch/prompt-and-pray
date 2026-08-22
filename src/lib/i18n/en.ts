@@ -130,6 +130,7 @@ export const en: Strings = {
 		misledOnce: 'ONCE',
 		misledNever: 'NEVER',
 		roadItTook: 'The road it took',
+		taughtBy: 'taught by {name}',
 		whatYouWrote: 'What you wrote for it',
 		theOthers: 'The others',
 		again: 'Tell another'
@@ -161,8 +162,8 @@ export const en: Strings = {
 		done: 'Done',
 		previous: 'Previous character',
 		next: 'Next character',
-		character: 'Character {n}',
-		artMissing: 'character art goes here',
+		character: '{name}, {epithet}',
+		artMissing: '{name} goes here',
 		colourTaken: 'That colour is taken',
 		pickColour: 'Pick your colour'
 	},
@@ -188,6 +189,7 @@ export const en: Strings = {
 		toBrain: 'Open the memory',
 		toMap: 'Open the map',
 		nowRunning: '{name} is walking',
+		onInstinct: '(on instinct)',
 		storyOf: "{name}'s story",
 		focusOn: 'Show {name} on the map',
 		lettersLeft: '{n}/{total}'

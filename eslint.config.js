@@ -12,7 +12,7 @@ export default defineConfig(
 	includeIgnoreFile(gitignorePath),
 	// The imported design prototype and its runtime are build output from Claude
 	// Design, kept in the repo as the reference for the UI. Not ours to lint.
-	{ ignores: ['doc/Design/**'] },
+	{ ignores: ['doc/Design/**', 'doc/Prompt & Pray 2/**'] },
 	// The PixiJS terrain spike src/lib/map was ported from. Its own project,
 	// with its own dependencies that are not installed here.
 	{ ignores: ['doc/testmap-main/**'] },

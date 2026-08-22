@@ -18,7 +18,7 @@
 	import CharacterCard from './CharacterCard.svelte';
 	import Icon from './Icon.svelte';
 	import { conn } from '$lib/client/connection.svelte';
-	import { characterOf, colorOf } from '$lib/client/identity';
+	import { characterNameOf, characterOf, colorOf } from '$lib/client/identity';
 	import { fmt } from '$lib/i18n';
 	import { PLAYER_COLORS } from '$lib/client/theme';
 
@@ -48,12 +48,16 @@
 	>
 		<div class="pp-scroll max-h-[600px] overflow-y-auto px-[26px] pt-[34px] pb-[30px]">
 			<h2 class="text-center display text-4xl leading-tight text-balance text-white">
-				{youWon ? t.youWin : fmt(t.wins, { name: winner?.name ?? tv.nobody })}
+				{youWon ? t.youWin : fmt(t.wins, { name: winner ? characterNameOf(winner) : tv.nobody })}
 			</h2>
 
 			{#if winner}
+				<!-- The agent walked it; the person who taught it is named underneath. -->
+				<p class="mt-2 text-center text-xs tracking-[0.14em] text-white/65 uppercase">
+					{fmt(tv.taughtBy, { name: winner.name })}
+				</p>
 				<div class="my-7 flex justify-center">
-					<CharacterCard index={characterOf(winner)} width={170} height={200} />
+					<CharacterCard index={characterOf(winner)} width={200} height={250} detail={false} />
 				</div>
 			{/if}
 

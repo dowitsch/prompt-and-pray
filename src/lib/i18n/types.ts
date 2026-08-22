@@ -171,6 +171,8 @@ export type Strings = {
 		misledOnce: string;
 		misledNever: string;
 		roadItTook: string;
+		/** Who taught the winning agent — the operator behind the character. */
+		taughtBy: string;
 		whatYouWrote: string;
 		theOthers: string;
 		again: string;
@@ -208,8 +210,14 @@ export type Strings = {
 		done: string;
 		previous: string;
 		next: string;
-		/** Alt text for a portrait, and the placeholder when the art is missing. */
+		/**
+		 * Alt text for a portrait: "{name}, {epithet}".
+		 *
+		 * The name is a proper noun and the same in every language; only the
+		 * epithet is translated, and it comes from `engine/characters.ts`.
+		 */
 		character: string;
+		/** The dashed frame while a character's art has not been drawn yet. */
 		artMissing: string;
 		colourTaken: string;
 		pickColour: string;
@@ -240,6 +248,8 @@ export type Strings = {
 		/** The title while somebody else's agent is walking. */
 		nowRunning: string;
 		/** Names the feed panel: whose history is in it. */
+		/** Marks a line the offline brain improvised when the model did not answer. */
+		onInstinct: string;
 		storyOf: string;
 		focusOn: string;
 		lettersLeft: string;

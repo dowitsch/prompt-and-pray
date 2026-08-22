@@ -23,6 +23,8 @@ export type BrainSettings = {
 	model: string;
 	baseUrl: string;
 	concurrency: number;
+	/** Whether the four characters' doctrines and sampling apply. `AI_PERSONAS`. */
+	personas: boolean;
 	/** Set when the configuration asked for a provider we could not satisfy. */
 	warning?: string;
 };
@@ -42,12 +44,15 @@ export function readSettings(env: Env): BrainSettings {
 	const apiKey = env.AI_API_KEY?.trim() ?? '';
 	const model = env.AI_MODEL?.trim() ?? '';
 	const concurrency = num(env.AI_CONCURRENCY, 4);
+	// Read here rather than in `apertusConfig` so the boot banner can say whether
+	// the four characters are actually in play.
+	const personas = bool(env.AI_PERSONAS, true);
 
 	const requested = (env.AI_PROVIDER?.trim().toLowerCase() ||
 		(baseUrl && apiKey ? 'apertus' : 'mock')) as string;
 
 	if (requested === 'mock') {
-		return { provider: 'mock', model: 'deterministic', baseUrl: '', concurrency };
+		return { provider: 'mock', model: 'deterministic', baseUrl: '', concurrency, personas };
 	}
 
 	const missing = [!baseUrl && 'AI_BASE_URL', !apiKey && 'AI_API_KEY', !model && 'AI_MODEL'].filter(
@@ -60,6 +65,7 @@ export function readSettings(env: Env): BrainSettings {
 			model: 'deterministic',
 			baseUrl: '',
 			concurrency,
+			personas,
 			warning: `Unknown AI_PROVIDER "${requested}" — using the offline brain.`
 		};
 	}
@@ -70,11 +76,19 @@ export function readSettings(env: Env): BrainSettings {
 			model: 'deterministic',
 			baseUrl: '',
 			concurrency,
+			personas,
 			warning: `AI_PROVIDER=apertus but ${missing.join(', ')} missing — using the offline brain.`
 		};
 	}
 
-	return { provider: 'apertus', model, baseUrl, concurrency };
+	return { provider: 'apertus', model, baseUrl, concurrency, personas };
+}
+
+/** An optional numeric knob: absent means "let the persona or the provider decide". */
+function optionalNum(value: string | undefined): number | undefined {
+	if (value === undefined || value.trim() === '') return undefined;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function apertusConfig(env: Env, settings: BrainSettings): ApertusConfig {
@@ -83,8 +97,14 @@ function apertusConfig(env: Env, settings: BrainSettings): ApertusConfig {
 		apiKey: env.AI_API_KEY!.trim(),
 		model: settings.model,
 		jsonMode: bool(env.AI_JSON_MODE, true),
+		// Baselines. A character's persona overrides what it cares about and
+		// inherits the rest; `AI_PERSONAS=off` leaves these as the whole story.
 		maxTokens: num(env.AI_MAX_TOKENS, 160),
 		temperature: Number(env.AI_TEMPERATURE ?? 0.8),
+		topP: optionalNum(env.AI_TOP_P),
+		frequencyPenalty: optionalNum(env.AI_FREQUENCY_PENALTY),
+		presencePenalty: optionalNum(env.AI_PRESENCE_PENALTY),
+		personas: settings.personas,
 		timeoutMs: num(env.AI_TIMEOUT_MS, 8000)
 	};
 }
@@ -163,7 +183,9 @@ export function createBrain(env: Env): { brain: AgentBrain; settings: BrainSetti
 }
 
 export function describeBrain(settings: BrainSettings): string {
-	return settings.provider === 'mock'
-		? 'agent brain: offline mock (deterministic) — set AI_PROVIDER=apertus to use a real model'
-		: `agent brain: ${settings.provider} (${settings.model})`;
+	if (settings.provider === 'mock') {
+		return 'agent brain: offline mock (deterministic) — set AI_PROVIDER=apertus to use a real model';
+	}
+	const personas = settings.personas ? 'four characters' : 'personas off';
+	return `agent brain: ${settings.provider} (${settings.model}, ${personas})`;
 }

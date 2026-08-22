@@ -21,7 +21,7 @@
 	import DotMenu from '../DotMenu.svelte';
 	import { conn } from '$lib/client/connection.svelte';
 	import { ask, ui } from '$lib/client/ui.svelte';
-	import { colorOf } from '$lib/client/identity';
+	import { characterNameOf, colorOf } from '$lib/client/identity';
 	import { clock, secondsUntil, tick } from '$lib/client/clock.svelte';
 
 	$effect(tick);
@@ -73,7 +73,7 @@
 	<div class="absolute top-[26px] right-5 left-6 z-[4] flex items-center gap-3.5">
 		<div class="flex min-w-0 flex-1 flex-col gap-2">
 			<span data-shot="brain-name" class="truncate display text-[26px] text-white">
-				{isMine ? t.yourOwn : (selected?.name ?? '')}
+				{isMine ? t.yourOwn : selected ? characterNameOf(selected) : ''}
 			</span>
 			<!-- How far this agent has ever got: the only score in the game. -->
 			<ReachDots reached={selected?.bestDepth ?? 0} total={game.depth} />

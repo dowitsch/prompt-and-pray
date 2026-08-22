@@ -662,7 +662,12 @@ export class Game {
 	 * The single source of truth for what a choice costs. The brain picked a
 	 * road; this decides where it goes and whether the story continues.
 	 */
-	resolveChoice(id: string, choiceId: string, reasoning: string): ResolveResult {
+	resolveChoice(
+		id: string,
+		choiceId: string,
+		reasoning: string,
+		improvised = false
+	): ResolveResult {
 		const player = this.getPlayer(id);
 		const node = this.nodeFor(id);
 		const choice = node.choices.find((c) => c.id === choiceId);
@@ -678,6 +683,7 @@ export class Game {
 			choiceLabel: choice.label,
 			reasoning,
 			outcome,
+			improvised,
 			at: Date.now() - this.startedAt
 		});
 

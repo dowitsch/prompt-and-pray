@@ -47,7 +47,7 @@
 		<span class="placeholder"></span>
 	{:else}
 		<img
-			src={characterSrc(characterOf(player))}
+			src={characterSrc(characterOf(player), 'avatar')}
 			alt=""
 			class="h-full w-full object-cover"
 			onerror={() => (failed = true)}

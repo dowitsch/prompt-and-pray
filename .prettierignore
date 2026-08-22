@@ -16,6 +16,7 @@ bun.lockb
 
 # Imported design output — not ours to format.
 doc/Design/
+doc/Prompt & Pray 2/
 
 # Vendored PixiJS terrain spike, kept as the reference the real map was ported
 # from. A separate project with its own toolchain — not ours to format.

@@ -132,6 +132,7 @@ export const de: Strings = {
 		misledOnce: 'EINMAL',
 		misledNever: 'NIE',
 		roadItTook: 'Der Weg, den es nahm',
+		taughtBy: 'unterrichtet von {name}',
 		whatYouWrote: 'Was du ihm geschrieben hast',
 		theOthers: 'Die anderen',
 		again: 'Noch eine erzählen'
@@ -163,8 +164,8 @@ export const de: Strings = {
 		done: 'Fertig',
 		previous: 'Vorheriger Charakter',
 		next: 'N\u00e4chster Charakter',
-		character: 'Charakter {n}',
-		artMissing: 'Charakterbild hier einsetzen',
+		character: '{name}, {epithet}',
+		artMissing: '{name} kommt hier hin',
 		colourTaken: 'Diese Farbe ist vergeben',
 		pickColour: 'Spielfarbe w\u00e4hlen'
 	},
@@ -190,6 +191,7 @@ export const de: Strings = {
 		toBrain: 'Ged\u00e4chtnis \u00f6ffnen',
 		toMap: 'Karte \u00f6ffnen',
 		nowRunning: '{name} ist unterwegs',
+		onInstinct: '(aus dem Bauch)',
 		storyOf: 'Verlauf von {name}',
 		focusOn: '{name} auf der Karte zeigen',
 		lettersLeft: '{n}/{total}'

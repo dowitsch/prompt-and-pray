@@ -193,7 +193,7 @@ export function saveMatch(db: Db, game: Game): void {
 							choiceId: Number(decision.choiceId),
 							reasoning: decision.reasoning,
 							outcome: decision.outcome,
-							improvised: false,
+							improvised: decision.improvised ?? false,
 							atMs: decision.at
 						})
 						.onConflictDoNothing()
@@ -362,6 +362,7 @@ function loadPlayers(db: Db, matchId: number, graph: StoryGraph): Player[] {
 						choiceLabel: choiceById.get(String(d.choiceId))?.label ?? '',
 						reasoning: d.reasoning,
 						outcome: d.outcome as ChoiceOutcome,
+						improvised: d.improvised,
 						at: d.atMs
 					}))
 			}));

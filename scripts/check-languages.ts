@@ -56,6 +56,8 @@ function placeOffering(locale: Locale, slugs: string[]): StoryNode {
 function ask(locale: Locale, here: StoryNode, memory: string[], pathSoFar: string[]) {
 	return brain.decide({
 		agentName: 'TEST',
+		// The offline brain is deliberately character-blind; any index will do.
+		character: 0,
 		locale,
 		nodeTitle: here.title,
 		nodeDescription: here.description,

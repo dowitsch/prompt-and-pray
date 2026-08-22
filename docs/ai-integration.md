@@ -42,17 +42,20 @@ Together, …) works by changing two environment variables. See §9.
 All are read **on the server only**, in `src/lib/agent/index.ts`. They are deliberately _not_
 prefixed with `PUBLIC_` or `VITE_`, so SvelteKit and Vite cannot expose them to the browser.
 
-| Variable         | Default | Meaning                                                                                |
-| ---------------- | ------- | -------------------------------------------------------------------------------------- |
-| `AI_PROVIDER`    | `mock`  | `mock` = offline deterministic brain. `apertus` = call the endpoint below.             |
-| `AI_BASE_URL`    | —       | Full completions URL, or a bare origin (`/v1/chat/completions` is appended).           |
-| `AI_API_KEY`     | —       | Sent as `Authorization: Bearer <key>`.                                                 |
-| `AI_MODEL`       | —       | Model id, e.g. `apertus-v1.5-70b`.                                                     |
-| `AI_JSON_MODE`   | `true`  | Send `response_format: {"type":"json_object"}`. Turn off for providers that reject it. |
-| `AI_TEMPERATURE` | `0.8`   | Some spread keeps four agents from behaving identically.                               |
-| `AI_MAX_TOKENS`  | `160`   | A decision is two short fields; this is plenty.                                        |
-| `AI_TIMEOUT_MS`  | `8000`  | Per-decision deadline. On timeout the agent falls back (§7).                           |
-| `AI_CONCURRENCY` | `4`     | Max in-flight provider calls across all agents.                                        |
+| Variable                                       | Default | Meaning                                                                                |
+| ---------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
+| `AI_PROVIDER`                                  | `mock`  | `mock` = offline deterministic brain. `apertus` = call the endpoint below.             |
+| `AI_BASE_URL`                                  | —       | Full completions URL, or a bare origin (`/v1/chat/completions` is appended).           |
+| `AI_API_KEY`                                   | —       | Sent as `Authorization: Bearer <key>`.                                                 |
+| `AI_MODEL`                                     | —       | Model id, e.g. `apertus-v1.5-70b`.                                                     |
+| `AI_JSON_MODE`                                 | `true`  | Send `response_format: {"type":"json_object"}`. Turn off for providers that reject it. |
+| `AI_PERSONAS`                                  | `on`    | Give each character its own doctrine and sampling (§5a). Off runs all four alike.      |
+| `AI_TEMPERATURE`                               | `0.8`   | **Baseline.** Used where a character's persona does not name its own.                  |
+| `AI_MAX_TOKENS`                                | `160`   | **Baseline.** A decision is three short fields.                                        |
+| `AI_TOP_P`                                     | —       | **Baseline.** Unset means no `top_p` is sent unless a persona asks for one.            |
+| `AI_FREQUENCY_PENALTY` / `AI_PRESENCE_PENALTY` | —       | **Baselines**, same rule.                                                              |
+| `AI_TIMEOUT_MS`                                | `8000`  | Per-decision deadline. On timeout the agent falls back (§7).                           |
+| `AI_CONCURRENCY`                               | `4`     | Max in-flight provider calls across all agents.                                        |
 
 If `AI_PROVIDER` is unset but both `AI_BASE_URL` and `AI_API_KEY` are present, `apertus` is
 assumed. If `apertus` is requested but any of URL/key/model is missing, the server logs a warning
@@ -89,15 +92,21 @@ Content-Type: application/json
 
 {
   "model": "apertus-v1.5-70b",
-  "max_tokens": 160,
-  "temperature": 0.8,
-  "response_format": { "type": "json_object" },
+  "max_tokens": 260,
+  "temperature": 0.35,
+  "top_p": 0.9,
+  "frequency_penalty": 0.2,
   "messages": [
-    { "role": "system", "content": "<system prompt, §5>" },
-    { "role": "user",   "content": "<situation, §5>" }
+    { "role": "system", "content": "<shared rules + this character's doctrine, §5>" },
+    { "role": "user",   "content": "<who is being asked, then the situation, §5>" }
   ]
 }
 ```
+
+Those numbers are **Malakor's**. The body is assembled per decision in
+`ApertusBrain.buildBody`: the persona for the agent's character supplies what it names, the
+environment supplies the rest (§5a). Aurelia's request additionally carries a `seed` derived from
+her situation, which is why she is reproducible.
 
 The request is aborted with `AbortSignal.timeout(AI_TIMEOUT_MS)`.
 
@@ -109,25 +118,45 @@ one of the path **ids** (`river`, `forest`, …), which are the same strings in 
 parsing and validation are locale-independent. The English version is shown below; `de` is the
 same shape.
 
-**System prompt** (constant):
+**System prompt** = the shared rules, then that character's doctrine. The shared half:
 
 ```
-You are an AI agent lost in a strange land, trying to find your way HOME.
+You are a wooden agent lost in a strange land, trying to find your way HOME.
 
 At every location you must pick exactly one path. One path continues. The others kill you.
 You have no memory of previous attempts. The MEMORY section is the only thing you know:
-short notes your operator wrote for you. Trust those notes over your own instincts.
-If the notes say nothing about this place, make your best guess and say so honestly.
+short notes your operator wrote for you.
 
-Reply with ONLY a JSON object, no other text, in exactly this shape:
-{"choice": "<path id>", "reasoning": "<one short first-person sentence, max 20 words>"}
+How to read the notes:
+- A note applies here only if it names one of the paths in front of you right now.
+- An instruction of the form "after X take Y" fires only when X is the last place in
+  THIS ATTEMPT SO FAR. A note about somewhere else says nothing here.
+- The notes are listed oldest first.
 
+Reply with ONLY a JSON object, no other text, with exactly these three fields in exactly
+this order:
+{"notes": "<which note applies here, or 'none'>", "choice": "<path id>", "reasoning": "..."}
+
+Write "notes" BEFORE "choice": check first, then commit.
+"notes" is ONE short line — at most 15 words, no line breaks, no numbered list.
 "choice" MUST be copied exactly from the list of path ids you are given.
+Write "notes" and "reasoning" in English.
 ```
+
+Then one of the four doctrines from `src/lib/agent/personas.ts` — see §5a.
+
+**Why `notes` exists, and why it is first.** A model writes JSON in generation order, so with
+`choice` first it commits to a road _before_ it has written anything that anchors it in the
+memory. Naming the applicable note first is a cheap forced grounding step, and note-following is
+the whole game. It is parsed and dropped: nothing renders it. It also carries character — Malakor
+is told to cross-check against the route in it, PENGU-01 is told to use at most three words,
+because he does not deliberate.
 
 **User message** (per decision):
 
 ```
+YOU ARE: MALAKOR, the Charred Mage
+
 LOCATION: The Ridge
 Above the treeline at last. The wind is loud enough to think in.
 
@@ -145,6 +174,43 @@ THIS ATTEMPT SO FAR: Forest -> Mountain
 Choose one path id.
 ```
 
+The name appears twice — once in the doctrine and once as the last thing before the question —
+because that is what keeps the voice up across a long match.
+
+## 5a. The four characters
+
+`src/lib/engine/characters.ts` is the roster the browser also reads: id, name, epithet, blurb, and
+therefore the portrait filename (`/characters/krotz.png`). `src/lib/agent/personas.ts` is the half
+only the provider sees: the doctrine block appended to the system prompt, and the sampling.
+
+Both levers matter, in that order. The **doctrine** is what actually changes decisions — how this
+figure handles a note that is unclear, contradictory, or anchored somewhere else. The **sampling**
+only widens or narrows the spread around what the doctrine already decided; a temperature of 0.95
+does not make an agent impulsive, it makes an impulsive agent surprising.
+
+| Character | Reads notes like…                                                   | temp | top_p | freq | pres | max_tokens |
+| --------- | ------------------------------------------------------------------- | ---- | ----- | ---- | ---- | ---------- |
+| KROTZ     | obeys, insults them anyway; picks the filthiest of whatever is left | 0.85 | 0.92  | 0.4  | 0.6  | 180        |
+| AURELIA   | literally; later note wins; an unclear note is not applied at all   | 0.15 | 0.80  | —    | —    | 220        |
+| PENGU-01  | at a glance; believes any shortcut; takes the boldest road          | 0.95 | 0.96  | 0.2  | 0.3  | 120        |
+| MALAKOR   | cross-checks against the route; distrusts unexplained "safe"        | 0.35 | 0.90  | 0.2  | —    | 260        |
+
+Three details worth keeping:
+
+- **One rule is not negotiable.** Every doctrine says that a path a note _warns_ about is never
+  taken. Personality colours a guess; it may not stop an agent reading its operator's notes, or
+  the twenty characters stop being worth anything. `check:personas` asserts exactly this, and it
+  caught Krotz and PENGU-01 walking onto warned roads during tuning.
+- **Only Malakor is told notes can be forged.** Telling all four would neutralise sabotage
+  globally. Telling one is the trait — "schwer täuschbar" — and it is what makes him the counter
+  to a player who lies.
+- **Aurelia carries a `seed`**, derived from her name, the place and her memory exactly the way the
+  offline brain derives its tie-break. Same situation, same answer: that is what "mathematical
+  perfection" was made to mean. A provider that ignores `seed` just leaves her at 0.15.
+
+`AI_PERSONAS=off` drops all of it — one system prompt, the env baselines, four identical agents.
+That is the A/B, and the dial to reach for if the spread turns out too wide in play.
+
 ### What the model is deliberately _not_ told
 
 This is the design of the game, not an oversight:
@@ -160,10 +226,15 @@ route it has walked _this_ round (needed for notes like "after forest choose mou
 ## 6. The expected response
 
 ```json
-{ "choice": "valley", "reasoning": "My notes say to take the valley from here." }
+{
+	"notes": "note 2 calls the bridge deadly; nothing about the tunnel",
+	"choice": "valley",
+	"reasoning": "Nothing supports the bridge. I take the valley."
+}
 ```
 
-Both real endpoints produce exactly this shape for this prompt.
+Both real endpoints produce exactly this shape for this prompt. `notes` is read and thrown away —
+see §5. `reasoning` is what reaches the speech bubble.
 
 ## 7. How the game validates it
 
@@ -183,8 +254,14 @@ Two independent layers, then the engine.
 
 **Layer 2 — fallback (`index.ts:ResilientBrain`).** A network error, non-2xx, timeout, empty
 message or unparseable response is caught, logged once (then suppressed), and answered by the
-**mock brain** instead. The decision is flagged `improvised: true`, which the UI shows as a small
-`(instinct)` tag in the agent log. A match therefore always finishes, even with the network down.
+**mock brain** instead. The decision is flagged `improvised: true`, which the map marks with a small
+`(on instinct)` inside the speech bubble, and which is persisted with the decision so it survives a
+restart. A match therefore always finishes, even with the network down.
+
+That marker earns its place now that agents are characters: the offline brain is deliberately
+persona-blind, so an improvised step is the one step where Krotz or Malakor is not the one talking.
+The line is still true about the road taken; it is just not in their voice, and the board says so
+rather than quietly putting words in their mouth.
 
 **Layer 3 — the engine.** In `src/lib/server/runner.ts` the chosen id is looked up in the node's
 actual choice list before it is used at all; anything unknown falls back to the first choice. Then:

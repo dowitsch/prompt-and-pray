@@ -14,10 +14,17 @@
  */
 
 import type { PublicPlayer } from '$lib/engine/game';
+import { CHARACTER_COUNT, characterAt } from '$lib/engine/characters';
 import { PLAYER_COLORS, WHITE } from './theme';
 
-/** How many portraits the config screen offers. */
-export const CHARACTER_COUNT = 5;
+/**
+ * How many characters the config screen offers.
+ *
+ * Re-exported rather than declared: this module's whole premise is that identity
+ * is computed in exactly one place, and a second copy of the count is the same
+ * mistake one level down.
+ */
+export { CHARACTER_COUNT };
 
 /**
  * The player's chosen colour.
@@ -36,9 +43,34 @@ export function characterOf(player: { character?: number; seat: number }): numbe
 	return (player.character ?? player.seat) % CHARACTER_COUNT;
 }
 
-/** Where a portrait lives. The art may genuinely not be there yet. */
-export function characterSrc(index: number): string {
-	return `/characters/${index % CHARACTER_COUNT}.png`;
+/**
+ * Where a portrait lives, in the size the caller actually draws it at.
+ *
+ * Named after the character rather than numbered, so the file on disk says who
+ * is in it: `krotz.webp`, not `0.webp`. Every consumer resolves the URL through
+ * here at runtime — there is no manifest and no bundle — so the four pairs in
+ * `static/characters/` are the whole of the art.
+ *
+ * Two sizes, because the same figure is a 300px cut-out in the carousel and a
+ * 36px disc on the map. `full` is the standing figure on transparency; `avatar`
+ * is the square crop of the head, which is the only part legible in a disc.
+ * Both keep their `onerror` fallback at the call site: a missed deploy should
+ * be a hatched placeholder, not a broken image.
+ */
+export function characterSrc(index: number, size: 'full' | 'avatar' = 'full'): string {
+	const { id } = characterAt(index);
+	return size === 'avatar' ? `/characters/${id}-avatar.webp` : `/characters/${id}.webp`;
+}
+
+/**
+ * What the *agent* is called.
+ *
+ * The player's own name belongs to the operator and stays on the roster, the
+ * lobby and the toasts. Anything the agent does on the map — speaks, arrives,
+ * dies, wins — is signed with this.
+ */
+export function characterNameOf(player: { character?: number; seat: number }): string {
+	return characterAt(characterOf(player)).name;
 }
 
 /** The ring around a token or avatar: white for you, your colour for everyone else. */

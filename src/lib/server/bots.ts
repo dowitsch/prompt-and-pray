@@ -26,7 +26,15 @@ const SKILL: Record<BotSkill, Weights> = {
 	sharp: { useful: 0.86, filler: 0.14, wrong: 0 }
 };
 
-export const BOT_NAMES = ['ORACLE', 'PILGRIM', 'MAGPIE', 'VESSEL', 'KESTREL', 'TALLOW'];
+/**
+ * What the simulated *operators* are called.
+ *
+ * These used to be agent names, back when an agent had no identity of its own.
+ * The agent is now a character — Krotz, Aurelia, PENGU-01, Malakor — and a bot
+ * is the person teaching it, so these read like the placeholder names a human
+ * arrives with (`client/names.ts`) rather than like something that walks a map.
+ */
+export const BOT_NAMES = ['Runa', 'Kwame', 'Milva', 'Tycho', 'Ines', 'Rasko'];
 
 /** Bots write in the match's language, since their notes are read by the same brain. */
 type BotWords = {
@@ -221,7 +229,7 @@ export function makeBots(seed: string, count: number): { name: string; skill: Bo
 	const names = [...BOT_NAMES];
 
 	return Array.from({ length: count }, (_, i) => {
-		const name = names.splice(rng.int(names.length), 1)[0] ?? `BOT-${i}`;
+		const name = names.splice(rng.int(names.length), 1)[0] ?? `Gast ${i + 1}`;
 		return { name, skill: skills[i % skills.length] };
 	});
 }

@@ -19,7 +19,8 @@
 		"db:migrate": "node --experimental-strip-types scripts/migrate.ts",
 		"db:seed": "node --experimental-strip-types scripts/seed.ts",
 		"db:studio": "drizzle-kit studio",
-		"check:graph": "node --experimental-transform-types scripts/check-graph.ts"
+		"check:graph": "node --experimental-transform-types scripts/check-graph.ts",
+		"check:personas": "node --experimental-transform-types --env-file-if-exists=.env scripts/check-personas.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

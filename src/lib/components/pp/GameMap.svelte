@@ -437,16 +437,25 @@
 
 		// The portrait may genuinely not be there yet, exactly as in `Avatar`.
 		// The ring underneath is the fallback, so a miss needs no other handling.
+		//
+		// It is masked to the disc because the art is a square crop: unmasked it
+		// draws its corners over the ring and the token reads as a photo pinned to
+		// the map rather than a figure standing on it. The mask sits just inside
+		// the stroke so the coloured edge stays a full ring.
 		const portrait = new PIXI!.Sprite();
 		portrait.anchor.set(0.5);
 		portrait.alpha = 0;
+		const clip = new PIXI!.Graphics().circle(0, 0, r - 1.5 / SCALE).fill({ color: 0xffffff });
+		portrait.mask = clip;
+		token.addChild(clip);
 		token.addChild(portrait);
 
-		PIXI!.Assets.load(characterSrc(characterOf(player)))
+		PIXI!.Assets.load(characterSrc(characterOf(player), 'avatar'))
 			.then((texture: Texture) => {
 				if (portrait.destroyed) return;
 				portrait.texture = texture;
-				portrait.setSize(r * 1.86, r * 1.86);
+				// Fills the mask rather than sitting inside it; the clip is the edge now.
+				portrait.setSize(r * 2, r * 2);
 				portrait.alpha = 1;
 			})
 			.catch(() => {

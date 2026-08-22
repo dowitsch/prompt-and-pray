@@ -24,7 +24,7 @@
 	import type { PublicPlayer } from '$lib/engine/game';
 	import Avatar from './Avatar.svelte';
 	import Icon from './Icon.svelte';
-	import { colorOf } from '$lib/client/identity';
+	import { characterNameOf, colorOf } from '$lib/client/identity';
 	import { fmt } from '$lib/i18n';
 	import { conn } from '$lib/client/connection.svelte';
 
@@ -44,7 +44,9 @@
 	let { bubble, player, tail = true }: Props = $props();
 
 	const colour = $derived(player ? colorOf(player) : '#F59D89');
-	const label = $derived(player ? fmt(conn.t.map.storyOf, { name: player.name }) : '');
+	// The agent speaks, so the bubble is signed with the character. The operator's
+	// own name belongs to the roster.
+	const label = $derived(player ? fmt(conn.t.map.storyOf, { name: characterNameOf(player) }) : '');
 </script>
 
 {#if player}
@@ -95,7 +97,19 @@
 						across matches.
 					-->
 					<Avatar {player} size={40} ring={2} ringColour="#fff" />
-					<span class="pt-2 text-base leading-snug text-white">{bubble.text}</span>
+					<span class="pt-2 text-base leading-snug text-white">
+						{bubble.text}
+						<!--
+							Said, but not by the character: the model did not answer in time and
+							the offline brain stood in. Small and set inside the sentence rather
+							than beside it, because it qualifies the line — it is not news.
+						-->
+						{#if bubble.improvised}
+							<span class="ml-1 text-xs whitespace-nowrap text-white/65 italic">
+								{conn.t.map.onInstinct}
+							</span>
+						{/if}
+					</span>
 					{#if tail}
 						<!-- The tail, notched under the left edge so it points at the roster. -->
 						<span

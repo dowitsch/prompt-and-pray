@@ -20,7 +20,22 @@ export type BrainChoice = {
 };
 
 export type DecisionContext = {
+	/**
+	 * What the agent is called — the character's name, not the operator's.
+	 *
+	 * The offline brain seeds its tie-break with it, and it is what the prompt
+	 * falls back to when personas are switched off.
+	 */
 	agentName: string;
+	/**
+	 * Which of the four characters this agent is, 0..CHARACTER_COUNT-1.
+	 *
+	 * The one field that makes two agents at the same crossroads with the same
+	 * notes answer differently: it selects the doctrine appended to the system
+	 * prompt and the sampling parameters the call is made with. See
+	 * `agent/personas.ts`.
+	 */
+	character: number;
 	/** The language the match is told in; the agent reasons in it. */
 	locale: Locale;
 	nodeTitle: string;

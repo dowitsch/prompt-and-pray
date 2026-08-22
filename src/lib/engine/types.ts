@@ -137,6 +137,15 @@ export type Decision = {
 	choiceLabel: string;
 	reasoning: string;
 	outcome: ChoiceOutcome;
+	/**
+	 * True when the provider failed and the offline brain answered instead.
+	 *
+	 * It matters more than it used to: an agent is a character now, and an
+	 * improvised step is the one step where that character is not the one
+	 * talking. The board says so, and the flag survives a restart so a replayed
+	 * match does not quietly claim the model said something it never said.
+	 */
+	improvised?: boolean;
 	/** Wall-clock ms since the match started, for the log. */
 	at: number;
 };
@@ -248,7 +257,11 @@ export type Player = {
 	/** Join order. A persistence key and the turn order; no longer a colour. */
 	seat: number;
 	/**
-	 * The portrait this player picked, 0..CHARACTER_COUNT-1.
+	 * Which of the four characters this player's agent *is*, 0..CHARACTER_COUNT-1.
+	 *
+	 * Not a costume: it names the agent (`characters.ts`) and it decides how the
+	 * agent reads its notes (`agent/personas.ts`). `name` above belongs to the
+	 * human operator; this is the figure that walks the map.
 	 *
 	 * Duplicates are legal — the design only marks *colours* as taken, and two
 	 * players in the same coat are told apart by the colour anyway.
@@ -320,14 +333,18 @@ export const MEMORY_GRANT_CHARS = 20;
 export const MAX_PLAYERS = 4;
 
 /**
- * How many identity colours there are, and how many portraits.
+ * How many identity colours there are.
  *
  * `PALETTE_SIZE` must stay >= `MAX_PLAYERS`, which is what makes auto-assignment
  * total: there is always a free colour for a joiner, so "that colour is taken"
- * can never wedge a lobby. `scripts/check-graph.ts` asserts it.
+ * can never wedge a lobby. `scripts/check-graph.ts` asserts it, and the same
+ * assertion covers `CHARACTER_COUNT`.
+ *
+ * Portraits are a separate axis and are counted by the roster itself, so the
+ * number of characters is whatever `characters.ts` lists and nothing else.
  */
 export const PALETTE_SIZE = 5;
-export const CHARACTER_COUNT = 5;
+export { CHARACTER_COUNT } from './characters.ts';
 
 /** How long the lobby counts down once everybody is ready. */
 export const LOBBY_COUNTDOWN_SECONDS = 3;

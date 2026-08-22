@@ -43,11 +43,14 @@
 </script>
 
 <div class="animate-pp-fade absolute inset-0 grid place-items-center">
-	<h1 class="flex items-center justify-center gap-1.5 display text-white">
-		<span class="text-[40px] leading-[0.94]">
-			<span class="block">Prompt</span>
-			<span class="block text-right">Pray</span>
-		</span>
-		<span class="-mt-1.5 text-[78px] leading-[0.7]">&amp;</span>
+	<h1 class="flex items-center justify-center">
+		<img
+			src="/logo.webp"
+			alt="Prompt &amp; Pray"
+			width="280"
+			height="170"
+			class="h-[170px] w-[280px] object-contain
+				drop-shadow-[0_10px_24px_rgba(28,31,34,0.45)]"
+		/>
 	</h1>
 </div>

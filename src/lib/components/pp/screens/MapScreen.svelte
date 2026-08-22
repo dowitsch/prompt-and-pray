@@ -21,7 +21,7 @@
 	import { conn } from '$lib/client/connection.svelte';
 	import { ui } from '$lib/client/ui.svelte';
 	import { followTurn, spotlightId } from '$lib/client/spotlight.svelte';
-	import { colorOf } from '$lib/client/identity';
+	import { characterNameOf, colorOf } from '$lib/client/identity';
 	import { PLAYER_COLORS } from '$lib/client/theme';
 	import { fmt } from '$lib/i18n';
 
@@ -59,7 +59,9 @@
 	<div class="absolute top-[26px] right-5 left-6 flex items-center gap-3.5">
 		<PhaseBar
 			{tint}
-			title={running && watched && !isMine ? fmt(t.nowRunning, { name: watched.name }) : null}
+			title={running && watched && !isMine
+				? fmt(t.nowRunning, { name: characterNameOf(watched) })
+				: null}
 		/>
 		<DotMenu padded={false} />
 	</div>
