@@ -1,94 +1,202 @@
 @import 'tailwindcss';
+/* Self-hosted: a phone-first game should not wait on fonts.googleapis.com,
+ * and both files carry latin + latin-ext, which is what German needs. */
+@import '@fontsource/archivo-black/index.css';
+@import '@fontsource-variable/inter/wght.css';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
 /*
- * HOMEWARD — visual identity.
+ * PROMPT & PRAY — visual identity.
  *
- * A storybook read by candlelight. Deep night blues and warm parchment, gold
- * where the light falls, old serif type throughout. Nothing here should look
- * like a dashboard: the screen is a page, the tree is an illustration, and the
- * agents' memories are things written down by hand.
+ * A phone held in warm light. Deep plum through to apricot, a near-black panel
+ * where anything has to be read, and heavy display type for everything that is
+ * an act — a name, a verdict, a button you press.
  *
- * Your own agent is the candle — the one warm light on the board.
+ * Every player owns one of five colours for the whole match. That colour is
+ * their identity: it is the pill behind their name in the lobby, the ring on
+ * their token, the tint on their agent's thoughts, and the ground of their
+ * brain. It never means anything else.
+ *
+ * The old HOMEWARD tokens below the rule are kept because the story designer at
+ * /design is still written against them.
  */
 
 @theme {
-	/* Night: deep, slightly violet, never flat black. */
+	/* The two neutrals. Nothing else is dark. */
+	--color-dark: #1c1f22;
+	--color-bright: #23272a;
+
+	/* The five identities, in palette order. */
+	--color-p1: #f59d89;
+	--color-p2: #ffb775;
+	--color-p3: #fa924b;
+	--color-p4: #b05a49;
+	--color-p5: #7b4a5f;
+
+	/* Used for the design's own furniture — the road on the map, gradient stops. */
+	--color-accent: #c3788c;
+
+	/* Display type is the loud one; body type is the quiet one. */
+	--font-display: 'Archivo Black', 'Inter', system-ui, sans-serif;
+	--font-body: 'Inter', system-ui, sans-serif;
+	--font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+	/* ---- HOMEWARD, kept for /design ---- */
 	--color-night: #0d0e17;
 	--color-night-2: #131524;
 	--color-vellum: #191b2c;
 	--color-rule: #2a2c42;
 	--color-rule-bright: #3b3d58;
-
-	/* Ink on parchment. */
 	--color-parchment: #f2e8d5;
 	--color-quill: #a89e8c;
 	--color-faded: #6b6579;
-
-	/* Candlelight. You. */
 	--color-candle: #e8b45c;
-	--color-candle-dim: #7a5c26;
-
 	--color-rose: #cf5f57;
 	--color-moss: #7fa77f;
 	--color-ash: #4a4658;
-
-	/* The other three, cool and quieter than the candle. */
-	--color-seat-1: #8fa6e8;
-	--color-seat-2: #b48ce0;
-	--color-seat-3: #6fb3ae;
-
-	/* Old serif everywhere — the single strongest storybook signal. */
 	--font-serif:
 		Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'Times New Roman',
 		serif;
-	--font-sans: var(--font-serif);
-	--font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 @layer base {
 	html {
-		background-color: var(--color-night);
+		background-color: var(--color-dark);
 		color-scheme: dark;
 	}
 
 	body {
 		min-height: 100vh;
-		background:
-			radial-gradient(120% 85% at 50% -15%, #1e2140 0%, transparent 62%),
-			radial-gradient(85% 55% at 50% 115%, #171a2e 0%, transparent 58%), var(--color-night);
-		color: var(--color-parchment);
-		font-family: var(--font-serif);
+		background: var(--color-dark);
+		color: #fff;
+		font-family: var(--font-body);
 		-webkit-font-smoothing: antialiased;
 	}
 
-	::selection {
-		background: var(--color-candle);
-		color: var(--color-night);
+	* {
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	::-webkit-scrollbar {
-		width: 5px;
-		height: 5px;
-	}
-	::-webkit-scrollbar-thumb {
-		background: var(--color-rule-bright);
-		border-radius: 999px;
-	}
-	::-webkit-scrollbar-track {
-		background: transparent;
+	::selection {
+		background: var(--color-p1);
+		color: var(--color-dark);
 	}
 }
 
-/* A page of the book. */
+/* ------------------------------------------------------------- the design */
+
+/* Anything that is an act: a name, a verdict, a button. */
+@utility display {
+	font-family: var(--font-display);
+	font-weight: 400;
+	letter-spacing: -0.01em;
+}
+
+/*
+ * The hairline scrollbar from the mockups. The feed is scrolled constantly and a
+ * platform scrollbar would sit on top of the artwork.
+ */
+@utility pp-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: rgb(255 255 255 / 55%) transparent;
+
+	&::-webkit-scrollbar {
+		width: 3px;
+		height: 3px;
+	}
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	&::-webkit-scrollbar-thumb {
+		background: rgb(255 255 255 / 55%);
+		border-radius: 3px;
+	}
+}
+
+/* One gradient per pre-match screen, so the flow reads as a warming. */
+@utility bg-screen-qr {
+	background: linear-gradient(175deg, #7b4a5f 0%, #a96679 32%, #c3788c 52%, #f59d89 100%);
+}
+
+@utility bg-screen-config {
+	background: linear-gradient(178deg, #a96679 0%, #c3788c 38%, #e28f84 58%, #f59d89 100%);
+}
+
+@utility bg-screen-lobby {
+	background: linear-gradient(178deg, #6e4457 0%, #8a5361 40%, #a85f55 74%, #b05a49 100%);
+}
+
+/* The dark panel that anything readable sits on. */
+@utility panel {
+	background: rgb(28 31 34 / 94%);
+	border-radius: 24px;
+}
+
+/* ------------------------------------------------------------------ motion */
+
+@keyframes pp-fade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes pp-rise {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes pp-pop {
+	from {
+		opacity: 0;
+		transform: scale(0.94);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes pp-pulse {
+	0%,
+	100% {
+		opacity: 0.35;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+.animate-pp-fade {
+	animation: pp-fade 300ms ease both;
+}
+.animate-pp-rise {
+	animation: pp-rise 300ms ease both;
+}
+.animate-pp-pop {
+	animation: pp-pop 220ms ease both;
+}
+.animate-pp-pulse {
+	animation: pp-pulse 1.5s ease-in-out infinite;
+}
+
+/* ------------------------------------------- HOMEWARD, kept for /design */
+
 @utility leaf {
 	background: linear-gradient(180deg, rgb(255 250 240 / 4%), rgb(255 250 240 / 1.5%));
 	border: 1px solid var(--color-rule);
 	border-radius: 0.5rem;
 }
 
-/* Small-caps section label, letterspaced like a chapter heading. */
 @utility rubric {
 	font-family: var(--font-serif);
 	font-size: 0.6875rem;
@@ -97,7 +205,6 @@
 	color: var(--color-faded);
 }
 
-/* Display type for titles: wide, quiet, old. */
 @utility title {
 	font-family: var(--font-serif);
 	letter-spacing: 0.16em;
@@ -107,8 +214,6 @@
 @utility rule-b {
 	border-bottom: 1px solid var(--color-rule);
 }
-
-/* ------------------------------------------------------------------ motion */
 
 @keyframes breathe {
 	0%,
@@ -151,21 +256,6 @@
 	}
 	100% {
 		transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.2);
-		opacity: 0;
-	}
-}
-
-/* Embers rising through the scene. */
-@keyframes drift {
-	0% {
-		transform: translateY(0);
-		opacity: 0;
-	}
-	25% {
-		opacity: 0.55;
-	}
-	100% {
-		transform: translateY(-80px);
 		opacity: 0;
 	}
 }

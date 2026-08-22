@@ -277,6 +277,22 @@ export const matchPlayers = sqliteTable(
 		playerId: text('player_id').notNull(),
 		seat: integer('seat').notNull(),
 		name: text('name').notNull(),
+		/**
+		 * Chosen portrait and identity colour, as palette indices.
+		 *
+		 * The bounds are written as literals rather than imported from the engine
+		 * because this file deliberately re-declares its enums (see MATCH_PHASES)
+		 * rather than depending on it. They are `PALETTE_SIZE` and
+		 * `CHARACTER_COUNT` in `src/lib/engine/types.ts`; keep them in step.
+		 *
+		 * There is intentionally no `unique(matchId, colour)` index. The engine is
+		 * the authority and `Game.restore` repairs duplicates on the way in — a
+		 * constraint here could make `saveMatch` throw forever over one legacy
+		 * row, and a database rule that can take a live match's persistence down is
+		 * worse than the invariant it protects.
+		 */
+		character: integer('character').notNull().default(0),
+		colour: integer('colour').notNull().default(0),
 		isBot: integer('is_bot', { mode: 'boolean' }).notNull().default(false),
 		botSkill: text('bot_skill'),
 		botSabotages: integer('bot_sabotages', { mode: 'boolean' }).notNull().default(false),
@@ -297,7 +313,9 @@ export const matchPlayers = sqliteTable(
 	(t) => [
 		unique('match_players_seat').on(t.matchId, t.seat),
 		unique('match_players_player').on(t.matchId, t.playerId),
-		check('match_players_status', sql`${t.status} in (${sql.raw(list(AGENT_STATUS))})`)
+		check('match_players_status', sql`${t.status} in (${sql.raw(list(AGENT_STATUS))})`),
+		check('match_players_character', sql`${t.character} between 0 and 4`),
+		check('match_players_colour', sql`${t.colour} between 0 and 4`)
 	]
 );
 

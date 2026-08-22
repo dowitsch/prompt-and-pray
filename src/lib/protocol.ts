@@ -28,6 +28,15 @@ export type ClientMessage =
 			storySlug?: string;
 	  }
 	| { type: 'JOIN_GAME'; code: string; name: string }
+	/**
+	 * The config screen: portrait, identity colour, and the name you go by.
+	 *
+	 * A patch, so tapping one swatch does not have to resend the rest. Deliberately
+	 * separate from JOIN_GAME rather than folded into it: a joiner cannot know
+	 * which colours are already taken until it has a snapshot, so the honest order
+	 * is join first, then configure. Lobby only — see `Game.configure`.
+	 */
+	| { type: 'CONFIGURE'; name?: string; character?: number; colour?: number }
 	| { type: 'SET_READY'; ready: boolean }
 	| { type: 'START_GAME' }
 	| { type: 'ADD_MEMORY'; text: string }
@@ -48,6 +57,17 @@ export type ServerEvent =
 	| { type: 'PLAYER_JOINED'; player: PublicPlayer; game: GameSnapshot }
 	| { type: 'PLAYER_UPDATED'; player: PublicPlayer }
 	| { type: 'GAME_STARTED'; game: GameSnapshot }
+	/**
+	 * The lobby is counting down to the start. `startsAt` of 0 means cancelled.
+	 *
+	 * A single event with a zero sentinel rather than a started/cancelled pair, so
+	 * it reads exactly like the `teachingEndsAt` field it mirrors. It has to exist
+	 * at all because `PLAYER_UPDATED` carries no snapshot: without it, the ready
+	 * tap that completes the set would tell nobody that the count had begun.
+	 */
+	| { type: 'START_COUNTDOWN'; startsAt: number }
+	/** Back to the lobby, same code, same people, nothing else carried over. */
+	| { type: 'MATCH_RESET'; game: GameSnapshot }
 	/** A new round. `order` is the sequence agents take their turns in. */
 	| { type: 'ROUND_STARTED'; round: number; order: string[]; game: GameSnapshot }
 	/** The spotlight moves to one agent; its whole attempt follows. */

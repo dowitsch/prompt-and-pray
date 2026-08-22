@@ -23,6 +23,8 @@ import { listStories, loadStory } from '../src/lib/db/story.ts';
 import type { StoryGraph, StoryNode } from '../src/lib/engine/types.ts';
 import { validateStory } from '../src/lib/engine/validate.ts';
 import type { Locale } from '../src/lib/i18n/index.ts';
+import { en } from '../src/lib/i18n/en.ts';
+import { de } from '../src/lib/i18n/de.ts';
 
 const brain = new MockBrain(11);
 let passed = 0;
@@ -184,6 +186,57 @@ for (const summary of listStories(db, true)) {
 	}
 	for (const problem of warnings) {
 		console.log(`        note (${problem.code}): ${problem.message}`);
+	}
+}
+
+/*
+ * Every {placeholder} in one dictionary exists in the other.
+ *
+ * The `Strings` type already makes a *missing key* a compile error, but it
+ * cannot see inside the strings — so dropping the braces off `{name}` in one
+ * language type-checks perfectly and then renders the word "name" to a player.
+ * That is the whole class of bug this catches, and it is invisible until
+ * somebody reads the wrong language.
+ */
+{
+	const holes = (value: unknown): string =>
+		[...String(value).matchAll(/\{(\w+)\}/g)]
+			.map((m) => m[1])
+			.sort()
+			.join(',');
+
+	const compare = (a: unknown, b: unknown, path: string): void => {
+		if (Array.isArray(a)) {
+			const same = Array.isArray(b) && a.length === b.length;
+			if (!same) {
+				failed++;
+				console.log(`  FAIL  ${path} has a different number of entries in de`);
+				return;
+			}
+			a.forEach((entry, i) => compare(entry, (b as unknown[])[i], `${path}[${i}]`));
+			return;
+		}
+		if (a && typeof a === 'object') {
+			for (const key of Object.keys(a as Record<string, unknown>)) {
+				compare(
+					(a as Record<string, unknown>)[key],
+					(b as Record<string, unknown> | undefined)?.[key],
+					path ? `${path}.${key}` : key
+				);
+			}
+			return;
+		}
+		if (holes(a) !== holes(b)) {
+			failed++;
+			console.log(`  FAIL  ${path} placeholders differ — en [${holes(a)}] vs de [${holes(b)}]`);
+		}
+	};
+
+	const before = failed;
+	compare(en, de, '');
+	if (failed === before) {
+		passed++;
+		console.log('  ok    en/de  every placeholder survives translation');
 	}
 }
 

@@ -160,6 +160,94 @@ export const de: Strings = {
 		reconnecting: 'Der Faden riss — er wird wieder gesucht',
 		offline: 'Der Faden ist verloren — neu laden, um neu zu beginnen'
 	},
+	pp: {
+		joinRound: 'Runde beitreten',
+		scanPrompt: 'QR-Code der Runde scannen',
+		scanCancel: 'Abbrechen',
+		typeCodeInstead: 'Code eingeben',
+		codePlaceholder: 'X7KD',
+		codeSubmit: 'Beitreten',
+		cameraBlocked: 'Keine Kamera verf\u00fcgbar. Gib stattdessen den Code der Runde ein.',
+		showQr: 'QR-Code zeigen',
+		forward: 'Weiter',
+		menu: 'Men\u00fc'
+	},
+	config: {
+		namePlaceholder: 'Name',
+		editName: 'Namen \u00e4ndern',
+		commitName: 'Namen \u00fcbernehmen',
+		done: 'Fertig',
+		previous: 'Vorheriger Charakter',
+		next: 'N\u00e4chster Charakter',
+		character: 'Charakter {n}',
+		artMissing: 'Charakterbild hier einsetzen',
+		colourTaken: 'Diese Farbe ist vergeben',
+		pickColour: 'Spielfarbe w\u00e4hlen'
+	},
+	seats: {
+		ready: 'Bereit',
+		waiting: 'Warten',
+		empty: 'Ein freier Platz',
+		you: 'du',
+		editYours: 'Deine Figur \u00e4ndern',
+		startingIn: 'Start in {n}'
+	},
+	map: {
+		cluePhase: 'Hinweise erfassen',
+		roundRunning: 'Runde l\u00e4uft',
+		theEnd: 'Das Ende',
+		cluePlaceholder: 'Hinweis eingeben',
+		clueClosed: 'Runde l\u00e4uft \u2026',
+		rationSpent: 'Ration verbraucht',
+		waitingOthers: 'Warten auf die anderen',
+		send: 'Hinweis senden',
+		imDone: 'Ich bin fertig',
+		jumpToLatest: 'Zum neuesten',
+		toBrain: 'Ged\u00e4chtnis \u00f6ffnen',
+		toMap: 'Karte \u00f6ffnen',
+		focusOn: '{name} auf der Karte zeigen',
+		lettersLeft: '{n}/{total}'
+	},
+	brain: {
+		yourOwn: 'Dein Ged\u00e4chtnis',
+		injectPlaceholder: 'Injection platzieren',
+		pickLineFirst: 'Zeile zum \u00dcberschreiben w\u00e4hlen',
+		overwrites: '\u00fcberschreibt \u00ab{line}\u00bb',
+		mischiefSpent: 'Dein Streich ist verbraucht',
+		noNotes: 'Noch keine Notizen',
+		selectPlayer: '{name} anzeigen'
+	},
+	menu: {
+		title: 'Men\u00fc',
+		newRound: 'Neue Runde',
+		playAgain: 'Erneut spielen',
+		showRules: 'Spielregeln anzeigen',
+		storyAndLanguage: 'Geschichte & Sprache',
+		close: 'Schlie\u00dfen'
+	},
+	rules: {
+		title: 'Spielregeln',
+		paragraphs: [
+			'Dein Agent hat sich in einem fremden Land verirrt und will nach Hause. An jedem Ort muss er genau einen Weg w\u00e4hlen. Ein Weg f\u00fchrt weiter. Die anderen beenden seine Reise.',
+			'Du f\u00fchrst ihn nie. Zwischen den Runden darfst du seinem Ged\u00e4chtnis zwanzig Buchstaben hinzuf\u00fcgen, und dieses Ged\u00e4chtnis ist alles, was er in die n\u00e4chste Runde mitnimmt. Er vertraut diesen Notizen mehr als seinem Gef\u00fchl.',
+			'Sonst erinnert er sich an nichts. Jede Runde bricht er wieder von vorne auf und weiss nur, was du aufgeschrieben hast.',
+			'Einmal pro Spiel darfst du in das Ged\u00e4chtnis eines Gegners greifen und eine seiner Zeilen durch deine ersetzen. Er erf\u00e4hrt nicht, welche. Einem Agenten zuzusehen, wie er auf deine L\u00fcge hin in den Abgrund l\u00e4uft, ist der sch\u00f6nste Moment im Spiel.',
+			'Wer als Erster nach Hause kommt, gewinnt die Runde.'
+		]
+	},
+	confirm: {
+		newRound: 'Deine aktuelle Runde beenden?',
+		playAgain: 'In die Lobby zur\u00fcckkehren?',
+		inject: '\u00ab{before}\u00bb durch \u00ab{after}\u00bb ersetzen?',
+		yes: 'Ja',
+		no: 'Nein'
+	},
+	end: {
+		wins: '{name} gewinnt',
+		youWin: 'Du gewinnst',
+		playAgain: 'Erneut spielen',
+		close: 'Schlie\u00dfen'
+	},
 	headlines: {
 		oneHome: '{name} ging durch das Tor.',
 		manyHome: '{names} kamen gemeinsam nach Hause.',

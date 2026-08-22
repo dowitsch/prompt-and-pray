@@ -2,7 +2,13 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- viewport-fit so the frame can pay attention to the notch; interactive-widget
+		     so the on-screen keyboard resizes the page instead of covering the clue
+		     input, which sits at the very bottom of the map screen. -->
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+		/>
 		<meta name="text-scale" content="scale" />
 		%sveltekit.head%
 	</head>

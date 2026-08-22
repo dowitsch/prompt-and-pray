@@ -10,6 +10,9 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
+	// The imported design prototype and its runtime are build output from Claude
+	// Design, kept in the repo as the reference for the UI. Not ours to lint.
+	{ ignores: ['doc/Design/**'] },
 	js.configs.recommended,
 	ts.configs.recommended,
 	svelte.configs.recommended,

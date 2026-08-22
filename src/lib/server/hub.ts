@@ -1,7 +1,7 @@
 import type { WebSocket } from 'ws';
 import type { Game } from '../engine/game.ts';
 import { GameError } from '../engine/game.ts';
-import { MAX_PLAYERS } from '../engine/types.ts';
+import { LOBBY_COUNTDOWN_SECONDS, MAX_PLAYERS } from '../engine/types.ts';
 import { DEFAULT_LOCALE, isLocale, type Locale } from '../i18n/index.ts';
 import type { ClientMessage, ServerEvent } from '../protocol.ts';
 import type { AgentBrain } from '../agent/index.ts';
@@ -9,7 +9,7 @@ import { BotController, makeBots } from './bots.ts';
 import { MatchRunner } from './runner.ts';
 import { adoptGame, createGame, getGame, newPlayerId, sweepStaleGames } from './store.ts';
 import { getDb } from '../db/db.ts';
-import { loadMatches, saveMatch } from '../db/matches.ts';
+import { deleteMatch, loadMatches, saveMatch } from '../db/matches.ts';
 
 /**
  * The authoritative hub.
@@ -28,6 +28,13 @@ type Session = {
 export class Hub {
 	private readonly sessions = new Map<WebSocket, Session>();
 	private readonly runners = new Map<string, MatchRunner>();
+	/**
+	 * The lobby's 3-2-1, per match code.
+	 *
+	 * Lives here rather than in MatchRunner because in the lobby there is no
+	 * runner yet, and the hub is already the thing that decides a match may begin.
+	 */
+	private readonly starts = new Map<string, ReturnType<typeof setTimeout>>();
 	private saveWarnings = 0;
 
 	constructor(
@@ -67,6 +74,9 @@ export class Hub {
 				if (player) {
 					this.broadcast(game, { type: 'PLAYER_UPDATED', player: game.publicPlayer(player) });
 				}
+				// Someone leaving can *complete* the ready set as easily as break it,
+				// so this re-evaluates rather than only cancelling.
+				this.evaluateStart(game);
 			}
 			this.sessions.delete(socket);
 			sweepStaleGames();
@@ -160,6 +170,15 @@ export class Hub {
 				return this.onCreate(session, message.name, message.locale, message.storySlug);
 			case 'JOIN_GAME':
 				return this.onJoin(session, message.code, message.name);
+			case 'CONFIGURE': {
+				const { game, playerId } = this.requirePlayer(session);
+				const player = game.configure(playerId, message);
+				// Opening your config again pulls the handbrake: otherwise one player
+				// could stall a lobby indefinitely by reconfiguring during the count.
+				this.cancelStart(game);
+				this.broadcast(game, { type: 'PLAYER_UPDATED', player: game.publicPlayer(player) });
+				return;
+			}
 			case 'SET_READY': {
 				const { game, playerId } = this.requirePlayer(session);
 				game.setReady(playerId, message.ready);
@@ -167,10 +186,17 @@ export class Hub {
 					type: 'PLAYER_UPDATED',
 					player: game.publicPlayer(game.getPlayer(playerId))
 				});
-				// Readying up during teaching can start the next round early.
-				this.runners.get(game.code)?.notifyReady();
+				if (game.phase === 'lobby') {
+					// Everybody ready in the lobby starts the match on its own.
+					this.evaluateStart(game);
+				} else {
+					// Readying up during teaching can start the next round early.
+					this.runners.get(game.code)?.notifyReady();
+				}
 				return;
 			}
+			case 'PLAY_AGAIN':
+				return this.onPlayAgain(session);
 			case 'START_GAME':
 				return this.onStart(session);
 			case 'ADD_MEMORY': {
@@ -223,6 +249,8 @@ export class Hub {
 
 		this.send(session.socket, { type: 'STATE_SYNC', you: player.id, game: game.snapshot() });
 		this.broadcast(game, { type: 'PLAYER_UPDATED', player: game.publicPlayer(player) });
+		// A human coming back changes the set of humans the count is waiting for.
+		this.evaluateStart(game);
 	}
 
 	private onCreate(session: Session, name: string, locale: Locale, storySlug?: string): void {
@@ -268,6 +296,9 @@ export class Hub {
 			player: game.publicPlayer(player),
 			game: game.snapshot()
 		});
+		// A joiner who has not readied yet must stop any count in progress; one who
+		// has nothing to do with it is a no-op.
+		this.evaluateStart(game);
 	}
 
 	/**
@@ -310,13 +341,107 @@ export class Hub {
 		return runner;
 	}
 
+	/**
+	 * START_GAME is kept as the host's override even though the new UI never sends
+	 * it: `scripts/simulate.mjs` is the only end-to-end tool in the repo and it
+	 * starts matches this way.
+	 */
 	private onStart(session: Session): void {
 		const { game, playerId } = this.requirePlayer(session);
 		if (game.hostId !== playerId) throw new GameError('Only the host can start the match.');
 
+		this.cancelStart(game);
+		this.beginMatch(game);
+	}
+
+	/* ------------------------------------------------------ the lobby count */
+
+	/**
+	 * Arm, or disarm, the lobby's 3-2-1.
+	 *
+	 * Called from every event that can change who is ready or who is here:
+	 * readying up, joining, reconnecting, reconfiguring, and disconnecting.
+	 */
+	private evaluateStart(game: Game): void {
+		if (game.phase !== 'lobby') return;
+
+		if (!game.allHumansReady()) return this.cancelStart(game);
+		if (this.starts.has(game.code)) return;
+
+		const startsAt = game.armStart();
+		this.broadcast(game, { type: 'START_COUNTDOWN', startsAt });
+		this.starts.set(
+			game.code,
+			setTimeout(() => {
+				this.starts.delete(game.code);
+				// Still true? Someone may have un-readied inside the window.
+				if (game.phase !== 'lobby' || !game.allHumansReady()) return this.cancelStart(game);
+				try {
+					this.beginMatch(game);
+				} catch (error) {
+					console.error('[prompt&pray] auto-start failed', error);
+					this.cancelStart(game);
+				}
+			}, LOBBY_COUNTDOWN_SECONDS * 1000)
+		);
+	}
+
+	private cancelStart(game: Game): void {
+		const timer = this.starts.get(game.code);
+		if (timer) {
+			clearTimeout(timer);
+			this.starts.delete(game.code);
+		}
+		if (game.startsAt) {
+			game.disarmStart();
+			this.broadcast(game, { type: 'START_COUNTDOWN', startsAt: 0 });
+		}
+	}
+
+	/**
+	 * The order matters: `startRunner` seats the bots *before* `startMatch`
+	 * asserts there are at least two agents, which is what lets one human and
+	 * three simulated rivals be a match.
+	 */
+	private beginMatch(game: Game): void {
 		const runner = this.startRunner(game);
 		game.startMatch();
 		this.broadcast(game, { type: 'GAME_STARTED', game: game.snapshot() });
 		runner.startMatch();
+	}
+
+	/* ------------------------------------------------------------- rematch */
+
+	/**
+	 * Play the same land again — the button the end overlay offers everyone, not
+	 * just the host, because the overlay is on every phone.
+	 */
+	private onPlayAgain(session: Session): void {
+		const { game } = this.requirePlayer(session);
+		if (game.phase === 'lobby') return; // Four people tapping at once.
+
+		this.cancelStart(game);
+
+		// Both lines: the finished runner already stopped itself on GAME_FINISHED,
+		// but the map still holds it, and leaving it there would let startRunner
+		// overwrite the entry while the old object stayed referenced.
+		this.runners.get(game.code)?.stop();
+		this.runners.delete(game.code);
+
+		game.rematch();
+
+		/*
+		 * Drop the stored match and let the next save write it fresh.
+		 *
+		 * Not optional. `runs` is unique on (matchPlayerId, round) and saveMatch
+		 * only writes rounds past a per-player watermark, so once the round counter
+		 * restarts at 1 every new run collides with a stored row, is silently
+		 * dropped by onConflictDoNothing, and a restart would restore the *previous*
+		 * match's runs into this one. The delete cascades players, memory, runs,
+		 * decisions and fog.
+		 */
+		deleteMatch(getDb(), game.code);
+
+		this.broadcast(game, { type: 'MATCH_RESET', game: game.snapshot() });
 	}
 }

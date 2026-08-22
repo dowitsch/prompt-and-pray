@@ -21,6 +21,7 @@ import { Game } from '../src/lib/engine/game.ts';
 import { stepBudgetFor } from '../src/lib/db/story.ts';
 import { distancesToHome } from '../src/lib/db/story.ts';
 import type { StoryChoice, StoryGraph, StoryNode } from '../src/lib/engine/types.ts';
+import { CHARACTER_COUNT, MAX_PLAYERS, PALETTE_SIZE } from '../src/lib/engine/types.ts';
 import { validateStory } from '../src/lib/engine/validate.ts';
 
 let passed = 0;
@@ -438,6 +439,131 @@ function walk(game: Game, label: string) {
 		verdict.warnings.some((p) => p.code === 'no-way-home'),
 		'but the author is warned about it'
 	);
+}
+
+// --- 5. Identity: a colour means one player ------------------------------
+//
+// The whole design rests on a colour belonging to exactly one player for the
+// length of a match. That is a rule, so it is asserted here rather than trusted
+// to the picker that happens to be in front of it.
+{
+	check(
+		PALETTE_SIZE >= MAX_PLAYERS,
+		'there are at least as many colours as seats',
+		`PALETTE_SIZE=${PALETTE_SIZE} MAX_PLAYERS=${MAX_PLAYERS}`
+	);
+
+	const story = graph('start', [
+		{
+			id: 'start',
+			ways: [
+				['On', 'home'],
+				['Off', 'grave']
+			]
+		},
+		{ id: 'grave', ending: 'FAILURE' },
+		{ id: 'home', ending: 'SUCCESS' }
+	]);
+
+	const game = new Game('TEST', story, 'en');
+	for (let i = 0; i < MAX_PLAYERS; i++) game.addPlayer(`p${i}`, `P${i}`);
+	const colours = game.players.map((p) => p.colour);
+	check(
+		new Set(colours).size === MAX_PLAYERS,
+		'a full lobby is assigned distinct colours',
+		colours.join(', ')
+	);
+
+	let refusedTaken = false;
+	try {
+		game.configure('p0', { colour: game.players[1].colour });
+	} catch {
+		refusedTaken = true;
+	}
+	check(refusedTaken, 'a colour another player holds is refused');
+
+	game.configure('p0', { name: 'Renamed', character: 3 });
+	check(game.players[0].name === 'Renamed', 'a name can be changed in the lobby');
+	check(game.players[0].character === 3, 'so can a portrait');
+
+	let refusedRange = false;
+	try {
+		game.configure('p0', { character: CHARACTER_COUNT });
+	} catch {
+		refusedRange = true;
+	}
+	check(refusedRange, 'a portrait outside the set is refused');
+
+	game.startMatch();
+	let refusedRunning = false;
+	try {
+		game.configure('p0', { name: 'Too late' });
+	} catch {
+		refusedRunning = true;
+	}
+	check(refusedRunning, 'and nothing can be reconfigured once the match is running');
+}
+
+// --- 6. A rematch keeps the people and forgets the land ------------------
+//
+// The dangerous half of `rematch` is the private half. Carrying `reveal` over
+// would hand the second match the first match's fog — which is to say the
+// answer — and it would do it silently, so this is the check that matters.
+{
+	const story = graph('start', [
+		{
+			id: 'start',
+			ways: [
+				['On', 'home'],
+				['Off', 'grave']
+			]
+		},
+		{ id: 'grave', ending: 'FAILURE' },
+		{ id: 'home', ending: 'SUCCESS' }
+	]);
+
+	const game = playing(story);
+	const before = game.players[0].colour;
+	walk(game, 'On');
+	game.endRound();
+	// The phase the end overlay is shown in; `finish` is the runner's job.
+	game.phase = 'over';
+
+	check(
+		game.foggedTree().edges.some((e) => e.state !== 'unknown'),
+		'walking a road reveals it'
+	);
+
+	game.rematch();
+
+	check(game.phase === 'lobby', 'a rematch puts the match back in the lobby');
+	check(game.round === 0, 'and back to round zero');
+	check(game.winnerIds.length === 0, 'with no winner');
+	check(
+		game.foggedTree().edges.every((e) => e.state === 'unknown'),
+		'and every road is unknown again — the fog must not carry over'
+	);
+	check(
+		game.players.every(
+			(p) =>
+				p.memory.length === 0 &&
+				p.runs.length === 0 &&
+				p.agent.bestDepth === 0 &&
+				!p.sabotageUsed &&
+				!p.ready
+		),
+		'every agent starts over knowing nothing'
+	);
+	check(game.players[0].colour === before, 'but everyone keeps who they were');
+	check(game.players.length === 2, 'and nobody loses their seat');
+
+	let startedAgain = true;
+	try {
+		game.startMatch();
+	} catch {
+		startedAgain = false;
+	}
+	check(startedAgain, 'and the match can simply be started again');
 }
 
 console.log(`\n  ${passed} passed, ${failed} failed\n`);

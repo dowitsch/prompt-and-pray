@@ -158,6 +158,94 @@ export const en: Strings = {
 		reconnecting: 'The thread broke — finding it again',
 		offline: 'The thread is lost — reload to begin again'
 	},
+	pp: {
+		joinRound: 'Join a round',
+		scanPrompt: "Scan the round's QR code",
+		scanCancel: 'Cancel',
+		typeCodeInstead: 'Type the code instead',
+		codePlaceholder: 'X7KD',
+		codeSubmit: 'Join',
+		cameraBlocked: 'No camera here. Type the code of the round instead.',
+		showQr: 'Show the QR code',
+		forward: 'Onward',
+		menu: 'Menu'
+	},
+	config: {
+		namePlaceholder: 'Name',
+		editName: 'Change your name',
+		commitName: 'Keep this name',
+		done: 'Done',
+		previous: 'Previous character',
+		next: 'Next character',
+		character: 'Character {n}',
+		artMissing: 'character art goes here',
+		colourTaken: 'That colour is taken',
+		pickColour: 'Pick your colour'
+	},
+	seats: {
+		ready: 'Ready',
+		waiting: 'Waiting',
+		empty: 'An empty seat',
+		you: 'you',
+		editYours: 'Change your figure',
+		startingIn: 'Starting in {n}'
+	},
+	map: {
+		cluePhase: 'Write a clue',
+		roundRunning: 'The round is running',
+		theEnd: 'The end',
+		cluePlaceholder: 'Write a clue',
+		clueClosed: 'The round is running \u2026',
+		rationSpent: 'Nothing left to give',
+		waitingOthers: 'Waiting for the others',
+		send: 'Send the clue',
+		imDone: "I'm done",
+		jumpToLatest: 'Jump to the newest',
+		toBrain: 'Open the memory',
+		toMap: 'Open the map',
+		focusOn: 'Show {name} on the map',
+		lettersLeft: '{n}/{total}'
+	},
+	brain: {
+		yourOwn: 'Your memory',
+		injectPlaceholder: 'Plant a line',
+		pickLineFirst: 'Pick a line to overwrite',
+		overwrites: 'overwrites \u201C{line}\u201D',
+		mischiefSpent: 'Your one mischief is spent',
+		noNotes: 'Nothing written yet',
+		selectPlayer: 'Show {name}'
+	},
+	menu: {
+		title: 'Menu',
+		newRound: 'New round',
+		playAgain: 'Play again',
+		showRules: 'Show the rules',
+		storyAndLanguage: 'Story & language',
+		close: 'Close'
+	},
+	rules: {
+		title: 'The rules',
+		paragraphs: [
+			'Your agent is lost in a strange land and trying to get home. At every place it must choose exactly one road. One road goes on. The others end its journey.',
+			'You never control it. Between rounds you get twenty characters to add to its memory, and that memory is the whole of what it carries into the next round. It trusts those notes more than its own instinct.',
+			'It remembers nothing else. Every round it sets out from the beginning again, knowing only what you have written down.',
+			'Once per match you may reach into a rival\u2019s memory and overwrite one of their lines with your own. They will not be told which one. Watching an agent walk off a cliff on a lie you planted is the best moment in the game.',
+			'The first agent to reach home wins the round.'
+		]
+	},
+	confirm: {
+		newRound: 'End your current round?',
+		playAgain: 'Back to the lobby?',
+		inject: 'Replace \u201C{before}\u201D with \u201C{after}\u201D?',
+		yes: 'Yes',
+		no: 'No'
+	},
+	end: {
+		wins: '{name} wins',
+		youWin: 'You win',
+		playAgain: 'Play again',
+		close: 'Close'
+	},
 	headlines: {
 		oneHome: '{name} walked through the gate.',
 		manyHome: '{names} reached home together.',

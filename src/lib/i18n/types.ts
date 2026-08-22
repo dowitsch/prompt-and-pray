@@ -181,6 +181,100 @@ export type Strings = {
 		/** Terminal: retrying gave up and the page needs a reload. */
 		offline: string;
 	};
+	/* -------------------------------------------------- Prompt & Pray screens */
+
+	/** Screen 1: the round's QR code, and joining someone else's. */
+	pp: {
+		joinRound: string;
+		scanPrompt: string;
+		scanCancel: string;
+		/** Shown where the camera cannot be used: Safari, a denied permission, plain http. */
+		typeCodeInstead: string;
+		codePlaceholder: string;
+		codeSubmit: string;
+		cameraBlocked: string;
+		showQr: string;
+		forward: string;
+		menu: string;
+	};
+	/** Screen 2: name, portrait, colour. */
+	config: {
+		namePlaceholder: string;
+		editName: string;
+		commitName: string;
+		done: string;
+		previous: string;
+		next: string;
+		/** Alt text for a portrait, and the placeholder when the art is missing. */
+		character: string;
+		artMissing: string;
+		colourTaken: string;
+		pickColour: string;
+	};
+	/** Screen 3, on top of the existing lobby copy. */
+	seats: {
+		ready: string;
+		waiting: string;
+		empty: string;
+		you: string;
+		editYours: string;
+		startingIn: string;
+	};
+	/** Screen 4: the map and the clue feed. */
+	map: {
+		cluePhase: string;
+		roundRunning: string;
+		theEnd: string;
+		cluePlaceholder: string;
+		clueClosed: string;
+		rationSpent: string;
+		waitingOthers: string;
+		send: string;
+		imDone: string;
+		jumpToLatest: string;
+		toBrain: string;
+		toMap: string;
+		focusOn: string;
+		lettersLeft: string;
+	};
+	/** Screen 5: somebody's whole history, and what you can put in it. */
+	brain: {
+		yourOwn: string;
+		injectPlaceholder: string;
+		pickLineFirst: string;
+		overwrites: string;
+		mischiefSpent: string;
+		noNotes: string;
+		selectPlayer: string;
+	};
+	/** The global menu and its sheets. */
+	menu: {
+		title: string;
+		newRound: string;
+		playAgain: string;
+		showRules: string;
+		storyAndLanguage: string;
+		close: string;
+	};
+	rules: {
+		title: string;
+		/** The body, one paragraph per entry. */
+		paragraphs: string[];
+	};
+	confirm: {
+		newRound: string;
+		playAgain: string;
+		inject: string;
+		yes: string;
+		no: string;
+	};
+	end: {
+		wins: string;
+		youWin: string;
+		playAgain: string;
+		close: string;
+	};
+
 	/** One line of story for a whole round, chosen by the engine. */
 	headlines: {
 		oneHome: string;

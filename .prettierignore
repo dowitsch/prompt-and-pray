@@ -13,3 +13,6 @@ bun.lockb
 
 # Scratch worktrees.
 /.claude/worktrees/
+
+# Imported design output — not ours to format.
+doc/Design/

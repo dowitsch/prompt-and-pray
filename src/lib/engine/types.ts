@@ -227,8 +227,24 @@ export type BotSkill = 'careless' | 'steady' | 'sharp';
 export type Player = {
 	id: string;
 	name: string;
-	/** Seat colour index 0..3, used consistently across the whole UI. */
+	/** Join order. A persistence key and the turn order; no longer a colour. */
 	seat: number;
+	/**
+	 * The portrait this player picked, 0..CHARACTER_COUNT-1.
+	 *
+	 * Duplicates are legal — the design only marks *colours* as taken, and two
+	 * players in the same coat are told apart by the colour anyway.
+	 */
+	character: number;
+	/**
+	 * The identity colour this player picked, 0..PALETTE_SIZE-1.
+	 *
+	 * Unique within a match, and the same on every screen: this is the one thing
+	 * that makes "the orange agent walked off a cliff" mean something at a table.
+	 * An index rather than a hex, because the engine has no business knowing what
+	 * the colours actually look like.
+	 */
+	colour: number;
 	isBot: boolean;
 	/**
 	 * How a rival plays, and whether it is the one that plays dirty. Held here
@@ -284,3 +300,16 @@ export type RevealState = {
 
 export const MEMORY_GRANT_CHARS = 20;
 export const MAX_PLAYERS = 4;
+
+/**
+ * How many identity colours there are, and how many portraits.
+ *
+ * `PALETTE_SIZE` must stay >= `MAX_PLAYERS`, which is what makes auto-assignment
+ * total: there is always a free colour for a joiner, so "that colour is taken"
+ * can never wedge a lobby. `scripts/check-graph.ts` asserts it.
+ */
+export const PALETTE_SIZE = 5;
+export const CHARACTER_COUNT = 5;
+
+/** How long the lobby counts down once everybody is ready. */
+export const LOBBY_COUNTDOWN_SECONDS = 3;

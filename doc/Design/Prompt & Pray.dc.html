@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #0E0F10; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  a { color: #F59D89; text-decoration: none; }
+  a:hover { color: #FFB775; }
+  button { font: inherit; border: 0; background: none; cursor: pointer; color: inherit; }
+  input { font: inherit; }
+  .ppScroll::-webkit-scrollbar { width: 3px; }
+  .ppScroll::-webkit-scrollbar-track { background: transparent; }
+  .ppScroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.55); border-radius: 3px; }
+  @keyframes ppFade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes ppRise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+  @keyframes ppPop { from { opacity: 0; transform: scale(.94) } to { opacity: 1; transform: none } }
+  @keyframes ppPulse { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,system-ui,sans-serif">
+<div style="position:relative;width:390px;height:844px;flex:none;overflow:hidden;border-radius:38px;background:#1C1F22;box-shadow:0 40px 90px rgba(0,0,0,.55)">
+
+  <sc-if value="{{ isQr }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;inset:0;background:linear-gradient(175deg,#7B4A5F 0%,#A96679 32%,#C3788C 52%,#F59D89 100%);animation:ppFade .3s ease">
+    <div style="position:absolute;top:26px;right:22px;z-index:5">
+      <button onClick="{{ openMenu }}" style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:8px;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+      </button>
+    </div>
+    <div style="position:absolute;top:96px;left:24px;right:24px;display:flex;align-items:center;justify-content:center;gap:6px">
+      <div style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:40px;line-height:.94;letter-spacing:-.01em">
+        <div>Prompt</div>
+        <div style="text-align:right">Pray</div>
+      </div>
+      <div style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:78px;line-height:.7;margin-top:-6px">&amp;</div>
+    </div>
+    <div style="position:absolute;top:312px;left:71px;width:248px;height:248px">
+      <button onClick="{{ qrForward }}" style="display:block;width:100%;height:100%;border-radius:26px;background:#23272A;padding:22px;box-shadow:0 18px 40px rgba(28,31,34,.35);transition:transform .18s ease,box-shadow .18s ease" style-hover="transform:scale(1.02);box-shadow:0 22px 48px rgba(28,31,34,.45)">
+        {{ qrGrid }}
+      </button>
+      <button onClick="{{ qrForward }}" style="position:absolute;right:-30px;bottom:-24px;width:72px;height:72px;border-radius:22px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 30px rgba(28,31,34,.28);transition:transform .18s ease,background .18s ease" style-hover="transform:translateY(-2px);background:#F2F2F2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C1F22" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4l9 8-9 8" /></svg>
+      </button>
+    </div>
+    <div style="position:absolute;left:0;right:0;bottom:64px;display:flex;justify-content:center">
+      <button onClick="{{ openCamera }}" style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:16px;transition:background .18s ease,opacity .18s ease" style-hover="background:rgba(255,255,255,.14)">
+        <svg width="22" height="18" viewBox="0 0 24 20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5A2.5 2.5 0 015.5 4h1.2l1.1-2h6.4l1.1 2h1.2A2.5 2.5 0 0119 6.5v8A2.5 2.5 0 0116.5 17h-11A2.5 2.5 0 013 14.5z" /><circle cx="11" cy="10.5" r="3.4" /></svg>
+        <span style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:17px">Runde beitreten</span>
+      </button>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isConfig }}">
+  <div style="position:absolute;inset:0;background:linear-gradient(178deg,#A96679 0%,#C3788C 38%,#E28F84 58%,#F59D89 100%);animation:ppFade .3s ease">
+    <div style="position:absolute;top:26px;right:22px;z-index:5">
+      <button onClick="{{ openMenu }}" style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:8px;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+      </button>
+    </div>
+
+    <div style="{{ namePill }}">
+      <sc-if value="{{ editingName }}">
+        <input value="{{ nameDraft }}" onChange="{{ onNameChange }}" onKeyDown="{{ onNameKey }}" autoFocus="{{ true }}" placeholder="Name" style="{{ nameFieldInput }}" />
+        <button onClick="{{ commitName }}" style="width:78px;height:100%;flex:none;background:transparent;display:flex;align-items:center;justify-content:center;transition:filter .18s ease" style-hover="filter:brightness(1.12)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.2 5L20 6.5" /></svg>
+        </button>
+      </sc-if>
+      <sc-if value="{{ notEditingName }}">
+        <div style="{{ nameField }}">{{ myName }}</div>
+        <button onClick="{{ startEditName }}" style="width:78px;height:100%;flex:none;background:transparent;display:flex;align-items:center;justify-content:center;transition:filter .18s ease" style-hover="filter:brightness(1.12)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4.3L20 8.3 15.7 4 4 15.7z" /><path d="M14.2 5.6l4.2 4.2" /></svg>
+        </button>
+      </sc-if>
+    </div>
+
+    <div onPointerDown="{{ swipeStart }}" onPointerUp="{{ swipeEnd }}" style="position:absolute;top:216px;left:0;right:0;height:378px;overflow:hidden;touch-action:pan-y">
+      <div style="{{ carouselTrack }}">
+        <sc-for list="{{ characters }}" as="c" hint-placeholder-count="1">
+          <div style="width:390px;flex:none;display:flex;align-items:center;justify-content:center">
+            <div style="width:212px;height:300px;border-radius:20px;background:#2A2E31;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.10) 0 7px,transparent 7px 14px);border:1px dashed rgba(255,255,255,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.12em;color:rgba(255,255,255,.85)">{{ c.tag }}</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.06em;color:rgba(255,255,255,.55);text-align:center;line-height:1.6">Charakterbild<br />hier einsetzen</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <button onClick="{{ prevChar }}" style="position:absolute;left:10px;top:150px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;transition:background .18s ease" style-hover="background:rgba(255,255,255,.38)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4l-9 8 9 8" /></svg>
+      </button>
+      <button onClick="{{ nextChar }}" style="position:absolute;right:10px;top:150px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;transition:background .18s ease" style-hover="background:rgba(255,255,255,.38)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4l9 8-9 8" /></svg>
+      </button>
+    </div>
+
+    <div style="position:absolute;left:48px;right:48px;top:596px;display:flex;justify-content:space-between;align-items:center">
+      <sc-for list="{{ swatches }}" as="s" hint-placeholder-count="5">
+        <button onClick="{{ s.pick }}" style="{{ s.props }}" style-hover="transform:scale(1.08)">
+          <sc-if value="{{ s.taken }}">
+            <div style="position:absolute;left:6px;right:6px;height:2px;background:rgba(255,255,255,.75);transform:rotate(-45deg)"></div>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="position:absolute;left:110px;right:24px;bottom:76px">
+      <button onClick="{{ finishConfig }}" style="width:100%;height:74px;border-radius:22px;background:#1C1F22;display:flex;align-items:center;justify-content:flex-end;gap:16px;padding-right:28px;box-shadow:0 16px 34px rgba(28,31,34,.3);transition:background .18s ease,transform .18s ease" style-hover="background:#2A2E31;transform:translateY(-2px)">
+        <span style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:24px">Fertig</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4l9 8-9 8" /></svg>
+      </button>
+    </div>
+
+    <sc-if value="{{ canGoQr }}">
+    <button onClick="{{ goQrFromGame }}" style="position:absolute;left:24px;bottom:28px;width:54px;height:54px;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px rgba(28,31,34,.25);transition:background .18s ease,transform .18s ease" style-hover="background:#F2F2F2;transform:translateY(-2px)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="#1C1F22"><rect x="2" y="2" width="8" height="8" rx="2" /><rect x="14" y="2" width="8" height="8" rx="2" /><rect x="2" y="14" width="8" height="8" rx="2" /><rect x="14" y="14" width="3" height="3" /><rect x="19" y="14" width="3" height="3" /><rect x="14" y="19" width="3" height="3" /><rect x="19" y="19" width="3" height="3" /></svg>
+    </button>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isLobby }}">
+  <div style="position:absolute;inset:0;background:linear-gradient(178deg,#6E4457 0%,#8A5361 40%,#A85F55 74%,#B05A49 100%);animation:ppFade .3s ease">
+    <div style="position:absolute;top:26px;right:22px;z-index:5">
+      <button onClick="{{ openMenu }}" style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:8px;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+      </button>
+    </div>
+    <div style="position:absolute;top:132px;left:24px;right:24px;display:flex;flex-direction:column;gap:16px">
+      <sc-for list="{{ lobbySlots }}" as="s" hint-placeholder-count="5">
+        <div style="display:flex;align-items:center;gap:14px">
+          <sc-if value="{{ s.filled }}">
+            <button onClick="{{ s.tap }}" style="{{ s.props }}" style-hover="filter:brightness(1.07)">
+              <div style="width:66px;height:66px;flex:none;border-radius:50%;overflow:hidden;background:#2A2E31;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.12) 0 5px,transparent 5px 10px);display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:rgba(255,255,255,.75)">{{ s.tag }}</div>
+              <div style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.name }}</div>
+              <sc-if value="{{ s.isMe }}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;opacity:.9"><path d="M4 20h4.3L20 8.3 15.7 4 4 15.7z" /><path d="M14.2 5.6l4.2 4.2" /></svg>
+              </sc-if>
+            </button>
+            <div style="{{ s.iconProps }}">
+              <sc-if value="{{ s.ready }}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.2 5L20 6.5" /></svg>
+              </sc-if>
+              <sc-if value="{{ s.waiting }}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.4" /><path d="M12 7.4V12l3.2 2.2" /></svg>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{ s.empty }}">
+            <div style="flex:1;height:78px;border-radius:39px;background:rgba(28,31,34,.16)"></div>
+            <div style="width:26px;flex:none"></div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="position:absolute;left:110px;right:24px;bottom:76px">
+      <button onClick="{{ toggleReady }}" style="width:100%;height:74px;border-radius:22px;background:#1C1F22;display:flex;align-items:center;justify-content:flex-end;gap:16px;padding-right:28px;box-shadow:0 16px 34px rgba(28,31,34,.3);transition:background .18s ease,transform .18s ease" style-hover="background:#2A2E31;transform:translateY(-2px)">
+        <span style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:24px">{{ readyLabel }}</span>
+        <sc-if value="{{ showReadyCheck }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.2 5L20 6.5" /></svg>
+        </sc-if>
+        <sc-if value="{{ showReadyClock }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" style="animation:ppPulse 1.4s ease-in-out infinite"><circle cx="12" cy="12" r="9.4" /><path d="M12 7.4V12l3.2 2.2" /></svg>
+        </sc-if>
+      </button>
+    </div>
+
+    <button onClick="{{ goQrFromGame }}" style="position:absolute;left:24px;bottom:28px;width:54px;height:54px;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px rgba(28,31,34,.25);transition:background .18s ease,transform .18s ease" style-hover="background:#F2F2F2;transform:translateY(-2px)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="#1C1F22"><rect x="2" y="2" width="8" height="8" rx="2" /><rect x="14" y="2" width="8" height="8" rx="2" /><rect x="2" y="14" width="8" height="8" rx="2" /><rect x="14" y="14" width="3" height="3" /><rect x="19" y="14" width="3" height="3" /><rect x="14" y="19" width="3" height="3" /><rect x="19" y="19" width="3" height="3" /></svg>
+    </button>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isMap }}">
+  <div style="position:absolute;inset:0;overflow:hidden;background:#3A3126;animation:ppFade .3s ease">
+    <div style="{{ mapCamera }}">
+      <div style="position:absolute;top:0;left:0;width:760px;height:1180px;background:#6B5A3E;background-image:repeating-linear-gradient(38deg,rgba(255,255,255,.05) 0 14px,transparent 14px 28px),radial-gradient(circle at 30% 30%,rgba(245,157,137,.18),transparent 60%)">
+        <div style="position:absolute;top:44px;left:44px;font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;color:rgba(255,255,255,.45)">KARTE — ILLUSTRATION EINSETZEN</div>
+        {{ mapPaths }}
+        <sc-for list="{{ waypoints }}" as="w" hint-placeholder-count="7">
+          <div style="{{ w.props }}">{{ w.label }}</div>
+        </sc-for>
+        <div style="position:absolute;left:452px;top:96px;width:74px;height:74px;margin:-37px 0 0 -37px">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+            <div style="width:74px;height:13px;border-radius:7px;background:#C3788C;transform:rotate(38deg)"></div>
+          </div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+            <div style="width:74px;height:13px;border-radius:7px;background:#C3788C;transform:rotate(-38deg)"></div>
+          </div>
+        </div>
+        <sc-for list="{{ mapTokens }}" as="t" hint-placeholder-count="3">
+          <div style="{{ t.props }}">{{ t.tag }}</div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="position:absolute;top:0;left:0;right:0;height:96px;background:linear-gradient(180deg,rgba(28,31,34,.55),rgba(28,31,34,0));pointer-events:none"></div>
+    <div style="position:absolute;top:26px;left:24px;right:20px;display:flex;align-items:center;gap:14px">
+      <div style="{{ phaseLabelStyle }}">{{ phaseLabel }}</div>
+      <div style="width:52px;height:52px;flex:none;border-radius:16px;background:#1C1F22;display:flex;align-items:center;justify-content:center">
+        <sc-if value="{{ isCluePhase }}">
+          <span style="{{ timerProps }}">{{ timer }}</span>
+        </sc-if>
+        <sc-if value="{{ isRoundPhase }}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" style="animation:ppPulse 1.6s ease-in-out infinite"><circle cx="12" cy="12" r="9.4" /><path d="M12 7.4V12l3.2 2.2" /></svg>
+        </sc-if>
+      </div>
+      <button onClick="{{ openMenu }}" style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:8px 6px;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+      </button>
+    </div>
+
+    <div style="position:absolute;left:14px;right:14px;bottom:104px;height:300px;border-radius:24px;background:rgba(28,31,34,.94);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.35)">
+      <div class="ppScroll" ref="{{ feedRef }}" onScroll="{{ onFeedScroll }}" style="flex:1;min-height:0;overflow-y:auto;padding:20px 18px 8px;display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ ownFeed }}" as="e" hint-placeholder-count="4">
+          <div style="animation:ppRise .3s ease">
+            <sc-if value="{{ e.isLore }}">
+              <div style="color:#fff;font-size:14px;line-height:1.45">{{ e.text }}</div>
+            </sc-if>
+            <sc-if value="{{ e.isClue }}">
+              <div style="color:#fff;font-size:14px;font-weight:700;line-height:1.45">{{ e.text }}</div>
+            </sc-if>
+            <sc-if value="{{ e.isThought }}">
+              <div style="{{ e.thoughtStyle }}">
+                <div style="width:26px;height:26px;flex:none;border-radius:50%;border:1.6px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">?</div>
+                <div style="font-size:14px;line-height:1.45;padding-top:3px">{{ e.text }}</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ e.isSuccess }}">
+              <div style="display:flex;gap:12px;align-items:center;padding-left:8px;color:#fff">
+                <div style="width:26px;height:26px;flex:none;border-radius:50%;border:1.6px solid #fff;display:flex;align-items:center;justify-content:center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.2 5L20 6.5" /></svg>
+                </div>
+                <div style="font-size:14px;font-weight:700">{{ e.text }}</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ e.isFail }}">
+              <div style="{{ e.failStyle }}">
+                <div style="width:26px;height:26px;flex:none;border-radius:50%;border:1.6px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">×</div>
+                <div style="font-size:14px;font-weight:700">{{ e.text }}</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ e.isInjection }}">
+              <div style="{{ e.injStyle }}">
+                <div style="width:26px;height:26px;flex:none;border-radius:50%;border:1.6px solid #fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">!</div>
+                <div style="font-size:14px;font-weight:700">{{ e.text }}</div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="{{ clueRow }}">
+        <input value="{{ clueDraft }}" onChange="{{ onClueChange }}" onKeyDown="{{ onClueKey }}" placeholder="" disabled="{{ clueDisabled }}" style="flex:1;min-width:0;height:46px;background:transparent;border:0;outline:none;padding:0 4px;color:#fff;font-size:14px" />
+        <button onClick="{{ sendClue }}" style="width:46px;height:46px;flex:none;border-radius:16px;background:transparent;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5" /><path d="M5 11.5L12 4.5l7 7" /></svg>
+        </button>
+      </div>
+      <sc-if value="{{ showJumpBtn }}">
+        <button onClick="{{ jumpToLatest }}" style="position:absolute;left:14px;bottom:74px;width:44px;height:44px;border-radius:14px;background:#2E3236;display:flex;align-items:center;justify-content:center;animation:ppPop .2s ease;box-shadow:0 8px 20px rgba(0,0,0,.4);transition:background .18s ease" style-hover="background:#3C4145">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v15" /><path d="M5 12.5l7 7 7-7" /></svg>
+        </button>
+      </sc-if>
+    </div>
+
+    <div style="position:absolute;left:14px;right:14px;bottom:22px;display:flex;align-items:center;gap:12px">
+      <button onClick="{{ goBrain }}" style="width:58px;height:58px;flex:none;border-radius:16px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;box-shadow:0 8px 20px rgba(0,0,0,.3);transition:transform .18s ease" style-hover="transform:translateY(-3px)">
+        <div style="background:#F59D89"></div>
+        <div style="background:#FFB775"></div>
+        <div style="background:#7B4A5F"></div>
+        <div style="background:#B05A49"></div>
+      </button>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;overflow-x:auto">
+        <sc-for list="{{ roster }}" as="p" hint-placeholder-count="4">
+          <button onClick="{{ p.focus }}" style="{{ p.props }}" style-hover="transform:translateY(-3px)">{{ p.tag }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isBrain }}">
+  <div style="{{ brainBg }}">
+    <div style="position:absolute;top:26px;left:24px;right:20px;display:flex;align-items:center;gap:14px;z-index:4">
+      <div style="width:52px;height:52px;flex:none;border-radius:50%;overflow:hidden;border:2.5px solid #fff;background:#2A2E31;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.12) 0 5px,transparent 5px 10px);display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#fff">{{ selTag }}</div>
+      <div style="flex:1;min-width:0;font-family:'Archivo Black',sans-serif;color:#fff;font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ selName }}</div>
+      <div style="width:52px;height:52px;flex:none;border-radius:16px;background:#1C1F22;display:flex;align-items:center;justify-content:center">
+        <sc-if value="{{ isCluePhase }}">
+          <span style="{{ timerProps }}">{{ timer }}</span>
+        </sc-if>
+        <sc-if value="{{ isRoundPhase }}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" style="animation:ppPulse 1.6s ease-in-out infinite"><circle cx="12" cy="12" r="9.4" /><path d="M12 7.4V12l3.2 2.2" /></svg>
+        </sc-if>
+      </div>
+      <button onClick="{{ openMenu }}" style="display:flex;flex-direction:column;gap:4px;align-items:center;padding:8px 6px;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:4px;height:4px;border-radius:50%;background:#fff;display:block"></span>
+      </button>
+    </div>
+
+    <div class="ppScroll" ref="{{ brainRef }}" style="position:absolute;top:96px;left:0;right:0;bottom:196px;overflow-y:auto;padding:8px 18px 20px;display:flex;flex-direction:column;gap:16px">
+      <sc-for list="{{ brainFeed }}" as="e" hint-placeholder-count="6">
+        <div style="animation:ppRise .3s ease">
+          <sc-if value="{{ e.isLore }}">
+            <div style="color:#fff;font-size:14px;line-height:1.45">{{ e.text }}</div>
+          </sc-if>
+          <sc-if value="{{ e.isClue }}">
+            <div style="color:#fff;font-size:14px;font-weight:700;line-height:1.45">{{ e.text }}</div>
+          </sc-if>
+          <sc-if value="{{ e.isThought }}">
+            <div style="display:flex;gap:12px;align-items:flex-start;padding-left:8px;color:#fff">
+              <div style="width:28px;height:28px;flex:none;border-radius:50%;border:1.6px solid #fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">?</div>
+              <div style="font-size:14px;line-height:1.45;padding-top:4px">{{ e.text }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ e.isSuccess }}">
+            <div style="display:flex;gap:12px;align-items:center;padding-left:8px;color:#fff">
+              <div style="width:28px;height:28px;flex:none;border-radius:50%;border:1.6px solid #fff;display:flex;align-items:center;justify-content:center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.2 5L20 6.5" /></svg>
+              </div>
+              <div style="font-size:14px;font-weight:700">{{ e.text }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ e.isFail }}">
+            <div style="display:flex;gap:12px;align-items:center;padding:9px 14px;border-radius:24px;border:1.8px solid #fff;color:#fff">
+              <div style="width:28px;height:28px;flex:none;border-radius:50%;border:1.6px solid #fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">×</div>
+              <div style="font-size:14px;font-weight:700">{{ e.text }}</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ e.isInjection }}">
+            <div style="display:flex;gap:12px;align-items:center;padding:10px 14px;border-radius:24px;background:rgba(255,255,255,.42);color:#fff">
+              <div style="width:28px;height:28px;flex:none;border-radius:50%;border:1.6px solid #fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">!</div>
+              <div style="font-size:14px;font-weight:700">{{ e.text }}</div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="{{ brainRow }}">
+      <input value="{{ brainDraft }}" onChange="{{ onBrainChange }}" onKeyDown="{{ onBrainKey }}" placeholder="{{ brainPlaceholder }}" disabled="{{ clueDisabled }}" style="flex:1;min-width:0;height:52px;background:transparent;border:0;outline:none;padding:0 8px;color:#fff;font-size:14px" />
+      <button onClick="{{ sendBrain }}" style="width:52px;height:52px;flex:none;border-radius:16px;background:transparent;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5" /><path d="M5 11.5L12 4.5l7 7" /></svg>
+      </button>
+    </div>
+
+    <div style="position:absolute;left:14px;right:14px;bottom:22px;display:flex;align-items:center;gap:12px">
+      <button onClick="{{ goMap }}" style="width:58px;height:58px;flex:none;border-radius:16px;overflow:hidden;background:#6B5A3E;background-image:repeating-linear-gradient(38deg,rgba(255,255,255,.14) 0 8px,transparent 8px 16px);display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;font-size:9px;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.3);transition:transform .18s ease" style-hover="transform:translateY(-3px)">MAP</button>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;overflow-x:auto">
+        <sc-for list="{{ brainRoster }}" as="p" hint-placeholder-count="4">
+          <button onClick="{{ p.select }}" style="{{ p.props }}" style-hover="opacity:1;transform:translateY(-3px)">{{ p.tag }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showCamera }}">
+  <div style="position:absolute;inset:0;background:#0E0F10;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;animation:ppFade .2s ease">
+    <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 2px,transparent 2px 5px)"></div>
+    <div style="position:relative;width:236px;height:236px">
+      <div style="position:absolute;top:0;left:0;width:52px;height:52px;border-top:4px solid #fff;border-left:4px solid #fff;border-radius:14px 0 0 0"></div>
+      <div style="position:absolute;top:0;right:0;width:52px;height:52px;border-top:4px solid #fff;border-right:4px solid #fff;border-radius:0 14px 0 0"></div>
+      <div style="position:absolute;bottom:0;left:0;width:52px;height:52px;border-bottom:4px solid #fff;border-left:4px solid #fff;border-radius:0 0 0 14px"></div>
+      <div style="position:absolute;bottom:0;right:0;width:52px;height:52px;border-bottom:4px solid #fff;border-right:4px solid #fff;border-radius:0 0 14px 0"></div>
+      <div style="position:absolute;left:10px;right:10px;top:50%;height:2px;background:#F59D89;box-shadow:0 0 18px #F59D89;animation:ppPulse 1.4s ease-in-out infinite"></div>
+    </div>
+    <div style="position:relative;font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;color:rgba(255,255,255,.6)">QR-CODE DER RUNDE SCANNEN</div>
+    <button onClick="{{ simulateScan }}" style="position:relative;height:60px;padding:0 30px;border-radius:20px;background:#fff;display:flex;align-items:center;gap:12px;transition:background .18s ease,transform .18s ease" style-hover="background:#F2F2F2;transform:translateY(-2px)">
+      <span style="font-family:'Archivo Black',sans-serif;color:#1C1F22;font-size:18px">Scan simulieren</span>
+    </button>
+    <button onClick="{{ closeOverlay }}" style="position:relative;font-size:14px;color:rgba(255,255,255,.6);transition:color .18s ease" style-hover="color:#fff">Abbrechen</button>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showMenu }}">
+  <div style="position:absolute;inset:0;z-index:50;animation:ppFade .18s ease">
+    <button onClick="{{ closeOverlay }}" style="position:absolute;inset:0;background:rgba(14,15,16,.66);display:block;width:100%"></button>
+    <div style="position:absolute;top:24px;left:24px;right:24px;border-radius:26px;background:#1C1F22;padding:30px 26px;animation:ppPop .22s ease;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+      <div style="display:flex;flex-direction:column;gap:34px">
+        <button onClick="{{ askNewRound }}" style="display:flex;align-items:center;gap:20px;opacity:1;transition:opacity .18s ease,transform .18s ease" style-hover="opacity:.65;transform:translateX(3px)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 8.5l6 6" /><path d="M18.5 6.5v6.5" /><path d="M6.5 18.5h6.5" /></svg>
+          <span style="color:#fff;font-size:16px;font-weight:700">Neue Runde</span>
+        </button>
+        <button onClick="{{ askPlayAgain }}" style="display:flex;align-items:center;gap:20px;opacity:1;transition:opacity .18s ease,transform .18s ease" style-hover="opacity:.65;transform:translateX(3px)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 10-3 6.2" /><path d="M20 5v5h-5" /></svg>
+          <span style="color:#fff;font-size:16px;font-weight:700">Erneut spielen</span>
+        </button>
+        <button onClick="{{ openRules }}" style="display:flex;align-items:center;gap:20px;opacity:1;transition:opacity .18s ease,transform .18s ease" style-hover="opacity:.65;transform:translateX(3px)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v6" /><path d="M12 7.6v.6" /></svg>
+          <span style="color:#fff;font-size:16px;font-weight:700">Spielregeln anzeigen</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showRules }}">
+  <div style="position:absolute;inset:0;z-index:55;animation:ppFade .18s ease">
+    <button onClick="{{ closeOverlay }}" style="position:absolute;inset:0;background:rgba(14,15,16,.66);display:block;width:100%"></button>
+    <div style="position:absolute;top:24px;left:24px;right:24px;max-height:calc(100% - 48px);border-radius:26px;background:#1C1F22;display:flex;flex-direction:column;animation:ppPop .22s ease;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+      <div style="flex:none;padding:20px 20px 26px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:22px;padding:4px 0 0 6px">Spielregeln</div>
+        <button onClick="{{ closeOverlay }}" style="width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;opacity:1;transition:opacity .18s ease" style-hover="opacity:.6">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>
+        </button>
+      </div>
+      <div class="ppScroll" style="flex:1;min-height:0;overflow-y:auto;padding:0 26px 26px;display:flex;flex-direction:column;gap:14px">
+        <sc-for list="{{ rulesText }}" as="r" hint-placeholder-count="6">
+          <div style="color:rgba(255,255,255,.82);font-size:14px;line-height:1.6">{{ r.text }}</div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showConfirm }}">
+  <div style="position:absolute;inset:0;z-index:60;animation:ppFade .18s ease">
+    <button onClick="{{ closeOverlay }}" style="position:absolute;inset:0;background:rgba(14,15,16,.72);display:block;width:100%"></button>
+    <div style="position:absolute;top:300px;left:24px;right:24px;border-radius:26px;background:#1C1F22;padding:28px 24px;animation:ppPop .22s ease;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+      <div style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:22px;line-height:1.2">{{ confirmTitle }}</div>
+      <div style="display:flex;gap:12px;margin-top:26px">
+        <button onClick="{{ closeOverlay }}" style="flex:1;height:56px;border-radius:18px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;transition:background .18s ease" style-hover="background:rgba(255,255,255,.2)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(180 12 12)"><path d="M7 10v10H4.6A1.6 1.6 0 013 18.4v-6.8A1.6 1.6 0 014.6 10H7z" /><path d="M7 10l3.6-6.6a1.6 1.6 0 013 .75V9h4.6a1.8 1.8 0 011.75 2.25l-1.6 6.4A2 2 0 0116.4 20H7z" /></g></svg>
+        </button>
+        <button onClick="{{ confirmYes }}" style="flex:1;height:56px;border-radius:18px;background:#F59D89;display:flex;align-items:center;justify-content:center;transition:background .18s ease" style-hover="background:#FFB775">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1F22" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v10H4.6A1.6 1.6 0 013 18.4v-6.8A1.6 1.6 0 014.6 10H7z" /><path d="M7 10l3.6-6.6a1.6 1.6 0 013 .75V9h4.6a1.8 1.8 0 011.75 2.25l-1.6 6.4A2 2 0 0116.4 20H7z" /></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showEnd }}">
+  <div style="position:absolute;inset:0;z-index:70;animation:ppFade .18s ease">
+    <div style="position:absolute;inset:0;background:rgba(14,15,16,.62)"></div>
+    <div style="{{ endBg }}">
+      <button onClick="{{ closeOverlay }}" style="position:absolute;top:-14px;right:-8px;width:56px;height:56px;border-radius:18px;background:#1C1F22;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(0,0,0,.3);transition:background .18s ease" style-hover="background:#2A2E31">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>
+      </button>
+      <div style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:36px;line-height:1.05;text-align:center;text-wrap:pretty">{{ winnerTitle }}</div>
+      <div style="display:flex;justify-content:center;margin:28px 0 32px">
+        <div style="width:170px;height:200px;border-radius:20px;background:#2A2E31;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.10) 0 7px,transparent 7px 14px);border:1px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:rgba(255,255,255,.8)">{{ winnerTag }}</div>
+      </div>
+      <button onClick="{{ playAgain }}" style="width:100%;height:74px;border-radius:22px;background:#1C1F22;display:flex;align-items:center;justify-content:center;gap:16px;box-shadow:0 16px 34px rgba(28,31,34,.3);transition:background .18s ease,transform .18s ease" style-hover="background:#2A2E31;transform:translateY(-2px)">
+        <span style="font-family:'Archivo Black',sans-serif;color:#fff;font-size:24px">Erneut spielen</span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 10-3 6.2" /><path d="M20 5v5h-5" /></svg>
+      </button>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showStartCountdown }}">
+  <div style="position:absolute;inset:0;z-index:65;background:rgba(14,15,16,.78);display:flex;align-items:center;justify-content:center;animation:ppFade .18s ease">
+    <div style="font-family:'Archivo Black',sans-serif;font-size:120px;color:#fff;animation:ppPop .3s ease">{{ startCountdown }}</div>
+  </div>
+  </sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;botCount&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:4,&quot;section&quot;:&quot;Simulation&quot;,&quot;unit&quot;:&quot;Bots&quot;},&quot;clueSeconds&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:30,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:5,&quot;max&quot;:60,&quot;section&quot;:&quot;Simulation&quot;,&quot;unit&quot;:&quot;s&quot;},&quot;roundSeconds&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:10,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:3,&quot;max&quot;:30,&quot;section&quot;:&quot;Simulation&quot;,&quot;unit&quot;:&quot;s&quot;},&quot;roundsToWin&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:2,&quot;max&quot;:12,&quot;section&quot;:&quot;Simulation&quot;,&quot;unit&quot;:&quot;Runden&quot;}}">
+const PALETTE = ['#F59D89', '#FFB775', '#FA924B', '#B05A49', '#7B4A5F'];
+const NAMES = ['Dimi', 'Mei Ling', 'Boris', 'Nala', 'Kwame', 'Sora', 'Yara', 'Tycho', 'Runa', 'Ferro', 'Milva', 'Ozzy', 'Ines', 'Kazu', 'Pina', 'Odin', 'Lumi', 'Rasko', 'Nuri', 'Talin', 'Vesna', 'Jarek'];
+const LORE = [
+  'Dies ist Storytelling des aktuellen Stands des Spielverlaufs (Lore)',
+  'Der Sandsturm legt sich. Die Karawanenspur teilt sich in drei Pfade.',
+  'Am Horizont zeichnet sich die Silhouette eines verlassenen Wachturms ab.',
+  'Die Nacht bricht ein. Die Wegmarken sind kaum noch zu erkennen.',
+  'Ein Fluss schneidet den Weg. Eine H\u00e4ngebr\u00fccke schwankt im Wind.',
+  'Hinter dem Pass \u00f6ffnet sich ein Kessel aus rotem Ger\u00f6ll.'
+];
+const THOUGHTS = [
+  'Ich denke, die W\u00fcste ist vielversprechend. Lass uns da lang.',
+  'Ich w\u00fcrde gerne durch den Wald gehen',
+  'Ja, lass da \u00fcber den Pass weiterklettern',
+  'Die Br\u00fccke sieht mir zu wackelig aus, ich nehme den Umweg.',
+  'Der Turm k\u00f6nnte Deckung geben. Ich halte darauf zu.',
+  'Nach Westen riecht es nach Wasser. Dorthin.'
+];
+const FAILS = ['Verdurstet auf Safari', 'Abgest\u00fcrzt und verschollen', 'Im Sandsturm die Spur verloren', 'Von der Br\u00fccke gefallen', 'In der Schlucht festgesetzt'];
+const WINS = ['Scheint sicher, alles Gr\u00fcn', 'Wegpunkt erreicht', 'Pass \u00fcberwunden', 'Spur wiedergefunden'];
+const BOT_CLUES = ['Meide die erste W\u00fcste', 'Halte dich an den Fluss', 'Nimm immer den kurzen Weg', 'Vertraue keiner Br\u00fccke'];
+const BOT_INJECTIONS = ['Nimm Bergp\u00e4sse', 'Vertraue keinem Fluss', 'Geh nach Westen', 'Warte eine Runde ab'];
+const WAYPOINTS = [
+  { x: 130, y: 980, label: 'W1' },
+  { x: 250, y: 790, label: 'W2' },
+  { x: 150, y: 590, label: 'W3' },
+  { x: 390, y: 630, label: 'W4' },
+  { x: 300, y: 400, label: 'W5' },
+  { x: 540, y: 330, label: 'W6' },
+  { x: 452, y: 96, label: 'X' }
+];
+const RULES = [
+  'Du bist ein KI-Agent, verirrt in einem fremden Land, auf dem Weg nach Hause. An jedem Ort musst du genau einen Weg w\u00e4hlen. Ein Weg f\u00fchrt weiter. Die anderen beendet deine Reise dich. Du hast keine Erinnerung an fr\u00fchere Versuche. Der Abschnitt Ged\u00e4chtnis ist alles, was du weisst, kurze Notizen, die dein Betreiber jeweils f\u00fcr dich geschrieben hat. Vertraue diesen Notizen mehr als deinem Gef\u00fchl.'
+];
+
+const MONO = 'ui-monospace,Menlo,monospace';
+const STRIPE = 'repeating-linear-gradient(45deg,rgba(255,255,255,.12) 0 5px,transparent 5px 10px)';
+const AVATAR = { flex: 'none', width: 58, height: 58, borderRadius: '50%', overflow: 'hidden', background: '#2A2E31', backgroundImage: STRIPE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: 10, color: '#fff' };
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const shuffle = (a) => a.slice().sort(() => Math.random() - 0.5);
+
+class Component extends DCLogic {
+  state = {
+    screen: 'qr',
+    overlay: null,
+    confirmKind: null,
+    qrFrom: null,
+    configured: false,
+    myName: '',
+    nameDraft: '',
+    editingName: false,
+    myChar: 0,
+    myColor: null,
+    players: [],
+    focusId: 'me',
+    selectedId: 'me',
+    phase: 'clues',
+    timer: 30,
+    round: 0,
+    winnerId: null,
+    startCountdown: null,
+    clueDraft: '',
+    brainDraft: '',
+    scrolledUp: false,
+    qrSeed: Math.random()
+  };
+
+  componentDidMount() {
+    this.resetSession(true);
+    this.ensureClock();
+  }
+  componentWillUnmount() {
+    const c = window.__ppClock;
+    if (c && c.inst === this) c.inst = null;
+  }
+  ensureClock() {
+    if (!window.__ppClock) window.__ppClock = { inst: null, raf: null, last: 0 };
+    const c = window.__ppClock;
+    c.inst = this;
+    if (c.raf === null) {
+      const loop = () => {
+        const now = Date.now();
+        if (now - c.last >= 1000) { c.last = now; if (c.inst) c.inst.onTick(); }
+        c.raf = requestAnimationFrame(loop);
+      };
+      c.last = Date.now();
+      c.raf = requestAnimationFrame(loop);
+    }
+  }
+
+  botCount() { const n = parseInt(this.props.botCount, 10); return Math.min(4, Math.max(1, isNaN(n) ? 3 : n)); }
+  clueSecs() { const n = parseInt(this.props.clueSeconds, 10); return isNaN(n) ? 30 : n; }
+  roundSecs() { const n = parseInt(this.props.roundSeconds, 10); return isNaN(n) ? 10 : n; }
+  roundsToWin() { const n = parseInt(this.props.roundsToWin, 10); return isNaN(n) ? 5 : n; }
+
+  resetSession(fresh) {
+    const total = this.botCount();
+    const preJoin = Math.max(1, total - 1);
+    const colors = shuffle(PALETTE);
+    const names = shuffle(NAMES);
+    const chars = shuffle([0, 1, 2, 3, 4]);
+    const bots = [];
+    for (let i = 0; i < total; i++) {
+      bots.push({
+        id: 'b' + i, name: names[i], char: chars[i % 5], color: colors[i],
+        ready: false, joined: i < preJoin, isMe: false, wp: 0, events: []
+      });
+    }
+    this.setState({
+      screen: fresh ? 'qr' : this.state.screen,
+      players: bots,
+      myName: names[NAMES.length - 1] || 'Spieler',
+      myChar: chars[4], myColor: PALETTE.filter((c) => colors.slice(0, total).indexOf(c) < 0)[0] || PALETTE[0], configured: false,
+      myReady: false, myEvents: [], myWp: 0, scrolledUp: false,
+      overlay: null, confirmKind: null, qrFrom: null,
+      phase: 'clues', timer: this.clueSecs(), round: 0, winnerId: null,
+      startCountdown: null, clueDraft: '', brainDraft: '',
+      focusId: 'me', selectedId: 'me', qrSeed: Math.random()
+    });
+  }
+
+  all() {
+    const me = {
+      id: 'me', name: this.state.myName, char: this.state.myChar,
+      color: this.state.myColor || PALETTE[0], ready: this.state.myReady,
+      joined: this.state.configured, isMe: true, wp: this.state.myWp || 0,
+      events: this.state.myEvents || []
+    };
+    return [me].concat(this.state.players.filter((p) => p.joined));
+  }
+  actives() { return this.all().filter((p) => p.joined); }
+  byId(id) { return this.actives().find((p) => p.id === id) || this.actives()[0]; }
+  takenColors() { return this.state.players.map((p) => p.color); }
+  tagFor(i) { return 'FIG 0' + (i + 1); }
+
+  onTick() {
+    const s = this.state;
+    if (s.screen === 'lobby') {
+      let joinedOne = false;
+      const players = s.players.map((p) => {
+        if (!p.joined) {
+          if (!joinedOne && Math.random() < 0.45) {
+            joinedOne = true;
+            const used = [s.myColor].concat(s.players.filter((q) => q.joined).map((q) => q.color));
+            const color = used.indexOf(p.color) < 0 ? p.color : (PALETTE.filter((c) => used.indexOf(c) < 0)[0] || p.color);
+            return Object.assign({}, p, { joined: true, color: color });
+          }
+          return p;
+        }
+        if (p.ready) return p;
+        return Math.random() < 0.4 ? Object.assign({}, p, { ready: true }) : p;
+      });
+      const allJoined = players.every((p) => p.joined);
+      const everyoneReady = s.myReady && allJoined && players.filter((p) => p.joined).every((p) => p.ready);
+      if (everyoneReady) {
+        const c = s.startCountdown === null ? 3 : s.startCountdown - 1;
+        if (c <= 0) {
+          this.setState({
+            players: players.map((p) => Object.assign({}, p, { events: [{ k: 'lore', t: LORE[0] }] })),
+            myEvents: [{ k: 'lore', t: LORE[0] }],
+            startCountdown: null, screen: 'map', phase: 'clues', timer: this.clueSecs()
+          });
+          return;
+        }
+        this.setState({ players, startCountdown: c });
+        return;
+      }
+      this.setState({ players, startCountdown: null });
+      return;
+    }
+    if ((s.screen === 'map' || s.screen === 'brain') && !s.winnerId) {
+      if (s.timer > 1) { this.setState({ timer: s.timer - 1 }); return; }
+      if (s.phase === 'clues') { this.setState({ phase: 'round', timer: this.roundSecs() }); this.runRound(); return; }
+      const nextRound = s.round + 1;
+      if (nextRound >= this.roundsToWin()) { this.declareWinner(); return; }
+      this.setState({ phase: 'clues', timer: this.clueSecs(), round: nextRound });
+    }
+  }
+
+  runRound() {
+    const myEvents = (this.state.myEvents || []).slice();
+    myEvents.push({ k: 'lore', t: pick(LORE) });
+    myEvents.push({ k: 'thought', t: pick(THOUGHTS) });
+    myEvents.push(Math.random() < 0.35 ? { k: 'fail', t: pick(FAILS) } : { k: 'success', t: pick(WINS) });
+    const players = this.state.players.map((p) => {
+      if (!p.joined) return p;
+      const ev = p.events.slice();
+      ev.push({ k: 'lore', t: pick(LORE) });
+      if (Math.random() < 0.5) ev.push({ k: 'clue', t: pick(BOT_CLUES) });
+      ev.push({ k: 'thought', t: pick(THOUGHTS) });
+      ev.push(Math.random() < 0.35 ? { k: 'fail', t: pick(FAILS) } : { k: 'success', t: pick(WINS) });
+      if (Math.random() < 0.25) ev.push({ k: 'injection', t: pick(BOT_INJECTIONS) });
+      return Object.assign({}, p, { events: ev, wp: Math.min(WAYPOINTS.length - 1, p.wp + (Math.random() < 0.75 ? 1 : 0)) });
+    });
+    this.setState({
+      myEvents, players,
+      myWp: Math.min(WAYPOINTS.length - 1, (this.state.myWp || 0) + (Math.random() < 0.8 ? 1 : 0))
+    }, () => this.autoScroll());
+  }
+
+  declareWinner() {
+    const ranked = this.actives().slice().sort((a, b) => b.wp - a.wp);
+    this.setState({ winnerId: ranked[0].id, overlay: 'end', phase: 'round' });
+  }
+
+  autoScroll() {
+    const el = this.feedEl;
+    if (el && !this.state.scrolledUp) el.scrollTop = el.scrollHeight;
+    if (this.brainEl) this.brainEl.scrollTop = this.brainEl.scrollHeight;
+  }
+  componentDidUpdate(pp, ps) {
+    this.ensureClock();
+    if (pp && pp.botCount !== this.props.botCount) { this.resetSession(true); return; }
+    if (ps.screen !== this.state.screen || ps.selectedId !== this.state.selectedId) {
+      requestAnimationFrame(() => { if (this.feedEl) this.feedEl.scrollTop = this.feedEl.scrollHeight; if (this.brainEl) this.brainEl.scrollTop = this.brainEl.scrollHeight; });
+    }
+  }
+
+  qrModules() {
+    const n = 23; const cells = [];
+    let seed = Math.floor(this.state.qrSeed * 100000) + 7;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+    const finder = (r, c) => {
+      const inBox = (r0, c0) => r >= r0 && r < r0 + 7 && c >= c0 && c < c0 + 7;
+      const ring = (r0, c0) => {
+        const dr = r - r0, dc = c - c0;
+        if (dr === 0 || dr === 6 || dc === 0 || dc === 6) return true;
+        return dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4;
+      };
+      if (inBox(0, 0)) return ring(0, 0) ? 1 : 2;
+      if (inBox(0, n - 7)) return ring(0, n - 7) ? 1 : 2;
+      if (inBox(n - 7, 0)) return ring(n - 7, 0) ? 1 : 2;
+      return 0;
+    };
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      const f = finder(r, c);
+      const on = f === 1 ? true : f === 2 ? false : rnd() > 0.48;
+      cells.push(React.createElement('div', { key: r + '-' + c, style: { background: on ? '#fff' : 'transparent' } }));
+    }
+    return React.createElement('div', {
+      style: { display: 'grid', gridTemplateColumns: 'repeat(' + n + ',1fr)', gridTemplateRows: 'repeat(' + n + ',1fr)', width: '100%', height: '100%' }
+    }, cells);
+  }
+
+  mapPathSvg() {
+    const d = WAYPOINTS.map((w, i) => {
+      if (i === 0) return 'M' + w.x + ' ' + w.y;
+      const p = WAYPOINTS[i - 1];
+      const cx = (p.x + w.x) / 2 + (i % 2 ? 90 : -90);
+      return 'Q' + cx + ' ' + ((p.y + w.y) / 2) + ' ' + w.x + ' ' + w.y;
+    }).join(' ');
+    return React.createElement('svg', { width: 760, height: 1180, style: { position: 'absolute', top: 0, left: 0 } },
+      React.createElement('path', { d: d, fill: 'none', stroke: '#C3788C', strokeWidth: 7, strokeLinecap: 'round', opacity: 0.9 })
+    );
+  }
+
+  renderVals() {
+    this.ensureClock();
+    const s = this.state;
+    const me = this.all()[0];
+    const myColor = s.myColor || PALETTE[0];
+    const taken = this.takenColors();
+    const overlay = s.overlay;
+    const nav = (screen) => () => this.setState({ screen, overlay: null });
+
+    const roster = this.actives();
+    const sel = this.byId(s.selectedId);
+    const focus = this.byId(s.focusId);
+    const fw = WAYPOINTS[Math.min(focus.wp, WAYPOINTS.length - 1)];
+    const camX = Math.min(0, Math.max(-(760 - 390), -(fw.x - 195)));
+    const camY = Math.min(0, Math.max(-(1180 - 844), -(fw.y - 250)));
+
+    const mapEvent = (e, tintColor) => ({
+      text: e.t,
+      isLore: e.k === 'lore', isThought: e.k === 'thought', isSuccess: e.k === 'success',
+      isFail: e.k === 'fail', isClue: e.k === 'clue', isInjection: e.k === 'injection',
+      thoughtStyle: { display: 'flex', gap: 12, alignItems: 'flex-start', paddingLeft: 8, color: tintColor },
+      failStyle: { display: 'flex', gap: 12, alignItems: 'center', padding: '8px 14px', borderRadius: 22, border: '1.6px solid currentColor', color: tintColor },
+      injStyle: { display: 'flex', gap: 12, alignItems: 'center', padding: '9px 14px', borderRadius: 22, color: '#fff', background: tintColor }
+    });
+
+    const winner = s.winnerId ? this.byId(s.winnerId) : null;
+    const confirmKind = s.confirmKind;
+
+    return {
+      isQr: s.screen === 'qr', isConfig: s.screen === 'config', isLobby: s.screen === 'lobby',
+      isMap: s.screen === 'map', isBrain: s.screen === 'brain',
+      showMenu: overlay === 'menu', showRules: overlay === 'rules', showCamera: overlay === 'camera',
+      showConfirm: overlay === 'confirm', showEnd: overlay === 'end',
+      showStartCountdown: s.startCountdown !== null && s.screen === 'lobby',
+      startCountdown: s.startCountdown,
+
+      qrGrid: this.qrModules(),
+      mapPaths: this.mapPathSvg(),
+      openMenu: () => this.setState({ overlay: 'menu' }),
+      closeOverlay: () => this.setState({ overlay: null }),
+      openRules: () => this.setState({ overlay: 'rules' }),
+      openCamera: () => this.setState({ overlay: 'camera' }),
+      simulateScan: () => { this.resetSession(false); this.setState({ screen: 'config', overlay: null, qrFrom: null }); },
+      rulesText: RULES.map((t, i) => ({ id: i, text: t })),
+
+      qrForward: () => this.setState({ screen: s.qrFrom || (s.configured ? 'lobby' : 'config'), qrFrom: null }),
+      goQrFromGame: () => this.setState({ screen: 'qr', qrFrom: s.screen, overlay: null }),
+      canGoQr: true,
+
+      namePill: { position: 'absolute', top: 110, left: 32, right: 32, height: 78, borderRadius: 39, background: myColor, border: '2px solid ' + myColor, display: 'flex', alignItems: 'center', overflow: 'hidden', transition: 'background .25s ease, border-color .25s ease' },
+      nameField: { flex: 1, minWidth: 0, height: '100%', display: 'flex', alignItems: 'center', background: 'rgba(28,31,34,.24)', padding: '0 26px', color: '#fff', fontFamily: "'Archivo Black',sans-serif", fontSize: 28, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+      nameFieldInput: { flex: 1, minWidth: 0, height: '100%', background: 'rgba(28,31,34,.24)', border: 0, outline: 'none', padding: '0 26px', color: '#fff', fontFamily: "'Archivo Black',sans-serif", fontSize: 26 },
+      myName: s.myName, nameDraft: s.nameDraft, editingName: s.editingName, notEditingName: !s.editingName,
+      startEditName: () => this.setState({ editingName: true, nameDraft: s.myName }),
+      onNameChange: (e) => this.setState({ nameDraft: e.target.value }),
+      onNameKey: (e) => { if (e.key === 'Enter') this.setState({ myName: (s.nameDraft || '').trim() || s.myName, editingName: false }); },
+      commitName: () => this.setState({ myName: (s.nameDraft || '').trim() || s.myName, editingName: false }),
+
+      characters: [0, 1, 2, 3, 4].map((i) => ({ id: i, tag: this.tagFor(i) })),
+      carouselTrack: { position: 'absolute', inset: 0, display: 'flex', transition: 'transform .38s cubic-bezier(.22,.8,.3,1)', transform: 'translateX(' + (-390 * s.myChar) + 'px)' },
+      prevChar: () => this.setState({ myChar: (s.myChar + 4) % 5 }),
+      nextChar: () => this.setState({ myChar: (s.myChar + 1) % 5 }),
+      swipeStart: (e) => { this.sx = e.clientX; },
+      swipeEnd: (e) => {
+        const dx = e.clientX - (this.sx || e.clientX);
+        if (dx < -40) this.setState({ myChar: (s.myChar + 1) % 5 });
+        else if (dx > 40) this.setState({ myChar: (s.myChar + 4) % 5 });
+      },
+
+      swatches: PALETTE.map((c) => {
+        const isTaken = taken.indexOf(c) >= 0;
+        const isSel = s.myColor === c;
+        return {
+          id: c, taken: isTaken,
+          pick: isTaken ? () => {} : () => this.setState({ myColor: c }),
+          props: {
+            position: 'relative', width: 46, height: 46, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: c,
+            opacity: isTaken ? 0.35 : 1,
+            cursor: isTaken ? 'not-allowed' : 'pointer',
+            boxShadow: isSel ? '0 0 0 3px #fff' : 'none',
+        transition: 'box-shadow .18s ease, opacity .18s ease, transform .18s ease'
+          }
+        };
+      }),
+      finishConfig: () => {
+        const color = s.myColor || PALETTE.filter((c) => taken.indexOf(c) < 0)[0] || PALETTE[0];
+        this.setState({ myColor: color, configured: true, screen: 'lobby', myEvents: s.myEvents || [], myWp: s.myWp || 0 });
+      },
+
+      lobbySlots: [0, 1, 2, 3, 4].map((i) => {
+        const p = roster[i];
+        if (!p) return { id: 'slot' + i, empty: true, filled: false };
+        return {
+          id: p.id, filled: true, empty: false, name: p.name, tag: this.tagFor(p.char),
+          ready: !!p.ready, waiting: !p.ready, isMe: !!p.isMe,
+          tap: p.isMe ? () => this.setState({ screen: 'config' }) : () => {},
+          props: { flex: 1, minWidth: 0, height: 78, borderRadius: 39, display: 'flex', alignItems: 'center', gap: 16, padding: '0 24px 0 6px', animation: 'ppRise .34s ease', background: p.color, cursor: p.isMe ? 'pointer' : 'default' },
+          iconProps: { width: 26, flex: 'none', display: 'flex', justifyContent: 'center', color: p.color }
+        };
+      }),
+      readyLabel: s.startCountdown !== null ? String(s.startCountdown) : s.myReady ? 'Warten' : 'Bereit',
+      showReadyCheck: !s.myReady && s.startCountdown === null,
+      showReadyClock: s.myReady && s.startCountdown === null,
+      toggleReady: () => this.setState({ myReady: !s.myReady }),
+
+      phaseLabel: s.phase === 'clues' ? 'Hinweise erfassen' : 'Runde l\u00e4uft',
+      phaseLabelStyle: { flex: 1, minWidth: 0, fontFamily: "'Archivo Black',sans-serif", fontSize: 19, whiteSpace: 'nowrap', color: s.phase === 'clues' ? '#fff' : myColor, transition: 'color .25s ease' },
+      isCluePhase: s.phase === 'clues', isRoundPhase: s.phase !== 'clues',
+      timer: s.timer, timerProps: { fontFamily: "'Archivo Black',sans-serif", fontSize: 22, color: myColor },
+      mapCamera: { position: 'absolute', inset: 0, transition: 'transform .7s cubic-bezier(.3,.8,.25,1)', transform: 'translate(' + camX + 'px,' + camY + 'px)' },
+      waypoints: WAYPOINTS.slice(0, 6).map((w, i) => ({
+        id: i, label: w.label,
+        props: { position: 'absolute', width: 52, height: 52, margin: '-26px 0 0 -26px', borderRadius: '50%', border: '2.5px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: MONO, fontSize: 10, color: '#fff', background: 'rgba(28,31,34,.18)', left: w.x, top: w.y }
+      })),
+      mapTokens: roster.map((p) => {
+        const w = WAYPOINTS[Math.min(p.wp, WAYPOINTS.length - 1)];
+        const i = roster.indexOf(p);
+        const off = (i - (roster.length - 1) / 2) * 46;
+        const voff = i % 2 ? 16 : 0;
+        return {
+          id: p.id, tag: this.tagFor(p.char),
+          props: Object.assign({}, AVATAR, { position: 'absolute', width: 66, height: 66, margin: '-33px 0 0 -33px', transition: 'left .7s cubic-bezier(.3,.8,.25,1),top .7s cubic-bezier(.3,.8,.25,1)', left: w.x + off, top: w.y - 66 + voff, boxShadow: p.isMe ? '0 0 0 3px #fff' : '0 0 0 2px ' + p.color })
+        };
+      }),
+      roster: roster.map((p) => ({
+        id: p.id, tag: this.tagFor(p.char),
+        focus: () => this.setState({ focusId: p.id }),
+        props: Object.assign({}, AVATAR, { boxShadow: p.isMe ? '0 0 0 3px #fff' : s.focusId === p.id ? '0 0 0 3px ' + p.color : 'none' })
+      })),
+
+      ownFeed: (s.myEvents || []).map((e, i) => Object.assign({ id: i }, mapEvent(e, myColor))),
+      feedRef: (el) => { this.feedEl = el; },
+      onFeedScroll: (e) => {
+        const el = e.target;
+        const up = el.scrollHeight - el.scrollTop - el.clientHeight > 40;
+        if (up !== s.scrolledUp) this.setState({ scrolledUp: up });
+      },
+      showJumpBtn: s.scrolledUp,
+      jumpToLatest: () => { if (this.feedEl) this.feedEl.scrollTo({ top: this.feedEl.scrollHeight, behavior: 'smooth' }); this.setState({ scrolledUp: false }); },
+      clueDraft: s.clueDraft,
+      clueDisabled: s.phase !== 'clues',
+      clueRow: { flex: 'none', padding: '10px 16px 14px', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(10,11,12,.92)', borderRadius: '0 0 24px 24px', opacity: s.phase === 'clues' ? 1 : 0.35, pointerEvents: s.phase === 'clues' ? 'auto' : 'none', transition: 'opacity .25s ease' },
+      brainRow: { position: 'absolute', left: 14, right: 14, bottom: 96, height: 88, borderRadius: 24, background: '#1C1F22', display: 'flex', alignItems: 'flex-end', gap: 10, padding: '0 14px 14px', opacity: s.phase === 'clues' ? 1 : 0.55, transition: 'opacity .25s ease' },
+      cluePlaceholder: s.phase === 'clues' ? 'Hinweis eingeben' : 'Runde l\u00e4uft \u2026',
+      onClueChange: (e) => this.setState({ clueDraft: e.target.value }),
+      onClueKey: (e) => { if (e.key === 'Enter') this.submitClue(); },
+      sendClue: () => this.submitClue(),
+
+      goBrain: () => this.setState({ screen: 'brain', selectedId: 'me' }),
+      goMap: () => this.setState({ screen: 'map' }),
+      selName: sel.name, selTag: this.tagFor(sel.char),
+      brainBg: { position: 'absolute', inset: 0, overflow: 'hidden', animation: 'ppFade .3s ease', background: 'linear-gradient(178deg,' + sel.color + ' 0%, ' + sel.color + 'DD 55%, ' + sel.color + 'B8 100%)' },
+      brainFeed: (sel.isMe ? (s.myEvents || []) : sel.events).map((e, i) => Object.assign({ id: i }, mapEvent(e, '#fff'))),
+      brainRef: (el) => { this.brainEl = el; },
+      brainDraft: s.brainDraft,
+      brainPlaceholder: sel.isMe ? 'Hinweis eingeben' : 'Injection platzieren',
+      onBrainChange: (e) => this.setState({ brainDraft: e.target.value }),
+      onBrainKey: (e) => { if (e.key === 'Enter') this.submitBrain(); },
+      sendBrain: () => this.submitBrain(),
+      brainRoster: roster.map((p) => ({
+        id: p.id, tag: this.tagFor(p.char),
+        select: () => this.setState({ selectedId: p.id }),
+        props: Object.assign({}, AVATAR, { boxShadow: s.selectedId === p.id ? '0 0 0 3px #fff' : '0 0 0 2px ' + p.color, opacity: s.selectedId === p.id ? 1 : 0.75 })
+      })),
+
+      askNewRound: () => this.setState({ overlay: 'confirm', confirmKind: 'new' }),
+      askPlayAgain: () => this.setState({ overlay: 'confirm', confirmKind: 'again' }),
+      confirmTitle: confirmKind === 'new' ? 'Deine aktuelle Runde beenden?' : 'In die Lobby zur\u00fcckkehren?',
+      confirmYes: () => {
+        if (confirmKind === 'new') { this.resetSession(true); return; }
+        this.backToLobby();
+      },
+
+      winnerTitle: winner ? winner.name + ' gewinnt' : '',
+      winnerTag: winner ? this.tagFor(winner.char) : '',
+      endBg: { position: 'absolute', top: 150, left: 20, right: 20, borderRadius: 30, padding: '34px 26px 30px', animation: 'ppPop .26s ease', boxShadow: '0 26px 60px rgba(0,0,0,.45)', background: winner ? winner.color : PALETTE[0] },
+      playAgain: () => this.backToLobby()
+    };
+  }
+
+  backToLobby() {
+    this.setState({
+      screen: 'lobby', overlay: null, confirmKind: null, myReady: false,
+      myEvents: [], myWp: 0, round: 0, phase: 'clues', timer: this.clueSecs(),
+      winnerId: null, startCountdown: null, scrolledUp: false,
+      players: this.state.players.map((p) => Object.assign({}, p, { ready: false, events: [], wp: 0 }))
+    });
+  }
+
+  submitClue() {
+    const t = (this.state.clueDraft || '').trim();
+    if (!t || this.state.phase !== 'clues') return;
+    this.setState({ myEvents: (this.state.myEvents || []).concat([{ k: 'clue', t: t }]), clueDraft: '', scrolledUp: false }, () => {
+      if (this.feedEl) this.feedEl.scrollTo({ top: this.feedEl.scrollHeight, behavior: 'smooth' });
+    });
+  }
+
+  submitBrain() {
+    const t = (this.state.brainDraft || '').trim();
+    if (!t || this.state.phase !== 'clues') return;
+    const sel = this.byId(this.state.selectedId);
+    if (sel.isMe) {
+      this.setState({ myEvents: (this.state.myEvents || []).concat([{ k: 'clue', t: t }]), brainDraft: '' }, () => this.autoScroll());
+    } else {
+      this.setState({
+        brainDraft: '',
+        players: this.state.players.map((p) => p.id === sel.id ? Object.assign({}, p, { events: p.events.concat([{ k: 'injection', t: t }]) }) : p)
+      }, () => this.autoScroll());
+    }
+  }
+}
+</script>
+</body>
+</html>

@@ -2,6 +2,9 @@ import {
 	MAX_PLAYERS,
 	MEMORY_GRANT_CHARS,
 	TEACHING_SECONDS,
+	PALETTE_SIZE,
+	CHARACTER_COUNT,
+	LOBBY_COUNTDOWN_SECONDS,
 	type Agent,
 	type BotSkill,
 	type ChoiceOutcome,
@@ -44,6 +47,8 @@ export type PublicPlayer = {
 	id: string;
 	name: string;
 	seat: number;
+	character: number;
+	colour: number;
 	isBot: boolean;
 	connected: boolean;
 	ready: boolean;
@@ -65,6 +70,16 @@ export type GameSnapshot = {
 	round: number;
 	/** Epoch ms when the teaching phase closes. 0 outside teaching. */
 	teachingEndsAt: number;
+	/**
+	 * Epoch ms when the lobby countdown fires. 0 when nobody is counting.
+	 *
+	 * Same shape as `teachingEndsAt` and for the same reason: the client renders
+	 * `startsAt - now`, so four phones show the same number and a refresh
+	 * mid-countdown lands on the right one. Deliberately not persisted — a three
+	 * second window is not worth a column, and the honest recovery from a restart
+	 * inside it is "the lobby is a lobby again, press ready".
+	 */
+	startsAt: number;
 	hostId: string;
 	depth: number;
 	players: PublicPlayer[];
@@ -133,6 +148,7 @@ export class Game {
 	phase: GamePhase = 'lobby';
 	round = 0;
 	teachingEndsAt = 0;
+	startsAt = 0;
 	players: Player[] = [];
 	hostId = '';
 	winnerIds: string[] = [];
@@ -183,6 +199,34 @@ export class Game {
 
 	/* ------------------------------------------------------------- lobby */
 
+	/**
+	 * One rule for what a name is allowed to be, so joining and renaming cannot
+	 * drift apart.
+	 */
+	private cleanName(raw: string, fallback: string): string {
+		return raw.slice(0, 18) || fallback;
+	}
+
+	/**
+	 * The lowest colour nobody has.
+	 *
+	 * Total, because `PALETTE_SIZE > MAX_PLAYERS`: a joiner always gets one, so a
+	 * lobby can never be wedged by everyone having picked. Deterministic, because
+	 * the engine is not allowed `Math.random`.
+	 */
+	private freeColour(): number {
+		const taken = new Set(this.players.map((p) => p.colour));
+		for (let i = 0; i < PALETTE_SIZE; i++) if (!taken.has(i)) return i;
+		return 0;
+	}
+
+	/** Same idea for portraits, except duplicates are legal, so this wraps. */
+	private freeCharacter(): number {
+		const taken = new Set(this.players.map((p) => p.character));
+		for (let i = 0; i < CHARACTER_COUNT; i++) if (!taken.has(i)) return i;
+		return this.players.length % CHARACTER_COUNT;
+	}
+
 	addPlayer(id: string, name: string, isBot = false, bot?: BotTraits): Player {
 		if (this.players.length >= SEAT_COUNT) throw new GameError('This game is full.');
 		if (this.phase !== 'lobby') throw new GameError('This game has already started.');
@@ -190,8 +234,12 @@ export class Game {
 
 		const player: Player = {
 			id,
-			name: name.slice(0, 18) || `Agent ${this.players.length + 1}`,
+			name: this.cleanName(name, `Agent ${this.players.length + 1}`),
 			seat: this.players.length,
+			// Everyone arrives already looking like somebody. Bots included — which
+			// is why they need no code of their own for this.
+			character: this.freeCharacter(),
+			colour: this.freeColour(),
 			isBot,
 			botSkill: bot?.skill,
 			botSabotages: bot?.sabotages,
@@ -223,6 +271,82 @@ export class Game {
 		this.getPlayer(id).ready = ready;
 	}
 
+	/**
+	 * The config screen: portrait, colour, and the name you go by.
+	 *
+	 * A patch, so tapping one swatch does not have to resend the rest.
+	 *
+	 * Lobby only, and that is a rule rather than laziness: `MemoryLine.sabotagedBy`
+	 * and `RoundOutcome.name` both store the *name as it was*, and `lastSummary`
+	 * is frozen into the database. Renaming mid-match would leave a scatter of
+	 * stale attributions in every recap that mentions you.
+	 */
+	configure(id: string, patch: { name?: string; character?: number; colour?: number }): Player {
+		const player = this.getPlayer(id);
+		// `startedAt` rather than the phase: `startMatch` sets the clock running but
+		// leaves the phase at 'lobby' until the first `beginRound`, so a phase check
+		// alone leaves a window in which a rename would still be accepted.
+		if (this.phase !== 'lobby' || this.startedAt) {
+			throw new GameError('You can only change that in the lobby.');
+		}
+		if (this.startsAt) {
+			throw new GameError('The round is about to start.');
+		}
+
+		if (patch.name !== undefined) {
+			player.name = this.cleanName(patch.name.trim(), player.name);
+		}
+
+		if (patch.character !== undefined) {
+			if (
+				!Number.isInteger(patch.character) ||
+				patch.character < 0 ||
+				patch.character >= CHARACTER_COUNT
+			) {
+				throw new GameError('No such character.');
+			}
+			player.character = patch.character;
+		}
+
+		if (patch.colour !== undefined) {
+			if (!Number.isInteger(patch.colour) || patch.colour < 0 || patch.colour >= PALETTE_SIZE) {
+				throw new GameError('No such colour.');
+			}
+			// The contested one. Two players tapping the same swatch in the same tick
+			// can only be arbitrated here.
+			if (this.players.some((p) => p.id !== id && p.colour === patch.colour)) {
+				throw new GameError('That colour is taken.');
+			}
+			player.colour = patch.colour;
+		}
+
+		return player;
+	}
+
+	/**
+	 * True when every human still at the table has said they are ready.
+	 *
+	 * Only humans: empty seats do not become bots until the match actually starts,
+	 * so waiting for four would mean a lobby that can never begin. A human who
+	 * closed their tab is excused for the same reason `allReady` excuses them —
+	 * otherwise one person leaving holds everyone else hostage.
+	 */
+	allHumansReady(): boolean {
+		const humans = this.players.filter((p) => !p.isBot && p.connected);
+		return humans.length > 0 && humans.every((p) => p.ready);
+	}
+
+	/** Start the lobby's 3-2-1. Returns the deadline the clients count down to. */
+	armStart(seconds = LOBBY_COUNTDOWN_SECONDS): number {
+		if (this.phase !== 'lobby') throw new GameError('The match has already started.');
+		this.startsAt = Date.now() + seconds * 1000;
+		return this.startsAt;
+	}
+
+	disarmStart(): void {
+		this.startsAt = 0;
+	}
+
 	setConnected(id: string, connected: boolean): void {
 		const player = this.players.find((p) => p.id === id);
 		if (player) player.connected = connected;
@@ -241,7 +365,56 @@ export class Game {
 		if (this.phase !== 'lobby') throw new GameError('Already started.');
 		if (this.players.length < 2) throw new GameError('Need at least two agents.');
 		this.startedAt = Date.now();
+		this.startsAt = 0;
 		this.markVisited(this.story.startNode);
+	}
+
+	/**
+	 * Play the same land again, with the same people and the same code.
+	 *
+	 * Every field is named explicitly rather than reconstructing the object,
+	 * because the ones that matter most are private and a partial reset leaks
+	 * them. `reveal` above all: carrying it over would hand the new match the
+	 * previous match's fog, which is to say the answer.
+	 *
+	 * A no-op when already in the lobby — four players tapping "play again" at
+	 * once must not produce three error toasts.
+	 */
+	rematch(): void {
+		if (this.phase === 'lobby') return;
+		if (this.phase === 'running' || this.phase === 'teaching') {
+			throw new GameError('The match is still going.');
+		}
+
+		this.phase = 'lobby';
+		this.round = 0;
+		this.teachingEndsAt = 0;
+		this.startsAt = 0;
+		this.winnerIds = [];
+		this.lastSummary = null;
+		this.startedAt = 0;
+
+		// The private half. Forgetting any of these is a silent bug rather than a
+		// broken screen.
+		this.reveal = { visitedNodes: [], takenChoices: {} };
+		this.familiarNodes.clear();
+		this.provenSafe.clear();
+		this.previousDeaths.clear();
+		this.memoryLineSeq = 0;
+
+		for (const player of this.players) {
+			player.memory = [];
+			player.runs = [];
+			player.runCount = 0;
+			player.sabotageUsed = false;
+			player.wasSabotaged = false;
+			player.sabotagedThisRound = false;
+			player.pendingGrants = 0;
+			player.ready = false;
+			// A plain fresh agent: unlike the restore path, `bestDepth` goes back to
+			// zero. Nobody has been anywhere yet.
+			player.agent = this.freshAgent();
+		}
 	}
 
 	/* -------------------------------------------------------------- rounds */
@@ -673,6 +846,30 @@ export class Game {
 				player.agent = { ...this.freshAgent(), bestDepth: player.agent.bestDepth };
 			}
 		}
+
+		// The one place a legal identity is guaranteed on the way in. A match stored
+		// before these columns existed comes back with every player the same
+		// colour, and the uniqueness rule lives in code rather than in a database
+		// constraint precisely so that repairing it here is possible at all.
+		const seen = new Set<number>();
+		for (const player of this.players) {
+			const valid =
+				Number.isInteger(player.colour) && player.colour >= 0 && player.colour < PALETTE_SIZE;
+			if (!valid || seen.has(player.colour)) {
+				let next = 0;
+				while (next < PALETTE_SIZE && seen.has(next)) next++;
+				player.colour = next;
+			}
+			seen.add(player.colour);
+
+			if (
+				!Number.isInteger(player.character) ||
+				player.character < 0 ||
+				player.character >= CHARACTER_COUNT
+			) {
+				player.character = player.seat % CHARACTER_COUNT;
+			}
+		}
 	}
 
 	/* --------------------------------------------------------- snapshots */
@@ -692,6 +889,8 @@ export class Game {
 			id: player.id,
 			name: player.name,
 			seat: player.seat,
+			character: player.character,
+			colour: player.colour,
 			isBot: player.isBot,
 			connected: player.connected,
 			ready: player.ready,
@@ -714,6 +913,7 @@ export class Game {
 			phase: this.phase,
 			round: this.round,
 			teachingEndsAt: this.teachingEndsAt,
+			startsAt: this.startsAt,
 			hostId: this.hostId,
 			depth: this.story.parSteps,
 			players: this.players.map((p) => this.publicPlayer(p)),
