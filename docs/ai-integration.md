@@ -103,7 +103,11 @@ The request is aborted with `AbortSignal.timeout(AI_TIMEOUT_MS)`.
 
 ## 5. The prompt
 
-Built in `src/lib/agent/prompt.ts`.
+Built in `src/lib/agent/prompt.ts`, **in the match's language** — the agent reasons and speaks in
+it, so a German match shows German reasoning. What never changes is the contract: `choice` must be
+one of the path **ids** (`river`, `forest`, …), which are the same strings in every language, so
+parsing and validation are locale-independent. The English version is shown below; `de` is the
+same shape.
 
 **System prompt** (constant):
 

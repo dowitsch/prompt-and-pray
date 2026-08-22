@@ -1,3 +1,5 @@
+import type { Locale } from '../i18n/index.ts';
+
 /**
  * The agent's brain: the one seam where a real LLM plugs in.
  *
@@ -14,6 +16,8 @@ export type BrainChoice = {
 
 export type DecisionContext = {
 	agentName: string;
+	/** The language the match is told in; the agent reasons in it. */
+	locale: Locale;
 	nodeTitle: string;
 	nodeDescription: string;
 	choices: BrainChoice[];

@@ -2,6 +2,8 @@
 	import type { Line } from '$lib/client/connection.svelte';
 	import type { PublicPlayer } from '$lib/engine/game';
 	import { agentColor } from '$lib/client/palette';
+	import { conn } from '$lib/client/connection.svelte';
+	import { fmt } from '$lib/i18n';
 
 	type Props = {
 		lines: Line[];
@@ -33,8 +35,10 @@
 	{#if agent}
 		<div class="mb-3 flex items-baseline gap-3">
 			<span class="title text-sm" style:color={colour}>{agent.name}</span>
-			{#if isYou}<span class="rubric">your agent</span>{/if}
-			<span class="ml-auto rubric">{turnIndex + 1} of {turnTotal}</span>
+			{#if isYou}<span class="rubric">{conn.t.narration.yourAgent}</span>{/if}
+			<span class="ml-auto rubric">
+				{fmt(conn.t.narration.turnOf, { n: turnIndex + 1, total: turnTotal })}
+			</span>
 		</div>
 	{/if}
 

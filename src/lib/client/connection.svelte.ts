@@ -7,6 +7,15 @@ import type { RoundSummary } from '$lib/engine/types';
 import type { ClientMessage, ServerEvent } from '$lib/protocol';
 import { WS_PATH } from '$lib/protocol';
 import { roman } from '$lib/client/palette';
+import {
+	DEFAULT_LOCALE,
+	fmt,
+	isLocale,
+	listWays,
+	strings,
+	type Locale,
+	type Strings
+} from '$lib/i18n';
 
 /**
  * The browser's view of the match.
@@ -82,6 +91,7 @@ export type Toast = {
 };
 
 const STORAGE_PLAYER = 'homeward:playerId';
+const STORAGE_LOCALE = 'homeward:locale';
 const STORAGE_CODE = 'homeward:code';
 const MAX_LOG = 140;
 
@@ -111,6 +121,39 @@ export class Connection {
 	error = $state<string | null>(null);
 	/** True once the server has answered our opening HELLO. */
 	synced = $state(false);
+	/**
+	 * The language to create the next match in. Once you are in a match, the
+	 * match's own locale wins — everyone in it must read the same words.
+	 */
+	preference = $state<Locale>(DEFAULT_LOCALE);
+
+	/** The language everything on screen is written in. */
+	get locale(): Locale {
+		return this.game?.locale ?? this.preference;
+	}
+
+	/** Shorthand for the current dictionary. */
+	get t(): Strings {
+		return strings(this.locale);
+	}
+
+	setPreference(locale: Locale): void {
+		this.preference = locale;
+		if (browser) localStorage.setItem(STORAGE_LOCALE, locale);
+	}
+
+	/** Restore the last chosen language, falling back to the browser's. */
+	loadPreference(): void {
+		if (!browser) return;
+		const saved = localStorage.getItem(STORAGE_LOCALE);
+		if (isLocale(saved)) {
+			this.preference = saved;
+			return;
+		}
+		const guess = navigator.languages?.[0] ?? navigator.language ?? '';
+		const short = guess.slice(0, 2).toLowerCase();
+		if (isLocale(short)) this.preference = short;
+	}
 
 	private socket: WebSocket | null = null;
 	private seq = 0;
@@ -200,7 +243,7 @@ export class Connection {
 
 	createGame(name: string): void {
 		this.error = null;
-		this.send({ type: 'CREATE_GAME', name });
+		this.send({ type: 'CREATE_GAME', name, locale: this.preference });
 	}
 
 	joinGame(code: string, name: string): void {
@@ -363,7 +406,11 @@ export class Connection {
 
 			case 'PLAYER_JOINED': {
 				this.game = event.game;
-				this.notify('AGENT CONNECTED', `${event.player.name} joined the match.`, 'good');
+				this.notify(
+					this.t.toast.joinedTitle,
+					fmt(this.t.toast.joinedBody, { name: event.player.name }),
+					'good'
+				);
 				return;
 			}
 
@@ -383,11 +430,12 @@ export class Connection {
 				this.activeId = null;
 				this.order = event.order;
 				this.newPage();
+				const n = this.t.narration;
 				const first = this.playerName(event.order[0] ?? '');
 				this.say(
-					{ tone: 'open', text: `Round ${roman(event.round)}.` },
-					{ tone: 'quiet', text: 'All four go back to the beginning.' },
-					{ tone: 'place', text: `${first} goes first.` }
+					{ tone: 'open', text: fmt(n.roundIs, { n: roman(event.round) }) },
+					{ tone: 'quiet', text: n.backToStart },
+					{ tone: 'place', text: fmt(n.goesFirst, { name: first }) }
 				);
 				this.push({
 					kind: 'round',
@@ -405,21 +453,22 @@ export class Connection {
 				this.turnTotal = event.total;
 				this.newPage();
 
+				const n = this.t.narration;
 				const carried = event.player.memory.length;
 				const lies = event.player.memory.filter((line) => line.sabotagedBy).length;
-				this.say({ tone: 'open', text: `${event.player.name} sets out.` });
+				this.say({ tone: 'open', text: fmt(n.setsOut, { name: event.player.name }) });
 				if (carried === 0) {
-					this.say({ tone: 'quiet', text: 'It knows nothing at all.' });
+					this.say({ tone: 'quiet', text: n.knowsNothing });
 				} else {
 					this.say({
 						tone: 'quiet',
-						text: `It carries ${carried} ${carried === 1 ? 'line' : 'lines'}.`
+						text: carried === 1 ? n.carriesOne : fmt(n.carriesMany, { n: carried })
 					});
 					// The best beat in the game: watching an agent walk off on a lie.
 					if (lies) {
 						this.say({
 							tone: 'bad',
-							text: lies === 1 ? 'One of them is false.' : `${lies} of them are false.`
+							text: lies === 1 ? n.oneIsFalse : fmt(n.manyAreFalse, { n: lies })
 						});
 					}
 				}
@@ -455,17 +504,12 @@ export class Connection {
 				this.replacePlayer(event.player);
 				if (this.game) applyChoicesRevealed(this.game.tree, event.reveal);
 				if (!event.familiar) {
+					const n = this.t.narration;
 					const ways = event.reveal.choices.map((c) => c.label);
 					this.say(
-						{ tone: 'place', text: `It comes to ${event.nodeTitle}.` },
+						{ tone: 'place', text: fmt(n.comesTo, { place: event.nodeTitle }) },
 						{ tone: 'scene', text: event.nodeDescription },
-						{
-							tone: 'ways',
-							text:
-								ways.length > 1
-									? `${ways.slice(0, -1).join(', ')} or ${ways.at(-1)}?`
-									: `${ways[0]}?`
-						}
+						{ tone: 'ways', text: listWays(this.locale, ways) }
 					);
 				}
 				this.push({
@@ -483,12 +527,15 @@ export class Connection {
 					// Known road: said once, not once per step.
 					if (!this.saidRetracing) {
 						this.saidRetracing = true;
-						this.say({ tone: 'quiet', text: 'It hurries along the road it knows.' });
+						this.say({ tone: 'quiet', text: this.t.narration.hurriesOn });
 					}
 				} else {
 					this.say(
 						{ tone: 'speech', text: `\u201C${event.reasoning}\u201D` },
-						{ tone: 'act', text: `It takes the ${event.choiceLabel}.` }
+						{
+							tone: 'act',
+							text: fmt(this.t.narration.takes, { choice: event.choiceLabel })
+						}
 					);
 				}
 				this.push({
@@ -508,8 +555,8 @@ export class Connection {
 				// A step past everything anyone has ever managed deserves its own line.
 				this.say(
 					event.record
-						? { tone: 'record', text: 'No one has ever come this far.' }
-						: { tone: 'good', text: 'The way holds.' }
+						? { tone: 'record', text: this.t.narration.record }
+						: { tone: 'good', text: this.t.narration.wayHolds }
 				);
 				this.push({
 					kind: 'ok',
@@ -525,7 +572,7 @@ export class Connection {
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
 				this.flash('death', event.playerId, event.revealed.node.id);
 				this.say(
-					{ tone: 'bad', text: 'It does not come back.' },
+					{ tone: 'bad', text: this.t.narration.doesNotReturn },
 					{ tone: 'scene', text: event.epitaph }
 				);
 				this.push({ kind: 'dead', playerId: event.playerId, text: event.epitaph });
@@ -566,8 +613,13 @@ export class Connection {
 				});
 				if (event.targetId === this.you) {
 					this.notify(
-						'YOUR MEMORY WAS SABOTAGED',
-						`${event.actorName} overwrote line ${event.lineIndex + 1}: "${event.before}" became "${event.after}".`,
+						this.t.toast.sabotagedTitle,
+						fmt(this.t.toast.sabotagedBody, {
+							actor: event.actorName,
+							line: event.lineIndex + 1,
+							before: event.before,
+							after: event.after
+						}),
 						'danger'
 					);
 				}

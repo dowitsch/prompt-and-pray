@@ -16,6 +16,7 @@ import {
 	type RunRecord
 } from './types.ts';
 import { layoutTree, type TreeLayout } from './tree.ts';
+import { fmt, strings, type Locale } from '../i18n/index.ts';
 import {
 	buildFoggedTree,
 	type ChoicesRevealed,
@@ -70,6 +71,8 @@ export type GameSnapshot = {
 	maxPlayers: number;
 	/** How slowly the tale is told, so the client can pace its sentences to match. */
 	paceScale: number;
+	/** The language this match is told in. Fixed when the game is created. */
+	locale: Locale;
 };
 
 export type ResolveResult = {
@@ -109,7 +112,12 @@ export class Game {
 	/** Where each player died last round, for spotting repeated mistakes. */
 	private previousDeaths = new Map<string, string>();
 
-	constructor(code: string, map: DecisionMap) {
+	constructor(
+		code: string,
+		map: DecisionMap,
+		/** Every player in a match reads and writes the same language. */
+		readonly locale: Locale
+	) {
 		this.code = code;
 		this.map = map;
 		this.layout = layoutTree(map);
@@ -309,10 +317,11 @@ export class Game {
 	 * television than a statistic.
 	 */
 	private narrate(outcomes: RoundOutcome[]): string {
+		const h = strings(this.locale).headlines;
 		const winners = outcomes.filter((o) => o.survived);
-		if (winners.length === 1) return `${winners[0].name} walked through the gate.`;
+		if (winners.length === 1) return fmt(h.oneHome, { name: winners[0].name });
 		if (winners.length > 1) {
-			return `${winners.map((w) => w.name).join(' and ')} reached home together.`;
+			return fmt(h.manyHome, { names: winners.map((w) => w.name).join(' & ') });
 		}
 
 		const dead = outcomes.filter((o) => o.killedBy);
@@ -322,25 +331,23 @@ export class Game {
 		if (dead.length > 1 && dead.length === outcomes.length) {
 			const first = dead[0].killedBy;
 			if (dead.every((o) => o.killedBy === first)) {
-				return `All ${dead.length} of them walked into the ${first?.toLowerCase()}.`;
+				return fmt(h.allSameWay, { n: dead.length, place: first ?? '' });
 			}
 		}
 
 		const repeat = dead.find((o) => o.repeatedMistake);
-		if (repeat) return `${repeat.name} died at the ${repeat.killedBy?.toLowerCase()}. Again.`;
+		if (repeat) return fmt(h.repeated, { name: repeat.name, place: repeat.killedBy ?? '' });
 
 		const betrayed = dead.find((o) => o.wasSabotaged);
-		if (betrayed) return `${betrayed.name} believed something that wasn't true.`;
+		if (betrayed) return fmt(h.believedLie, { name: betrayed.name });
 
-		if (deepest && deepest.depth === 0) return 'Nobody got past the first choice.';
+		if (deepest && deepest.depth === 0) return h.nobodyPastFirst;
 
 		const tiedAtTop = outcomes.filter((o) => o.depth === deepest.depth);
-		if (tiedAtTop.length > 1) {
-			return `${tiedAtTop.length} agents stalled at the same depth.`;
-		}
+		if (tiedAtTop.length > 1) return fmt(h.tiedAtTop, { n: tiedAtTop.length });
 
-		const levels = deepest.depth === 1 ? '1 level' : `${deepest.depth} levels`;
-		return `${deepest.name} got the furthest — ${levels} in.`;
+		const levels = deepest.depth === 1 ? h.levelOne : fmt(h.levelMany, { n: deepest.depth });
+		return fmt(h.furthest, { name: deepest.name, levels });
 	}
 
 	nodeFor(id: string): DecisionNode {
@@ -542,7 +549,8 @@ export class Game {
 			winnerIds: this.winnerIds,
 			lastSummary: this.lastSummary,
 			maxPlayers: SEAT_COUNT,
-			paceScale: this.paceScale
+			paceScale: this.paceScale,
+			locale: this.locale
 		};
 	}
 }

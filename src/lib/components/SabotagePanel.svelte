@@ -2,6 +2,11 @@
 	import type { PublicPlayer } from '$lib/engine/game';
 	import { MEMORY_GRANT_CHARS } from '$lib/engine/types';
 	import { agentColor } from '$lib/client/palette';
+	import { conn } from '$lib/client/connection.svelte';
+	import { parts } from '$lib/i18n';
+
+	const t = $derived(conn.t.sabotage);
+	const blurb = $derived(parts(t.blurb, 'name', { letters: MEMORY_GRANT_CHARS }));
 
 	type Props = {
 		target: PublicPlayer;
@@ -32,16 +37,14 @@
 <div class="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm">
 	<div class="animate-rise w-full max-w-lg leaf border-rose/40">
 		<header class="px-5 py-4 rule-b">
-			<h2 class="text-sm tracking-[0.2em] text-rose uppercase">A false page</h2>
+			<h2 class="text-sm tracking-[0.2em] text-rose uppercase">{t.title}</h2>
 			<p class="mt-1 text-xs text-quill">
-				You may do this <span class="text-rose">once, and never again</span>. Rewrite one line of
-				<span style:color={colour}>{target.name}</span>'s memory in your own hand — up to
-				{MEMORY_GRANT_CHARS} letters.
+				{blurb.before}<span style:color={colour}>{target.name}</span>{blurb.after}
 			</p>
 		</header>
 
 		<div class="px-5 py-4">
-			<h3 class="mb-2 rubric">Which line to strike out</h3>
+			<h3 class="mb-2 rubric">{t.whichLine}</h3>
 			<ul class="mb-4 space-y-1">
 				{#each target.memory as line, index (line.id)}
 					<li>
@@ -60,18 +63,18 @@
 				{/each}
 			</ul>
 
-			<h3 class="mb-2 rubric">And write instead</h3>
+			<h3 class="mb-2 rubric">{t.writeInstead}</h3>
 			<input
 				bind:value={replacement}
 				maxlength={MEMORY_GRANT_CHARS}
-				placeholder="Valley kills"
+				placeholder={t.liePlaceholder}
 				spellcheck="false"
 				autocomplete="off"
 				class="w-full rounded border border-rule-bright bg-black/40 px-3 py-2 text-sm
 					text-parchment placeholder:text-faded/60 focus:border-rose focus:ring-0"
 			/>
 			<div class="mt-1.5 flex items-center justify-between">
-				<span class="text-[10px] text-faded"> Leave it blank and the line is simply gone. </span>
+				<span class="text-[10px] text-faded">{t.blankNote}</span>
 				<span
 					class="text-[10px] tabular-nums {replacement.length >= MEMORY_GRANT_CHARS
 						? 'text-rose'
@@ -82,7 +85,7 @@
 			</div>
 
 			<div class="mt-4 rounded border border-rule bg-black/30 p-3 text-xs">
-				<div class="mb-1.5 rubric">How it will read</div>
+				<div class="mb-1.5 rubric">{t.howItReads}</div>
 				<div class="text-faded line-through">{current}</div>
 				<div class="text-rose">{replacement.trim() || '…'}</div>
 			</div>
@@ -95,7 +98,7 @@
 				class="flex-1 rounded border border-rule-bright px-3 py-2 text-[11px]
 					tracking-[0.16em] text-quill uppercase transition hover:text-parchment"
 			>
-				Think better of it
+				{t.cancel}
 			</button>
 			<button
 				type="button"
@@ -104,7 +107,7 @@
 				class="flex-1 rounded border border-rose/60 bg-rose/15 px-3 py-2 text-[11px]
 					tracking-[0.16em] text-rose uppercase transition hover:bg-rose/25 disabled:opacity-40"
 			>
-				Write the lie
+				{t.confirm}
 			</button>
 		</footer>
 	</div>

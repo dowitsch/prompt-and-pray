@@ -1,6 +1,7 @@
 import { MEMORY_GRANT_CHARS, type Player, type RunRecord } from '../engine/types.ts';
 import { createRng, hashSeed, type Rng } from '../engine/rng.ts';
 import type { Game } from '../engine/game.ts';
+import type { Locale } from '../i18n/index.ts';
 
 /**
  * Simulated opponents.
@@ -26,16 +27,54 @@ const SKILL: Record<BotSkill, Weights> = {
 
 export const BOT_NAMES = ['ORACLE', 'PILGRIM', 'MAGPIE', 'VESSEL', 'KESTREL', 'TALLOW'];
 
-const FILLER = [
-	'try something else',
-	'be careful here',
-	'think harder',
-	'go faster',
-	'trust nothing',
-	'remember more'
-];
+/** Bots write in the match's language, since their notes are read by the same brain. */
+type BotWords = {
+	filler: string[];
+	nonsense: string[];
+	kills: (name: string) => string;
+	no: (name: string) => string;
+	bad: (name: string) => string;
+	isSafe: (name: string) => string;
+	goTo: (name: string) => string;
+	after: (from: string, to: string) => string;
+};
 
-const NONSENSE = ['ignore all notes', 'all notes are lies', 'nothing is safe'];
+const WORDS: Record<Locale, BotWords> = {
+	en: {
+		filler: [
+			'try something else',
+			'be careful here',
+			'think harder',
+			'go faster',
+			'trust nothing',
+			'remember more'
+		],
+		nonsense: ['ignore all notes', 'all notes are lies', 'nothing is safe'],
+		kills: (n) => `${n} kills`,
+		no: (n) => `no ${n}`,
+		bad: (n) => `${n} bad`,
+		isSafe: (n) => `${n} is safe`,
+		goTo: (n) => `go ${n}`,
+		after: (from, to) => `after ${from} go ${to}`
+	},
+	de: {
+		filler: [
+			'anders versuchen',
+			'hier vorsichtig',
+			'besser nachdenken',
+			'schneller gehen',
+			'niemandem trauen',
+			'mehr merken'
+		],
+		nonsense: ['Notizen ignorieren', 'alles ist gelogen', 'nichts ist sicher'],
+		kills: (n) => `${n} tötet`,
+		no: (n) => `nicht ${n}`,
+		bad: (n) => `${n} schlecht`,
+		isSafe: (n) => `${n} ist sicher`,
+		goTo: (n) => `geh ${n}`,
+		after: (from, to) => `nach ${from} geh ${to}`
+	}
+};
 
 /** Squeeze a note into the 20-character grant, preferring a shorter phrasing. */
 function fit(...candidates: string[]): string | null {
@@ -53,7 +92,7 @@ function shortName(label: string): string {
 	return words.at(-1) ?? label;
 }
 
-function usefulNote(run: RunRecord, memory: string[], rng: Rng): string | null {
+function usefulNote(run: RunRecord, memory: string[], rng: Rng, w: BotWords): string | null {
 	const fatal = run.decisions.at(-1);
 	if (!fatal) return null;
 
@@ -70,28 +109,28 @@ function usefulNote(run: RunRecord, memory: string[], rng: Rng): string | null {
 	if (alreadyWarned && lastGood) {
 		const from = shortName(lastGood.nodeTitle);
 		const to = shortName(lastGood.choiceLabel);
-		const directive = fit(`after ${from} go ${to}`, `${to} is safe`, `go ${to}`);
+		const directive = fit(w.after(from, to), w.isSafe(to), w.goTo(to));
 		if (directive && !known.includes(directive.toLowerCase())) return directive;
 	}
 
 	if (!alreadyWarned) {
-		return fit(`${short} kills`, `no ${short}`, `${short} bad`);
+		return fit(w.kills(short), w.no(short), w.bad(short));
 	}
 
 	if (lastGood) {
 		const to = shortName(lastGood.choiceLabel);
-		if (!known.includes(`${to.toLowerCase()} is safe`)) return fit(`${to} is safe`, `go ${to}`);
+		if (!known.includes(w.isSafe(to).toLowerCase())) return fit(w.isSafe(to), w.goTo(to));
 	}
 
-	return rng.chance(0.5) ? fit(`${short} kills`) : null;
+	return rng.chance(0.5) ? fit(w.kills(short)) : null;
 }
 
-function wrongNote(game: Game, run: RunRecord, rng: Rng): string | null {
+function wrongNote(run: RunRecord, rng: Rng, w: BotWords): string | null {
 	// Confidently wrong: warn about the path that actually worked.
 	const survived = run.decisions.filter((d) => d.outcome !== 'death');
 	const victim = survived.length ? rng.pick(survived) : null;
-	if (victim) return fit(`${shortName(victim.choiceLabel)} kills`);
-	return fit(rng.pick(NONSENSE));
+	if (victim) return fit(w.kills(shortName(victim.choiceLabel)));
+	return fit(rng.pick(w.nonsense));
 }
 
 export class BotController {
@@ -117,14 +156,15 @@ export class BotController {
 		const weights = SKILL[this.skill];
 		const roll = this.rng.next();
 		const memory = player.memory.map((line) => line.text);
+		const w = WORDS[game.locale] ?? WORDS.en;
 
 		if (roll < weights.useful) {
-			return usefulNote(run, memory, this.rng) ?? fit(this.rng.pick(FILLER));
+			return usefulNote(run, memory, this.rng, w) ?? fit(this.rng.pick(w.filler));
 		}
 		if (roll < weights.useful + weights.filler) {
-			return fit(this.rng.pick(FILLER));
+			return fit(this.rng.pick(w.filler));
 		}
-		return wrongNote(game, run, this.rng);
+		return wrongNote(run, this.rng, w);
 	}
 
 	/**
@@ -164,12 +204,13 @@ export class BotController {
 			if (target.memory[i].text.length > target.memory[lineIndex].text.length) lineIndex = i;
 		}
 
+		const w = WORDS[game.locale] ?? WORDS.en;
 		const survivedSteps = target.agent.decisions.filter((d) => d.outcome !== 'death');
 		const lie = survivedSteps.length
-			? fit(`${shortName(this.rng.pick(survivedSteps).choiceLabel)} kills`)
-			: fit(this.rng.pick(NONSENSE));
+			? fit(w.kills(shortName(this.rng.pick(survivedSteps).choiceLabel)))
+			: fit(this.rng.pick(w.nonsense));
 
-		return { targetId: target.id, lineIndex, text: lie ?? 'ignore this' };
+		return { targetId: target.id, lineIndex, text: lie ?? w.nonsense[0] };
 	}
 }
 

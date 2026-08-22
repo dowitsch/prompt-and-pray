@@ -1,5 +1,6 @@
 import { Game } from '../engine/game.ts';
-import { HOMEWARD_MAP } from '../engine/map-homeward.ts';
+import { homewardMap } from '../engine/map-homeward.ts';
+import { DEFAULT_LOCALE, type Locale } from '../i18n/index.ts';
 
 /**
  * In-memory game registry. A prototype does not need a database: a match lives
@@ -19,11 +20,12 @@ function randomCode(length = 4): string {
 	return code;
 }
 
-export function createGame(): Game {
+export function createGame(locale: Locale = DEFAULT_LOCALE): Game {
 	let code = randomCode();
 	while (games.has(code)) code = randomCode();
 
-	const game = new Game(code, HOMEWARD_MAP);
+	// The map is built in the match's language; ids stay the same either way.
+	const game = new Game(code, homewardMap(locale), locale);
 	games.set(code, game);
 	return game;
 }

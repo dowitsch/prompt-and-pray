@@ -30,6 +30,27 @@ Once per match you may overwrite one line of an opponent's memory.
 
 > "I cannot control my AI. I can only teach it."
 
+## Languages
+
+English and German. The host picks the language when creating a tale, and it applies to the whole
+match — the map's place names, the agents' reasoning, the round headlines and every label.
+
+That is deliberate rather than a shortcut: players write their agent's memory by hand, and the
+agent decides by matching those notes against the names of the paths in front of it. If one player
+saw "Forest" and another "Wald", they could not read each other's notes and the matching would
+break. One match, one language.
+
+Adding a third means four things: a dictionary in `src/lib/i18n/`, the map's text in
+`src/lib/engine/map-homeward.ts`, a vocabulary in `src/lib/agent/vocabulary.ts` (the words the
+offline brain reads notes with), and a prompt in `src/lib/agent/prompt.ts`. Then:
+
+```bash
+npm run check:languages
+```
+
+which is the check that matters — it verifies notes actually steer agents in each language, and
+that no two paths at the same level share a word.
+
 ## Run it
 
 ```bash

@@ -2,6 +2,7 @@ import type { WebSocket } from 'ws';
 import type { Game } from '../engine/game.ts';
 import { GameError } from '../engine/game.ts';
 import { MAX_PLAYERS } from '../engine/types.ts';
+import { DEFAULT_LOCALE, isLocale, type Locale } from '../i18n/index.ts';
 import type { ClientMessage, ServerEvent } from '../protocol.ts';
 import type { AgentBrain } from '../agent/index.ts';
 import { BotController, makeBots } from './bots.ts';
@@ -105,7 +106,7 @@ export class Hub {
 			case 'HELLO':
 				return this.onHello(session, message.playerId, message.code);
 			case 'CREATE_GAME':
-				return this.onCreate(session, message.name);
+				return this.onCreate(session, message.name, message.locale);
 			case 'JOIN_GAME':
 				return this.onJoin(session, message.code, message.name);
 			case 'SET_READY': {
@@ -173,8 +174,9 @@ export class Hub {
 		this.broadcast(game, { type: 'PLAYER_UPDATED', player: game.publicPlayer(player) });
 	}
 
-	private onCreate(session: Session, name: string): void {
-		const game = createGame();
+	private onCreate(session: Session, name: string, locale: Locale): void {
+		// The host picks the language; everyone in the match reads and writes it.
+		const game = createGame(isLocale(locale) ? locale : DEFAULT_LOCALE);
 		game.paceScale = this.paceScale;
 		const player = game.addPlayer(newPlayerId(), name.trim() || 'YOU');
 

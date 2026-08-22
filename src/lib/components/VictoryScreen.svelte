@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { GameSnapshot, PublicPlayer } from '$lib/engine/game';
 	import { agentColor } from '$lib/client/palette';
+	import { conn } from '$lib/client/connection.svelte';
+	import { fmt } from '$lib/i18n';
+
+	const t = $derived(conn.t.victory);
 
 	type Props = {
 		game: GameSnapshot;
@@ -27,32 +31,32 @@
 >
 	<div class="animate-rise w-full max-w-2xl">
 		<div class="text-center">
-			<p class="rubric">{youWon ? 'And so' : 'And so'}</p>
+			<p class="rubric">{t.andSo}</p>
 			<h1
 				class="mt-3 text-4xl tracking-[0.14em] uppercase sm:text-5xl"
 				style:color={youWon ? '#e8b45c' : '#f2e8d5'}
 			>
 				{#if youWon}
-					Your agent came home
+					{t.youCameHome}
 				{:else}
-					{winners.map((w) => w.name).join(' & ') || 'Nobody'} found the gate
+					{fmt(t.theyFoundTheGate, { names: winners.map((w) => w.name).join(' & ') || t.nobody })}
 				{/if}
 			</h1>
 			{#if !youWon && winner}
 				<p class="mt-3 text-sm text-quill">
-					Yours was still out there, {subject?.bestDepth ?? 0} partings of {game.depth} along the way.
+					{fmt(t.stillOut, { depth: subject?.bestDepth ?? 0, total: game.depth })}
 				</p>
 			{/if}
 		</div>
 
 		{#if subject}
 			<dl class="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-4">
-				{#each [{ label: 'Rounds', value: String(rounds) }, { label: 'Letters spent', value: String(subject.memoryChars) }, { label: 'Partings passed', value: youWon && winningRun ? `${winningRun.depthReached} / ${game.depth}` : `${subject.bestDepth} / ${game.depth}` }, { label: 'Misled', value: subject.wasSabotaged ? 'ONCE' : 'NEVER' }] as stat (stat.label)}
+				{#each [{ label: t.rounds, value: String(rounds) }, { label: t.lettersSpent, value: String(subject.memoryChars) }, { label: t.partingsPassed, value: youWon && winningRun ? `${winningRun.depthReached} / ${game.depth}` : `${subject.bestDepth} / ${game.depth}` }, { label: t.misled, value: subject.wasSabotaged ? t.misledOnce : t.misledNever }] as stat (stat.label)}
 					<div class="leaf px-4 py-3 text-center">
 						<div class="rubric">{stat.label}</div>
 						<div
 							class="mt-1.5 text-lg"
-							style:color={stat.label === 'Misled' && subject.wasSabotaged ? '#cf5f57' : '#f2e8d5'}
+							style:color={stat.label === t.misled && subject.wasSabotaged ? '#cf5f57' : '#f2e8d5'}
 						>
 							{stat.value}
 						</div>
@@ -63,7 +67,7 @@
 
 		{#if youWon && winningRun}
 			<div class="mt-4 leaf px-5 py-4">
-				<h2 class="mb-2.5 rubric">The road it took</h2>
+				<h2 class="mb-2.5 rubric">{t.roadItTook}</h2>
 				<div class="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
 					{#each winningRun.decisions as decision, i (decision.choiceId)}
 						{#if i > 0}<span class="text-faded">→</span>{/if}
@@ -75,7 +79,7 @@
 
 		{#if subject && subject.memory.length}
 			<div class="mt-4 leaf px-5 py-4">
-				<h2 class="mb-2.5 rubric">What you wrote for it</h2>
+				<h2 class="mb-2.5 rubric">{t.whatYouWrote}</h2>
 				<ul class="space-y-1 text-xs">
 					{#each subject.memory as line (line.id)}
 						<li class:text-rose={Boolean(line.sabotagedBy)} class="text-parchment/85">
@@ -92,7 +96,7 @@
 		{/if}
 
 		<div class="mt-4 leaf px-5 py-4">
-			<h2 class="mb-3 rubric">The others</h2>
+			<h2 class="mb-3 rubric">{t.theOthers}</h2>
 			<ul class="space-y-2">
 				{#each others as player (player.id)}
 					{@const colour = agentColor(player.seat, player.id === youId)}

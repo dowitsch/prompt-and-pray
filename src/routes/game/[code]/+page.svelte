@@ -4,6 +4,9 @@
 	import { conn } from '$lib/client/connection.svelte';
 	import type { PublicPlayer } from '$lib/engine/game';
 	import { agentColor, roman } from '$lib/client/palette';
+	import { fmt } from '$lib/i18n';
+
+	const t = $derived(conn.t.game);
 	import TreeCanvas from '$lib/components/TreeCanvas.svelte';
 	import Narration from '$lib/components/Narration.svelte';
 	import MemoryScroll from '$lib/components/MemoryScroll.svelte';
@@ -42,7 +45,7 @@
 
 {#if !game || !me}
 	<main class="grid min-h-screen place-items-center">
-		<p class="rubric">{conn.synced ? 'No tale in progress' : 'Finding your place…'}</p>
+		<p class="rubric">{conn.synced ? t.noTale : t.finding}</p>
 	</main>
 {:else}
 	{@const colour = agentColor(me.seat, true)}
@@ -55,16 +58,16 @@
 
 			<span class="mx-auto text-[13px] tracking-[0.2em] text-quill uppercase">
 				{#if running}
-					Round {roman(game.round)}
+					{fmt(t.round, { n: roman(game.round) })}
 				{:else if phase === 'teaching'}
-					Between rounds
+					{t.betweenRounds}
 				{:else}
-					The end
+					{t.theEnd}
 				{/if}
 			</span>
 
 			<span class="title text-[13px]" style:color={colour}>{me.name}</span>
-			<span class="rubric">{me.bestDepth} of {game.depth}</span>
+			<span class="rubric">{fmt(t.ofDepth, { n: me.bestDepth, total: game.depth })}</span>
 		</header>
 
 		<!-- Two columns: the illustration, and the page beside it. -->
@@ -95,8 +98,7 @@
 				{:else if phase === 'teaching'}
 					<div class="shrink-0 px-4 pb-4 text-center">
 						<p class="text-[15px] text-quill italic">
-							The four are back at the beginning. Give yours one more line before they set out
-							again.
+							{t.teachingHint}
 						</p>
 					</div>
 				{/if}

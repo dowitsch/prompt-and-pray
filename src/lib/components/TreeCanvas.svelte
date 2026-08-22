@@ -3,6 +3,7 @@
 	import type { PublicPlayer } from '$lib/engine/game';
 	import type { Effect } from '$lib/client/connection.svelte';
 	import { agentColor, sigil } from '$lib/client/palette';
+	import { conn } from '$lib/client/connection.svelte';
 
 	type Props = {
 		tree: FoggedTree;
@@ -385,7 +386,7 @@
 			onclick={() => (mode = mode === 'follow' ? 'fit' : 'follow')}
 			class="rounded border border-rule bg-black/40 px-2.5 py-1 text-[10px] tracking-[0.18em] text-faded uppercase transition hover:border-rule-bright hover:text-parchment"
 		>
-			{mode === 'follow' ? 'The whole land' : 'Follow'}
+			{mode === 'follow' ? conn.t.game.wholeLand : conn.t.game.follow}
 		</button>
 	</div>
 

@@ -1,4 +1,5 @@
 import type { DecisionMap, DecisionNode, DecisionChoice } from './types.ts';
+import type { Locale } from '../i18n/index.ts';
 
 /**
  * THE LONG WAY HOME — the prototype's single hand-designed map.
@@ -10,189 +11,264 @@ import type { DecisionMap, DecisionNode, DecisionChoice } from './types.ts';
  * The correct path: Forest -> Mountain -> Valley -> Orchard -> Ferry ->
  * Lantern Road -> Ash Road -> The Gate.
  *
- * This map is data. Adding another one means adding another file of this
- * shape — the layout, the engine and the UI make no assumptions about it
- * beyond "one correct choice per node".
+ * **Choice ids are language-independent** (`river`, `forest`, …). Only the
+ * display text is translated, so the LLM contract, the reveal state and every
+ * saved game stay identical whichever language a match is told in.
+ *
+ * Two rules govern the labels in *any* language, because the agent matches a
+ * player's handwritten notes against them by keyword:
+ *   1. No two labels at the same level may share a significant word.
+ *   2. Prefer single common words. A German player has twenty characters to
+ *      spend, and "Schwarzwasser" eats most of them.
  */
 
+type Text = Record<Locale, string>;
+
 type LevelSpec = {
-	/** Node the player is standing on when they make this decision. */
 	node: string;
-	title: string;
-	description: string;
+	title: Text;
+	description: Text;
 	choices: {
 		id: string;
-		label: string;
-		/** The one true choice of the level. */
+		label: Text;
 		correct?: true;
-		/** Shown when an agent dies here. */
-		epitaph?: string;
-		/** Title of the death node, e.g. "The River". */
-		deathTitle?: string;
+		epitaph?: Text;
+		deathTitle?: Text;
 	}[];
 };
 
 const LEVELS: LevelSpec[] = [
 	{
 		node: 'start',
-		title: 'The Three Trails',
-		description: 'Your carrier signal died somewhere over this valley. Three ways lead out of it.',
+		title: { en: 'The Three Trails', de: 'Die drei Pfade' },
+		description: {
+			en: 'Your carrier signal died somewhere over this valley. Three ways lead out of it.',
+			de: 'Dein Trägersignal erlosch irgendwo über diesem Tal. Drei Wege führen hinaus.'
+		},
 		choices: [
 			{
 				id: 'river',
-				label: 'River',
-				deathTitle: 'The River',
-				epitaph: 'The current took it. Nothing came back downstream.'
+				label: { en: 'River', de: 'Fluss' },
+				deathTitle: { en: 'The River', de: 'Der Fluss' },
+				epitaph: {
+					en: 'The current took it. Nothing came back downstream.',
+					de: 'Die Strömung nahm es mit. Flussabwärts kam nichts zurück.'
+				}
 			},
-			{ id: 'forest', label: 'Forest', correct: true },
+			{ id: 'forest', label: { en: 'Forest', de: 'Wald' }, correct: true },
 			{
 				id: 'volcano',
-				label: 'Volcano',
-				deathTitle: 'The Volcano',
-				epitaph: 'The ash was warm, then it was not warm at all.'
+				label: { en: 'Volcano', de: 'Vulkan' },
+				deathTitle: { en: 'The Volcano', de: 'Der Vulkan' },
+				epitaph: {
+					en: 'The ash was warm, then it was not warm at all.',
+					de: 'Die Asche war warm, dann war sie überhaupt nicht mehr warm.'
+				}
 			}
 		]
 	},
 	{
 		node: 'forest',
-		title: 'Under the Canopy',
-		description: 'The trees close overhead. Three gaps in the green, and no sky to steer by.',
+		title: { en: 'Under the Canopy', de: 'Unter dem Blätterdach' },
+		description: {
+			en: 'The trees close overhead. Three gaps in the green, and no sky to steer by.',
+			de: 'Die Bäume schließen sich über ihm. Drei Lücken im Grün, und kein Himmel zum Steuern.'
+		},
 		choices: [
-			{ id: 'mountain', label: 'Mountain', correct: true },
+			{ id: 'mountain', label: { en: 'Mountain', de: 'Berg' }, correct: true },
 			{
 				id: 'water',
-				label: 'Black Water',
-				deathTitle: 'The Black Water',
-				epitaph: 'It waded in. The water did not ripple when it stopped moving.'
+				label: { en: 'Black Water', de: 'Wasser' },
+				deathTitle: { en: 'The Black Water', de: 'Das schwarze Wasser' },
+				epitaph: {
+					en: 'It waded in. The water did not ripple when it stopped moving.',
+					de: 'Es watete hinein. Das Wasser kräuselte sich nicht, als es stillstand.'
+				}
 			},
 			{
 				id: 'cave',
-				label: 'Cave',
-				deathTitle: 'The Cave',
-				epitaph: 'Something in there was already awake.'
+				label: { en: 'Cave', de: 'Höhle' },
+				deathTitle: { en: 'The Cave', de: 'Die Höhle' },
+				epitaph: {
+					en: 'Something in there was already awake.',
+					de: 'Etwas darin war bereits wach.'
+				}
 			}
 		]
 	},
 	{
 		node: 'mountain',
-		title: 'The Ridge',
-		description: 'Above the treeline at last. The wind is loud enough to think in.',
+		title: { en: 'The Ridge', de: 'Der Grat' },
+		description: {
+			en: 'Above the treeline at last. The wind is loud enough to think in.',
+			de: 'Endlich über der Baumgrenze. Der Wind ist laut genug zum Nachdenken.'
+		},
 		choices: [
 			{
 				id: 'bridge',
-				label: 'Bridge',
-				deathTitle: 'The Bridge',
-				epitaph: 'The rope held for four steps. There were nine steps.'
+				label: { en: 'Bridge', de: 'Brücke' },
+				deathTitle: { en: 'The Bridge', de: 'Die Brücke' },
+				epitaph: {
+					en: 'The rope held for four steps. There were nine steps.',
+					de: 'Das Seil hielt vier Schritte lang. Es waren neun Schritte.'
+				}
 			},
-			{ id: 'valley', label: 'Valley', correct: true },
+			{ id: 'valley', label: { en: 'Valley', de: 'Tal' }, correct: true },
 			{
 				id: 'tunnel',
-				label: 'Tunnel',
-				deathTitle: 'The Tunnel',
-				epitaph: 'It walked in straight and never found the far end.'
+				label: { en: 'Tunnel', de: 'Tunnel' },
+				deathTitle: { en: 'The Tunnel', de: 'Der Tunnel' },
+				epitaph: {
+					en: 'It walked in straight and never found the far end.',
+					de: 'Es ging geradewegs hinein und fand das andere Ende nie.'
+				}
 			}
 		]
 	},
 	{
 		node: 'valley',
-		title: 'The Valley Floor',
-		description: 'Soft ground, low mist, and the smell of something that used to be a town.',
+		title: { en: 'The Valley Floor', de: 'Der Talgrund' },
+		description: {
+			en: 'Soft ground, low mist, and the smell of something that used to be a town.',
+			de: 'Weicher Boden, tiefer Nebel und der Geruch von etwas, das einmal eine Stadt war.'
+		},
 		choices: [
 			{
 				id: 'mill',
-				label: 'Mill',
-				deathTitle: 'The Mill',
-				epitaph: 'The wheel was still turning. There was no water to turn it.'
+				label: { en: 'Mill', de: 'Mühle' },
+				deathTitle: { en: 'The Mill', de: 'Die Mühle' },
+				epitaph: {
+					en: 'The wheel was still turning. There was no water to turn it.',
+					de: 'Das Rad drehte sich noch. Es gab kein Wasser, das es drehte.'
+				}
 			},
-			{ id: 'orchard', label: 'Orchard', correct: true },
+			{ id: 'orchard', label: { en: 'Orchard', de: 'Obstgarten' }, correct: true },
 			{
 				id: 'pit',
-				label: 'Pit',
-				deathTitle: 'The Pit',
-				epitaph: 'It went down to look. Down was further than it looked.'
+				label: { en: 'Pit', de: 'Grube' },
+				deathTitle: { en: 'The Pit', de: 'Die Grube' },
+				epitaph: {
+					en: 'It went down to look. Down was further than it looked.',
+					de: 'Es stieg hinab, um nachzusehen. Hinab war weiter, als es aussah.'
+				}
 			}
 		]
 	},
 	{
 		node: 'orchard',
-		title: 'The Wide River',
-		description: 'Old fruit trees give way to a river too broad to see across.',
+		title: { en: 'The Wide River', de: 'Der breite Strom' },
+		description: {
+			en: 'Old fruit trees give way to a river too broad to see across.',
+			de: 'Alte Obstbäume weichen einem Strom, zu breit, um hinüberzusehen.'
+		},
 		choices: [
-			{ id: 'ferry', label: 'Ferry', correct: true },
+			{ id: 'ferry', label: { en: 'Ferry', de: 'Fähre' }, correct: true },
 			{
 				id: 'raft',
-				label: 'Raft',
-				deathTitle: 'The Raft',
-				epitaph: 'Six planks and good intentions. The river was unimpressed.'
+				label: { en: 'Raft', de: 'Floß' },
+				deathTitle: { en: 'The Raft', de: 'Das Floß' },
+				epitaph: {
+					en: 'Six planks and good intentions. The river was unimpressed.',
+					de: 'Sechs Bretter und guter Wille. Den Strom beeindruckte das nicht.'
+				}
 			},
 			{
 				id: 'swim',
-				label: 'Swim',
-				deathTitle: 'The Crossing',
-				epitaph: 'It was a strong swimmer for about ninety seconds.'
+				label: { en: 'Swim', de: 'Schwimmen' },
+				deathTitle: { en: 'The Crossing', de: 'Die Querung' },
+				epitaph: {
+					en: 'It was a strong swimmer for about ninety seconds.',
+					de: 'Es war ein starker Schwimmer, etwa neunzig Sekunden lang.'
+				}
 			}
 		]
 	},
 	{
 		node: 'ferry',
-		title: 'The Far Bank',
-		description: 'The ferryman does not speak. Ahead, three lit ways into the dark.',
+		title: { en: 'The Far Bank', de: 'Das andere Ufer' },
+		description: {
+			en: 'The ferryman does not speak. Ahead, three lit ways into the dark.',
+			de: 'Der Fährmann spricht nicht. Voraus drei erleuchtete Wege ins Dunkel.'
+		},
 		choices: [
 			{
 				id: 'market',
-				label: 'Market',
-				deathTitle: 'The Night Market',
-				epitaph: 'Everyone was very friendly. That was the problem.'
+				label: { en: 'Market', de: 'Markt' },
+				deathTitle: { en: 'The Night Market', de: 'Der Nachtmarkt' },
+				epitaph: {
+					en: 'Everyone was very friendly. That was the problem.',
+					de: 'Alle waren überaus freundlich. Das war das Problem.'
+				}
 			},
 			{
 				id: 'chapel',
-				label: 'Chapel',
-				deathTitle: 'The Chapel',
-				epitaph: 'The door closed behind it, politely, and stayed closed.'
+				label: { en: 'Chapel', de: 'Kapelle' },
+				deathTitle: { en: 'The Chapel', de: 'Die Kapelle' },
+				epitaph: {
+					en: 'The door closed behind it, politely, and stayed closed.',
+					de: 'Die Tür schloss sich höflich hinter ihm und blieb zu.'
+				}
 			},
-			{ id: 'lantern', label: 'Lantern Road', correct: true }
+			{ id: 'lantern', label: { en: 'Lantern Road', de: 'Laternen' }, correct: true }
 		]
 	},
 	{
 		node: 'lantern',
-		title: 'Where the Lights End',
-		description: 'The last lantern gutters out. Three roads continue without it.',
+		title: { en: 'Where the Lights End', de: 'Wo die Lichter enden' },
+		description: {
+			en: 'The last lantern gutters out. Three roads continue without it.',
+			de: 'Die letzte Laterne verlischt. Drei Wege gehen ohne sie weiter.'
+		},
 		choices: [
-			// Deliberately shares no significant word with any other label at any
-			// level: memory notes are matched by keyword, so overlapping names
-			// ("Lantern Road" / "Ash Road") would make a note fire in two places.
-			{ id: 'ash', label: 'Ashfall', correct: true },
+			// Shares no significant word with any other label at any level:
+			// notes are matched by keyword, so overlapping names would fire twice.
+			{ id: 'ash', label: { en: 'Ashfall', de: 'Asche' }, correct: true },
 			{
 				id: 'mirror',
-				label: 'Mirror Lake',
-				deathTitle: 'Mirror Lake',
-				epitaph: 'It saw itself arrive home. It kept walking toward that.'
+				label: { en: 'Mirror Lake', de: 'Spiegel' },
+				deathTitle: { en: 'Mirror Lake', de: 'Der Spiegelsee' },
+				epitaph: {
+					en: 'It saw itself arrive home. It kept walking toward that.',
+					de: 'Es sah sich selbst zu Hause ankommen. Es ging weiter darauf zu.'
+				}
 			},
 			{
 				id: 'hollow',
-				label: 'Hollow',
-				deathTitle: 'The Hollow',
-				epitaph: 'The ground was thin here. It is thinner now.'
+				label: { en: 'Hollow', de: 'Senke' },
+				deathTitle: { en: 'The Hollow', de: 'Die Senke' },
+				epitaph: {
+					en: 'The ground was thin here. It is thinner now.',
+					de: 'Der Boden war hier dünn. Jetzt ist er dünner.'
+				}
 			}
 		]
 	},
 	{
 		node: 'ash',
-		title: 'The Last Gate',
-		description: 'Grey ash, grey air, and the outline of somewhere you know.',
+		title: { en: 'The Last Gate', de: 'Das letzte Tor' },
+		description: {
+			en: 'Grey ash, grey air, and the outline of somewhere you know.',
+			de: 'Graue Asche, graue Luft und die Umrisse von etwas, das du kennst.'
+		},
 		choices: [
-			{ id: 'gate', label: 'The Gate', correct: true },
+			{ id: 'gate', label: { en: 'The Gate', de: 'Tor' }, correct: true },
 			{
 				id: 'wall',
-				label: 'Wall',
-				deathTitle: 'The Wall',
-				epitaph: 'It climbed. The wall was taller on the other side.'
+				label: { en: 'Wall', de: 'Mauer' },
+				deathTitle: { en: 'The Wall', de: 'Die Mauer' },
+				epitaph: {
+					en: 'It climbed. The wall was taller on the other side.',
+					de: 'Es kletterte. Auf der anderen Seite war die Mauer höher.'
+				}
 			},
 			{
 				id: 'well',
-				label: 'Well',
-				deathTitle: 'The Well',
-				epitaph: 'It heard voices down there. They were not saying come back.'
+				label: { en: 'Well', de: 'Brunnen' },
+				deathTitle: { en: 'The Well', de: 'Der Brunnen' },
+				epitaph: {
+					en: 'It heard voices down there. They were not saying come back.',
+					de: 'Es hörte Stimmen dort unten. Sie sagten nicht: komm zurück.'
+				}
 			}
 		]
 	}
@@ -200,7 +276,18 @@ const LEVELS: LevelSpec[] = [
 
 const HOME_NODE = 'home';
 
-function build(): DecisionMap {
+const MAP_NAME: Text = { en: 'THE LONG WAY HOME', de: 'DER LANGE WEG NACH HAUSE' };
+const MAP_TAGLINE: Text = {
+	en: 'Eight choices between your agent and the gate.',
+	de: 'Acht Entscheidungen zwischen deinem Agenten und dem Tor.'
+};
+const HOME_TITLE: Text = { en: 'HOME', de: 'ZU HAUSE' };
+const HOME_DESCRIPTION: Text = {
+	en: 'The gate opens. The signal reconnects. It made it.',
+	de: 'Das Tor öffnet sich. Das Signal kehrt zurück. Es hat es geschafft.'
+};
+
+function build(locale: Locale): DecisionMap {
 	const nodes: Record<string, DecisionNode> = {};
 
 	for (const [level, spec] of LEVELS.entries()) {
@@ -211,7 +298,7 @@ function build(): DecisionMap {
 			if (choice.correct) {
 				choices.push({
 					id: choice.id,
-					label: choice.label,
+					label: choice.label[locale],
 					nextNode: isLastLevel ? HOME_NODE : choice.id,
 					outcome: isLastLevel ? 'win' : 'continue'
 				});
@@ -221,15 +308,15 @@ function build(): DecisionMap {
 			const deathNodeId = `dead_${choice.id}`;
 			nodes[deathNodeId] = {
 				id: deathNodeId,
-				title: choice.deathTitle ?? choice.label,
-				description: choice.epitaph ?? 'The run ends here.',
-				epitaph: choice.epitaph,
+				title: (choice.deathTitle ?? choice.label)[locale],
+				description: choice.epitaph?.[locale] ?? '',
+				epitaph: choice.epitaph?.[locale],
 				choices: [],
 				kind: 'death'
 			};
 			choices.push({
 				id: choice.id,
-				label: choice.label,
+				label: choice.label[locale],
 				nextNode: deathNodeId,
 				outcome: 'death'
 			});
@@ -237,8 +324,8 @@ function build(): DecisionMap {
 
 		nodes[spec.node] = {
 			id: spec.node,
-			title: spec.title,
-			description: spec.description,
+			title: spec.title[locale],
+			description: spec.description[locale],
 			choices,
 			kind: level === 0 ? 'start' : 'path'
 		};
@@ -246,16 +333,16 @@ function build(): DecisionMap {
 
 	nodes[HOME_NODE] = {
 		id: HOME_NODE,
-		title: 'HOME',
-		description: 'The gate opens. The signal reconnects. It made it.',
+		title: HOME_TITLE[locale],
+		description: HOME_DESCRIPTION[locale],
 		choices: [],
 		kind: 'home'
 	};
 
 	return {
 		id: 'homeward',
-		name: 'THE LONG WAY HOME',
-		tagline: 'Eight choices between your agent and the gate.',
+		name: MAP_NAME[locale],
+		tagline: MAP_TAGLINE[locale],
 		startNode: 'start',
 		homeNode: HOME_NODE,
 		depth: LEVELS.length,
@@ -263,7 +350,16 @@ function build(): DecisionMap {
 	};
 }
 
-export const HOMEWARD_MAP: DecisionMap = build();
+const CACHE = new Map<Locale, DecisionMap>();
+
+/** The map, told in one language. Built once per locale. */
+export function homewardMap(locale: Locale): DecisionMap {
+	const cached = CACHE.get(locale);
+	if (cached) return cached;
+	const built = build(locale);
+	CACHE.set(locale, built);
+	return built;
+}
 
 /** The winning sequence of choice ids. Server-side only — never sent to a client. */
 export const SOLUTION: string[] = LEVELS.map(

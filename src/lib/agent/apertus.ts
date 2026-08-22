@@ -1,5 +1,6 @@
 import type { AgentBrain, AgentDecision, DecisionContext } from './brain.ts';
-import { SYSTEM_PROMPT, buildUserPrompt, parseDecision } from './prompt.ts';
+import { systemPrompt, buildUserPrompt, parseDecision } from './prompt.ts';
+import { DEFAULT_LOCALE } from '../i18n/index.ts';
 
 /**
  * OpenAI-compatible chat-completions adapter.
@@ -48,12 +49,13 @@ export class ApertusBrain implements AgentBrain {
 	}
 
 	async decide(ctx: DecisionContext): Promise<AgentDecision> {
+		const locale = ctx.locale ?? DEFAULT_LOCALE;
 		const body: Record<string, unknown> = {
 			model: this.config.model,
 			max_tokens: this.config.maxTokens,
 			temperature: this.config.temperature,
 			messages: [
-				{ role: 'system', content: SYSTEM_PROMPT },
+				{ role: 'system', content: systemPrompt(locale) },
 				{ role: 'user', content: buildUserPrompt(ctx) }
 			]
 		};
@@ -83,7 +85,7 @@ export class ApertusBrain implements AgentBrain {
 		if (!content) throw new ApertusError('Model returned an empty message.');
 
 		// The engine will not accept anything we cannot map to a real choice.
-		const decision = parseDecision(content, ctx.choices);
+		const decision = parseDecision(content, ctx.choices, locale);
 		if (!decision) {
 			throw new ApertusError(`Unusable response: ${content.slice(0, 160)}`);
 		}

@@ -1,6 +1,7 @@
 import type { GameSnapshot, PublicPlayer } from './engine/game.ts';
 import type { ChoicesRevealed, NodeRevealed } from './engine/fog.ts';
 import type { MemoryLine, RoundSummary, RunRecord } from './engine/types.ts';
+import type { Locale } from './i18n/index.ts';
 
 /**
  * The wire protocol, shared by the WebSocket hub and the browser.
@@ -19,7 +20,7 @@ export const WS_PATH = '/ws';
 
 export type ClientMessage =
 	| { type: 'HELLO'; playerId: string | null; code: string | null }
-	| { type: 'CREATE_GAME'; name: string }
+	| { type: 'CREATE_GAME'; name: string; locale: Locale }
 	| { type: 'JOIN_GAME'; code: string; name: string }
 	| { type: 'SET_READY'; ready: boolean }
 	| { type: 'START_GAME' }

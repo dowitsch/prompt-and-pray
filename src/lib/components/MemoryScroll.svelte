@@ -3,6 +3,10 @@
 	import type { PublicPlayer } from '$lib/engine/game';
 	import { MEMORY_GRANT_CHARS } from '$lib/engine/types';
 	import { roman } from '$lib/client/palette';
+	import { conn } from '$lib/client/connection.svelte';
+	import { fmt } from '$lib/i18n';
+
+	const t = $derived(conn.t.memory);
 
 	type Props = {
 		me: PublicPlayer;
@@ -46,15 +50,15 @@
 
 <section class="flex flex-col leaf" class:teaching-glow={teaching && !me.ready}>
 	<header class="flex items-baseline justify-between px-5 py-3.5 rule-b">
-		<h2 class="rubric">All your agent knows</h2>
-		<span class="font-mono text-[10px] text-faded">{me.memoryChars} letters</span>
+		<h2 class="rubric">{t.title}</h2>
+		<span class="font-mono text-[10px] text-faded">{fmt(t.letters, { n: me.memoryChars })}</span>
 	</header>
 
 	<!-- The whole of its mind, written by hand. -->
 	<div class="max-h-52 min-h-[92px] overflow-y-auto px-5 py-4">
 		{#if me.memory.length === 0}
 			<p class="text-sm leading-relaxed text-faded italic">
-				The page is blank. It knows nothing at all.
+				{t.blank}
 			</p>
 		{:else}
 			<ol class="space-y-2.5">
@@ -67,7 +71,7 @@
 							<span class="text-rose">
 								<span class="line-through decoration-rose/70">{line.text}</span>
 								<span class="mt-0.5 block rubric text-rose/80">
-									struck out by {line.sabotagedBy}
+									{fmt(t.struckOutBy, { name: line.sabotagedBy })}
 								</span>
 							</span>
 						{:else}
@@ -84,8 +88,7 @@
 		<form onsubmit={submit} class="px-5 py-4">
 			<div class="mb-2.5 flex items-baseline justify-between">
 				<h3 class="rubric">
-					{#if me.ready}Waiting on the others{:else if canWrite}Write one more line{:else}Nothing
-						left to give{/if}
+					{#if me.ready}{t.waitingOthers}{:else if canWrite}{t.writeOne}{:else}{t.nothingLeft}{/if}
 				</h3>
 				<span
 					class="font-mono text-[10px] tabular-nums {secondsLeft <= 8 ? 'text-rose' : 'text-faded'}"
@@ -98,7 +101,7 @@
 				bind:value={draft}
 				maxlength={MEMORY_GRANT_CHARS}
 				disabled={!canWrite}
-				placeholder={canWrite ? 'The river is deadly' : 'Spent for this round'}
+				placeholder={canWrite ? t.placeholder : t.spent}
 				spellcheck="false"
 				autocomplete="off"
 				class="w-full rounded border border-rule-bright bg-black/30 px-3.5 py-2.5 text-[15px]
@@ -130,7 +133,7 @@
 						tracking-[0.16em] text-candle uppercase transition hover:bg-candle/20
 						disabled:cursor-not-allowed disabled:border-rule disabled:bg-transparent disabled:text-faded"
 				>
-					Inscribe
+					{t.inscribe}
 				</button>
 				<button
 					type="button"
@@ -140,20 +143,20 @@
 						tracking-[0.16em] text-parchment uppercase transition hover:bg-white/10
 						disabled:cursor-not-allowed disabled:opacity-35"
 				>
-					{me.ready ? 'Ready' : 'Send them out'}
+					{me.ready ? t.ready : t.sendOut}
 				</button>
 			</div>
 
 			{#if me.ready && waitingOn.length}
 				<p class="mt-2.5 text-xs text-faded italic">
-					Waiting on {waitingOn.map((p) => p.name).join(', ')}…
+					{fmt(t.waitingOn, { names: waitingOn.map((p) => p.name).join(', ') })}
 				</p>
 			{/if}
 		</form>
 	{:else}
 		<div class="rule-b"></div>
 		<p class="px-5 py-4 text-center text-xs tracking-[0.2em] text-faded uppercase">
-			{#if phase === 'running'}Round {round} · the page is closed{:else}The tale is told{/if}
+			{#if phase === 'running'}{fmt(t.pageClosed, { n: round })}{:else}{t.taleTold}{/if}
 		</p>
 	{/if}
 </section>

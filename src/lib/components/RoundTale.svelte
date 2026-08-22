@@ -1,6 +1,11 @@
 <script lang="ts">
 	import type { RoundSummary } from '$lib/engine/types';
 	import { agentColor, roman } from '$lib/client/palette';
+	import { conn } from '$lib/client/connection.svelte';
+	import { fmt, parts } from '$lib/i18n';
+
+	const t = $derived(conn.t.tale);
+	const lost = $derived(parts(t.lostAt, 'place'));
 
 	type Props = {
 		summary: RoundSummary;
@@ -20,7 +25,7 @@
 
 <section class="animate-rise overflow-hidden leaf">
 	<header class="px-5 py-4 rule-b">
-		<h2 class="rubric">Round {roman(summary.round)}</h2>
+		<h2 class="rubric">{fmt(t.round, { n: roman(summary.round) })}</h2>
 		<!-- The one line that tells the story of the round. -->
 		<p class="mt-2 text-[15px] leading-snug text-parchment">{summary.headline}</p>
 	</header>
@@ -32,11 +37,11 @@
 			<li class="px-5 py-2.5" class:lit={isYou}>
 				<div class="flex items-baseline gap-2">
 					<span class="title text-[13px]" style:color={colour}>{outcome.name}</span>
-					{#if isYou}<span class="rubric">you</span>{/if}
+					{#if isYou}<span class="rubric">{t.you}</span>{/if}
 					{#if outcome.survived}
-						<span class="text-[11px] tracking-[0.14em] text-candle uppercase">home</span>
+						<span class="text-[11px] tracking-[0.14em] text-candle uppercase">{t.home}</span>
 					{:else if outcome.depth === best && best > 0}
-						<span class="text-[11px] tracking-[0.14em] text-moss/90 uppercase">furthest</span>
+						<span class="text-[11px] tracking-[0.14em] text-moss/90 uppercase">{t.furthest}</span>
 					{/if}
 					<span class="ml-auto font-mono text-[10px] text-faded tabular-nums">
 						{outcome.depth}/{depth}
@@ -45,11 +50,11 @@
 
 				{#if !outcome.survived && outcome.killedBy}
 					<p class="mt-0.5 text-[13px] text-quill">
-						lost at the <span class="text-rose/90">{outcome.killedBy.toLowerCase()}</span
-						>{#if outcome.repeatedMistake}<span class="text-rose/80 italic">
-								— as before</span
+						{lost.before}<span class="text-rose/90">{outcome.killedBy.toLowerCase()}</span
+						>{lost.after}{#if outcome.repeatedMistake}<span class="text-rose/80 italic">
+								{t.asBefore}</span
 							>{/if}{#if outcome.wasSabotaged}<span class="text-rose/80 italic">
-								— on a false page</span
+								{t.onFalsePage}</span
 							>{/if}
 					</p>
 				{/if}

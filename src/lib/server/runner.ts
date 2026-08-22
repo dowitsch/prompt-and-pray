@@ -215,6 +215,7 @@ export class MatchRunner {
 			const startedAt = Date.now();
 			const context: DecisionContext = {
 				agentName: player.name,
+				locale: this.game.locale,
 				nodeTitle: node.title,
 				nodeDescription: node.description,
 				choices: node.choices.map((c) => ({ id: c.id, label: c.label })),

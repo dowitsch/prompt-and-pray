@@ -6,6 +6,8 @@
 	import { agentColor, sigil } from '$lib/client/palette';
 	import { MAX_PLAYERS } from '$lib/engine/types';
 
+	const t = $derived(conn.t.lobby);
+
 	const code = $derived(page.params.code?.toUpperCase() ?? '');
 	const game = $derived(conn.game);
 	const seats = $derived(Array.from({ length: MAX_PLAYERS }, (_, i) => game?.players[i] ?? null));
@@ -32,11 +34,11 @@
 	<div class="w-full max-w-lg">
 		{#if !game}
 			<p class="text-center rubric">
-				{conn.synced ? 'No such tale' : 'Finding your place…'}
+				{conn.synced ? t.notFound : t.finding}
 			</p>
 		{:else}
 			<header class="text-center">
-				<p class="rubric">The word of passage</p>
+				<p class="rubric">{t.passphrase}</p>
 				<button
 					type="button"
 					onclick={copyCode}
@@ -46,13 +48,13 @@
 					{code}
 				</button>
 				<p class="mt-3 font-mono text-[10px] tracking-[0.18em] text-faded uppercase">
-					{copied ? 'Copied' : 'Speak it to whoever should join you'}
+					{copied ? t.copied : t.share}
 				</p>
 			</header>
 
 			<section class="mt-9 leaf">
 				<header class="flex items-baseline justify-between px-5 py-3 rule-b">
-					<h2 class="rubric">Who is here</h2>
+					<h2 class="rubric">{t.whoIsHere}</h2>
 					<span class="font-mono text-[10px] text-faded">
 						{game.players.length} / {MAX_PLAYERS}
 					</span>
@@ -74,10 +76,10 @@
 									{seat.name}
 								</span>
 								{#if seat.id === conn.you}
-									<span class="rubric">you</span>
+									<span class="rubric">{t.you}</span>
 								{/if}
 								{#if game.hostId === seat.id}
-									<span class="rubric">host</span>
+									<span class="rubric">{t.host}</span>
 								{/if}
 								<span
 									class="ml-auto h-1.5 w-1.5 rounded-full"
@@ -89,9 +91,9 @@
 								>
 									<span class="text-[10px] text-faded">?</span>
 								</span>
-								<span class="text-[15px] text-faded italic">An empty seat</span>
+								<span class="text-[15px] text-faded italic">{t.emptySeat}</span>
 								<span class="ml-auto font-mono text-[9px] tracking-[0.16em] text-faded uppercase">
-									an agent of the tale
+									{t.filledBy}
 								</span>
 							{/if}
 						</li>
@@ -103,10 +105,10 @@
 				<button
 					type="button"
 					onclick={leave}
-					class="rounded border border-rule-bright px-4 py-3 font-mono text-[11px]
+					class="rounded border border-rule-bright px-4 py-3 text-[11px]
 						tracking-[0.18em] text-quill uppercase transition hover:text-parchment"
 				>
-					Leave
+					{t.leave}
 				</button>
 				<button
 					type="button"
@@ -116,14 +118,11 @@
 						tracking-[0.2em] text-candle uppercase transition hover:bg-candle/20
 						disabled:cursor-not-allowed disabled:border-rule disabled:bg-transparent disabled:text-faded"
 				>
-					{conn.isHost ? 'Begin the tale' : 'Waiting for the teller'}
+					{conn.isHost ? t.start : t.waitingForHost}
 				</button>
 			</div>
 
-			<p class="mt-5 text-center text-xs leading-relaxed text-faded">
-				Every remaining seat is taken by a simulated agent when the match starts. All four race the
-				same hidden tree.
-			</p>
+			<p class="mt-5 text-center text-xs leading-relaxed text-faded">{t.note}</p>
 		{/if}
 	</div>
 </main>

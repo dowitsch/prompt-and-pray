@@ -8,6 +8,7 @@
 	let { children } = $props();
 
 	onMount(() => {
+		conn.loadPreference();
 		conn.connect();
 		return () => conn.disconnect();
 	});
@@ -38,7 +39,7 @@
 {#if conn.status === 'closed'}
 	<div class="fixed top-0 right-0 left-0 z-40 bg-rose/90 py-1 text-center">
 		<span class="font-mono text-[10px] tracking-[0.2em] text-night uppercase">
-			Connection lost — reconnecting
+			{conn.t.toast.reconnecting}
 		</span>
 	</div>
 {/if}
