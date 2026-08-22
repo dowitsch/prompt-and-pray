@@ -121,6 +121,14 @@ export type ServerEvent =
 			choiceId: string;
 			choiceLabel: string;
 			reasoning: string;
+			/**
+			 * The authored line for setting off down this road, or empty.
+			 *
+			 * The world's voice, not the agent's — this is the plank giving way, the
+			 * toll being paid, the joke landing one step late. It was written into the
+			 * database from the start and had nowhere to go until now.
+			 */
+			consequence: string;
 			/** True when the decision came from the offline fallback brain. */
 			improvised: boolean;
 			/** Walking proven ground: collapsed into a single line rather than narrated. */

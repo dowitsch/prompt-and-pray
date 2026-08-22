@@ -1,4 +1,5 @@
 import { edgeGeometry, viewBoxFor, type ViewBox } from './geometry.ts';
+import type { BiomeId } from '../map/biomes.ts';
 import type { ChoiceOutcome, RevealState, StoryGraph } from './types.ts';
 
 /**
@@ -29,10 +30,25 @@ export type FoggedNode = {
 	x: number;
 	y: number;
 	kind: FoggedNodeKind;
+	/**
+	 * What the land here looks like, or null for whatever the terrain generator
+	 * makes of the spot.
+	 *
+	 * Public, with the position, and for the same reason: the ground has to be
+	 * generated before an agent has been anywhere near it, and it is drawn
+	 * wherever the camera goes. Knowing there is snow over the next ridge says
+	 * nothing about which road out of it kills.
+	 */
+	biome: BiomeId | null;
 	/** Null until discovered. */
 	title: string | null;
 	description: string | null;
 	epitaph: string | null;
+	/**
+	 * The glyph drawn on the place. Fogged with the title, not with the biome — a
+	 * mark on an undiscovered place would be exactly the tell the fog withholds.
+	 */
+	sigil: string | null;
 };
 
 export type FoggedEdgeState = 'unknown' | 'safe' | 'lethal';
@@ -78,6 +94,7 @@ export type NodeRevealed = {
 		title: string;
 		description: string;
 		epitaph: string | null;
+		sigil: string | null;
 	};
 };
 
@@ -162,9 +179,11 @@ export function buildFoggedTree(graph: StoryGraph, reveal: RevealState): FoggedT
 					x: node.x,
 					y: node.y,
 					kind: known ? nodeKind(node, node.id === graph.startNode) : ('unknown' as FoggedNodeKind),
+					biome: node.biome,
 					title: known ? node.title : null,
 					description: known ? node.description : null,
-					epitaph: known ? epitaphOf(node) : null
+					epitaph: known ? epitaphOf(node) : null,
+					sigil: known ? node.sigil : null
 				};
 			})
 			// Painted top to bottom, so a node's card overlaps the one above it
@@ -196,5 +215,6 @@ export function applyNodeRevealed(tree: FoggedTree, delta: NodeRevealed): void {
 		node.title = delta.node.title;
 		node.description = delta.node.description;
 		node.epitaph = delta.node.epitaph;
+		node.sigil = delta.node.sigil;
 	}
 }

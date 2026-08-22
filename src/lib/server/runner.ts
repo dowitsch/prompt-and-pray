@@ -302,6 +302,7 @@ export class MatchRunner {
 				choiceId: chosen.id,
 				choiceLabel: chosen.label,
 				reasoning: decision.reasoning,
+				consequence: chosen.consequence,
 				improvised: decision.improvised ?? false,
 				retrace,
 				utterance: reasoned

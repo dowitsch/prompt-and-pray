@@ -3,6 +3,7 @@ import { distancesToHome } from './story.ts';
 import type { Db } from './db.ts';
 import * as t from './schema.ts';
 import type { ChoiceResult, EndingType, NodeKind } from '../engine/types.ts';
+import type { BiomeId } from '../map/biomes.ts';
 import { isLocale, type Locale } from '../i18n/index.ts';
 
 /**
@@ -37,6 +38,9 @@ export type DesignNode = {
 	endingType: EndingType | null;
 	x: number;
 	y: number;
+	biome: BiomeId | null;
+	sigil: string | null;
+	region: string | null;
 	attributeIds: number[];
 };
 
@@ -102,6 +106,9 @@ export function loadDesignStory(db: Db, slug: string): DesignStory {
 			endingType: n.endingType as EndingType | null,
 			x: n.x,
 			y: n.y,
+			biome: n.biome as BiomeId | null,
+			sigil: n.sigil,
+			region: n.region,
 			attributeIds: tags.filter((tag) => tag.nodeId === n.id).map((tag) => tag.attributeId)
 		})),
 		choices: db
@@ -393,6 +400,10 @@ export type NodePatch = {
 	endingType?: EndingType | null;
 	x?: number;
 	y?: number;
+	/** Null clears it: the place goes back to whatever the noise makes of it. */
+	biome?: BiomeId | null;
+	sigil?: string | null;
+	region?: string | null;
 	attributeIds?: number[];
 };
 
@@ -607,10 +618,14 @@ export function autoArrange(db: Db, slug: string): void {
 	const moves: { id: number; x: number; y: number }[] = [];
 	for (const [level, ids] of rows) {
 		// Endings last within a row: the fatal ways fan out to the edges, the road
-		// that carries on sits in the middle.
+		// that carries on sits in the middle. Within that, places of one region stay
+		// next to each other, so a story written as a journey through six landscapes
+		// is not arranged as six landscapes interleaved.
 		const ordered = [...ids].sort((a, b) => {
-			const endingOf = (id: number) => (story.nodes.find((n) => n.id === id)?.endingType ? 1 : 0);
-			return endingOf(a) - endingOf(b) || a - b;
+			const nodeOf = (id: number) => story.nodes.find((n) => n.id === id);
+			const endingOf = (id: number) => (nodeOf(id)?.endingType ? 1 : 0);
+			const regionOf = (id: number) => nodeOf(id)?.region ?? '';
+			return endingOf(a) - endingOf(b) || regionOf(a).localeCompare(regionOf(b)) || a - b;
 		});
 		ordered.forEach((id, index) => {
 			// 0, +1, -1, +2, -2 … so the through-road stays on the centre line.

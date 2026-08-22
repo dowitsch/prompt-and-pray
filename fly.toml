@@ -39,6 +39,14 @@ primary_region = "fra"
 
 [env]
   DATABASE_PATH = "/data/homeward.db"
+  # Custom domain: prompt-and-pray.ch (+ www). Fly terminates TLS and proxies
+  # plain HTTP to :3000, so adapter-node would otherwise reconstruct the request
+  # URL as http://<internal host> and reject the /design form POSTs as CSRF.
+  # Reading the forwarded headers keeps the origin correct on every hostname the
+  # app answers on — the two custom ones and prompt-and-pray.fly.dev — which a
+  # hardcoded ORIGIN could not.
+  PROTOCOL_HEADER = "x-forwarded-proto"
+  HOST_HEADER = "x-forwarded-host"
   # The designer shows every answer and there is no login. Off in production
   # unless this instance is one you author on. See src/lib/server/designer.ts.
   DESIGNER = "off"

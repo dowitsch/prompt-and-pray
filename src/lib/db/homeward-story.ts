@@ -1,4 +1,5 @@
 import type { Locale } from '../i18n/index.ts';
+import type { BiomeId } from '../map/biomes.ts';
 import type { EndingType, NodeKind, ChoiceResult } from '../engine/types.ts';
 
 /**
@@ -32,6 +33,16 @@ export type SeedNode = {
 	endingType: EndingType | null;
 	x: number;
 	y: number;
+	/**
+	 * What the land here looks like, overriding the terrain generator's own guess.
+	 * Omit it and the place gets whatever the noise decided, as every place in
+	 * this file does.
+	 */
+	biome?: BiomeId;
+	/** One glyph drawn where this place stands, instead of the plain disc. */
+	sigil?: string;
+	/** Which stretch of the story this belongs to. Authoring only. */
+	region?: string;
 	/** English names of palette attributes. */
 	attributes: string[];
 	choices: SeedChoice[];

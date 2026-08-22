@@ -37,6 +37,7 @@
 	import { characterOf, characterSrc, colorOf } from '$lib/client/identity';
 	import { ACCENT } from '$lib/client/theme';
 	import { glow, roadFade, roadStrip, vignette } from '$lib/map/paint';
+	import type { BiomeId } from '$lib/map/biomes';
 	import { SECTION_H, SECTION_W, TEX_H, TEX_W } from '$lib/map/terrain';
 	import type { FromWorker, ToWorker } from '$lib/map/worker';
 	import {
@@ -205,6 +206,55 @@
 		return [...ids].map((id) => nodeById.get(id)).filter((n) => n !== undefined);
 	});
 
+	/**
+	 * What the story says the land looks like, as section overrides for the
+	 * terrain worker.
+	 *
+	 * A plain function, called once when the worker starts, rather than a
+	 * `$derived`: it is read from inside the effect that owns the renderer, and
+	 * nothing in there may become a reason to tear the renderer down. It is also
+	 * genuinely fixed for the match — biomes and authored positions do not move.
+	 *
+	 * Each place claims the section it stands in **and the eight around it**. One
+	 * section is 192 units and places sit 150 apart, so claiming only the section
+	 * underfoot would leave the gaps between the places of a region to the noise —
+	 * and a patch of desert in the middle of a forest belt is worse than no
+	 * override at all. A direct claim beats a neighbour's halo, and between two of
+	 * equal standing the nearer place wins, so the result does not depend on the
+	 * order the nodes happen to arrive in.
+	 */
+	function biomeSections(): Record<string, BiomeId> {
+		const claims = new Map<string, { biome: BiomeId; d2: number; direct: boolean }>();
+
+		for (const node of tree.nodes) {
+			if (!node.biome) continue;
+			const at = placeAt.get(node.id);
+			if (!at) continue;
+
+			const sx = Math.floor(at.x / SECTION_W);
+			const sy = Math.floor(at.y / SECTION_H);
+
+			for (let dy = -1; dy <= 1; dy++) {
+				for (let dx = -1; dx <= 1; dx++) {
+					const key = `${sx + dx},${sy + dy}`;
+					const direct = dx === 0 && dy === 0;
+					const cx = (sx + dx + 0.5) * SECTION_W;
+					const cy = (sy + dy + 0.5) * SECTION_H;
+					const d2 = (at.x - cx) ** 2 + (at.y - cy) ** 2;
+
+					const held = claims.get(key);
+					if (held) {
+						if (held.direct && !direct) continue;
+						if (held.direct === direct && held.d2 <= d2) continue;
+					}
+					claims.set(key, { biome: node.biome, d2, direct });
+				}
+			}
+		}
+
+		return Object.fromEntries([...claims].map(([key, claim]) => [key, claim.biome]));
+	}
+
 	/* ------------------------------------------------------------ pixi state */
 
 	let host: HTMLDivElement;
@@ -357,7 +407,7 @@
 
 	/* --------------------------------------------------------------- scenery */
 
-	function makePlace(kind: string, title: string | null) {
+	function makePlace(kind: string, title: string | null, sigil: string | null) {
 		const place = new PIXI!.Container();
 		const r = PIN_PX / SCALE / 2;
 
@@ -381,7 +431,19 @@
 				.stroke({ color: colour, width: 2 / SCALE });
 			place.addChild(disc);
 
-			if (kind === 'death') {
+			if (sigil) {
+				// The place's own mark, inside its ring. A glyph says what a place *is*
+				// at a glance, which a row of identical discs cannot — and it does it
+				// without a second label competing with the name above the pin.
+				const glyph = new PIXI!.Text({
+					text: sigil,
+					style: { fontFamily: 'Inter, system-ui, sans-serif', fontSize: 13, align: 'center' },
+					resolution: 2
+				});
+				glyph.anchor.set(0.5);
+				glyph.scale.set(1 / SCALE);
+				place.addChild(glyph);
+			} else if (kind === 'death') {
 				const mark = new PIXI!.Graphics();
 				const d = r * 0.46;
 				mark
@@ -607,15 +669,17 @@
 
 			let view = placeViews.get(node.id);
 			const kind = tree.homeNodes.includes(node.id) ? 'home' : node.kind;
-			// A place changes appearance exactly once, when it stops being unknown.
-			if (view && view.label !== kind) {
+			// A place changes appearance exactly once, when it stops being unknown —
+			// and the glyph is part of what arrives then, so it is part of the key.
+			const look = `${kind}:${node.sigil ?? ''}`;
+			if (view && view.label !== look) {
 				view.destroy({ children: true });
 				placeViews.delete(node.id);
 				view = undefined;
 			}
 			if (!view) {
-				view = makePlace(kind, node.title);
-				view.label = kind;
+				view = makePlace(kind, node.title, node.sigil);
+				view.label = look;
 				placeViews.set(node.id, view);
 				layers.places.addChild(view);
 			}
@@ -1024,7 +1088,7 @@
 					type: 'module'
 				});
 				terrain.onmessage = receive;
-				send({ type: 'start', seed });
+				send({ type: 'start', seed, biomes: biomeSections() });
 
 				app.ticker.add((ticker) => tick(ticker.deltaMS));
 				ready = true;

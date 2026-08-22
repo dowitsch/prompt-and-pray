@@ -422,11 +422,16 @@ const bRender = new Blend();
 /**
  * A world: a pure function of (x, y, seed), wrapped in a class for its caches.
  *
- * The spike this was ported from also carried a "wish" mechanic that let a
- * player overwrite a section's biome, and a waypoint system that scattered
- * castles and fords across the land. Neither survived the port: the places on
+ * The spike this was ported from also carried a waypoint system that scattered
+ * castles and fords across the land. It did not survive the port: the places on
  * this map are the story's own, put there by the designer rather than found in
  * the noise, and a second set of landmarks would only compete with them.
+ *
+ * Its other extra — overwriting a section's biome — did not survive either, and
+ * has since had to come back. A story now says what the land under each of its
+ * places looks like, and `overrides` is where that arrives. It is not a wish:
+ * authoring a *position* that lands in the wanted biome is impossible, because
+ * the seed below is hashed from node row ids that change on every re-seed.
  */
 export class World {
 	readonly seed: number;
@@ -441,10 +446,16 @@ export class World {
 	 */
 	private paramCache = new Map<string, Params>();
 
-	constructor(seed: number, surfaces?: SurfaceSet) {
+	/**
+	 * Biomes a story has spoken for, keyed `'sx,sy'`. Everything else is noise.
+	 */
+	private readonly overrides: Record<string, BiomeId>;
+
+	constructor(seed: number, surfaces?: SurfaceSet, overrides: Record<string, BiomeId> = {}) {
 		this.seed = seed;
 		this.F = new Fields(seed);
 		this.surfaces = surfaces;
+		this.overrides = overrides;
 	}
 
 	private static key(sx: number, sy: number) {
@@ -452,7 +463,11 @@ export class World {
 	}
 
 	biomeAt(sx: number, sy: number): BiomeId {
-		return defaultBiome(sx, sy, this.seed);
+		// An authored biome beats the noise. The blend between neighbouring
+		// sections (`blendIndex` / `blendFraction`) is what stops that reading as a
+		// tile: an overridden section is pure in the middle and eases into whatever
+		// is around it at the edges.
+		return this.overrides[World.key(sx, sy)] ?? defaultBiome(sx, sy, this.seed);
 	}
 
 	/** Parameters of a section. */

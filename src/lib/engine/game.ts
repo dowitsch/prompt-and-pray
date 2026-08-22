@@ -651,7 +651,8 @@ export class Game {
 				kind: nodeKind(node, node.id === this.story.startNode),
 				title: node.title,
 				description: node.description,
-				epitaph: node.endingType ? node.description : null
+				epitaph: node.endingType ? node.description : null,
+				sigil: node.sigil
 			}
 		};
 	}

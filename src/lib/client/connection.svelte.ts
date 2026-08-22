@@ -34,9 +34,9 @@ import {
 /**
  * The three ways the map can speak.
  *
- * `system` is the choice being put to the agent — where it stands and what roads
- * it can see. `move` is the agent reasoning aloud as it sets off. `fail` is the
- * one line that says it did not come back.
+ * `system` is the world talking — where the agent stands, what roads it can see,
+ * and what the road it took turned out to cost. `move` is the agent reasoning
+ * aloud as it sets off. `fail` is the one that says it did not come back.
  *
  * `system` earns its place by owning the gap. The brain takes real time to
  * decide, and between arriving somewhere and committing to a road there is a
@@ -45,9 +45,13 @@ import {
  * interesting moment in the turn: you see the choice before the agent makes it,
  * and whether the note you wrote is going to be any use.
  *
- * Everything else the world used to say (place descriptions, epitaphs, the
- * round's headline) is gone with the panel that held it, and was never
- * load-bearing: the map already shows the place, the roads and the body.
+ * The world says three things, and each of them is a field an author writes: a
+ * place's own `body` heads its question, a road's `consequence` answers the
+ * agent that took it, and a grave's `body` is the epitaph read over it. All
+ * three were being written into the database and thrown away — the descriptions
+ * and epitaphs went silent when the story panel was removed, and `consequence`
+ * had never reached the client at all. The round's headline is still gone, and
+ * that one really was not load-bearing.
  */
 export type BubbleKind = 'system' | 'move' | 'fail';
 
@@ -196,14 +200,20 @@ export class Connection {
 	 */
 	private saidKnown = false;
 	/**
-	 * The line just put on the board, not yet read out.
+	 * The lines just put on the board, not yet read out, in the order they are said.
 	 *
-	 * `speak` records it and `read` consumes it, one event later in the same
-	 * reducer case. Two steps rather than one because the two halves know different
-	 * things: `speak` knows what was said and by whom, `read` holds the id the
-	 * server is waiting to hear back.
+	 * `speak` appends and `read` drains, one event later in the same reducer case.
+	 * Two steps rather than one because the two halves know different things:
+	 * `speak` knows what was said and by whom, `read` holds the id the server is
+	 * waiting to hear back.
+	 *
+	 * A queue rather than a single line, because a beat can have two speakers. The
+	 * agent gives its reason and then the road answers it — "I'll risk the plank" /
+	 * "The plank was not risked so much as consumed" — and those are two voices,
+	 * one of them the world's. Both are read under a single `SPOKEN`, so the server
+	 * still waits for exactly one answer per beat.
 	 */
-	private said: { text: string; character: number | null } | null = null;
+	private said: { text: string; character: number | null }[] = [];
 	effects = $state<Effect[]>([]);
 	/** The step being walked right now. Never cleared; the map reads the id. */
 	lastStep = $state<Step | null>(null);
@@ -462,10 +472,10 @@ export class Connection {
 		 * at, and the line that says it did not come back, are the world's — which is
 		 * the same distinction the three bubble shapes already draw.
 		 */
-		this.said = {
+		this.said.push({
 			text: title ? `${title} ${text}` : text,
 			character: kind === 'move' ? this.characterOf(playerId) : null
-		};
+		});
 	}
 
 	private characterOf(id: string): number | null {
@@ -482,9 +492,13 @@ export class Connection {
 	 * either. Answering unconditionally is what keeps it that way.
 	 */
 	private async read(utterance: number): Promise<void> {
-		const line = this.said;
-		this.said = null;
-		if (line && audio.voice) await say(line.text, line.character, this.locale);
+		const lines = this.said;
+		this.said = [];
+		if (audio.voice) {
+			// In order, and one at a time: `say` silences whatever is already talking,
+			// so starting the second line early would cut the first one off.
+			for (const line of lines) await say(line.text, line.character, this.locale);
+		}
 		this.send({ type: 'SPOKEN', utterance });
 	}
 
@@ -492,7 +506,7 @@ export class Connection {
 	private hush(): void {
 		this.bubbles = [];
 		this.saidKnown = false;
-		this.said = null;
+		this.said = [];
 		// Whoever was talking has stopped being the one talking.
 		silence();
 	}
@@ -671,10 +685,20 @@ export class Connection {
 				// bury the one moment this bubble exists for.
 				if (!event.familiar) {
 					const ways = event.reveal.choices.map((c) => c.label);
+					/*
+					 * The place gets to say what it is before it asks anything.
+					 *
+					 * `nodeDescription` has been on the wire since the story panel was
+					 * taken out and nothing has read it since. It is the one line a
+					 * player gets that is *about where the agent is standing* rather than
+					 * about what it might do next, and without it a place is only ever a
+					 * name and a fork. Read in the world's voice, ahead of the question,
+					 * so the question is the last thing heard before the pause.
+					 */
 					this.speak(
 						'system',
 						event.playerId,
-						listWays(this.locale, ways),
+						[event.nodeDescription.trim(), listWays(this.locale, ways)].filter(Boolean).join(' '),
 						fmt(this.t.narration.comesTo, { place: event.nodeTitle })
 					);
 				}
@@ -702,6 +726,18 @@ export class Connection {
 					// Back on new ground, so the next known stretch earns the line again.
 					this.saidKnown = false;
 					this.speak('move', event.playerId, event.reasoning, undefined, event.improvised);
+					/*
+					 * And then the road answers, in the world's voice.
+					 *
+					 * This is the third beat the stack was built for — "here is the fork,
+					 * here is what I make of it, here is what it cost" — and until now the
+					 * only thing that ever filled it was a death. `consequence` has been
+					 * authored into every seeded story from the start and never left the
+					 * server. Not said on a retrace: that stretch has had its line.
+					 */
+					if (event.consequence.trim()) {
+						this.speak('system', event.playerId, event.consequence);
+					}
 				}
 				void this.read(event.utterance);
 				return;
@@ -720,7 +756,17 @@ export class Connection {
 				this.replacePlayer(event.player);
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
 				this.flash('death', event.playerId, event.revealed.node.id);
-				this.speak('fail', event.playerId, this.t.narration.doesNotReturn);
+				/*
+				 * The epitaph is why a death was worth authoring, and it has been on the
+				 * wire all along without ever being said out loud. One card and one line
+				 * rather than two: both halves are the world talking, and "it did not
+				 * come back" is the opening of that sentence, not a sentence.
+				 */
+				this.speak(
+					'fail',
+					event.playerId,
+					[this.t.narration.doesNotReturn, event.epitaph.trim()].filter(Boolean).join(' ')
+				);
 				void this.read(event.utterance);
 				return;
 			}

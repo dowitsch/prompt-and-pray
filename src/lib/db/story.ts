@@ -166,6 +166,8 @@ export function loadStory(db: Db, slug: string): StoryGraph {
 			endingType: row.endingType as StoryNode['endingType'],
 			x: row.x,
 			y: row.y,
+			biome: row.biome as StoryNode['biome'],
+			sigil: row.sigil,
 			choices: []
 		};
 	}

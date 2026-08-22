@@ -2,7 +2,8 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import DesignCanvas from '$lib/components/design/DesignCanvas.svelte';
-	import { NODE_KINDS } from '$lib/db/schema';
+	import { BIOME_IDS, NODE_KINDS } from '$lib/db/schema';
+	import { BIOME_LABEL, type BiomeId } from '$lib/map/biomes';
 	import type { DesignChoice, DesignNode, DesignStory } from '$lib/db/design';
 	import type { NodeKind, EndingType, ChoiceResult } from '$lib/engine/types';
 	import type { Validation } from '$lib/engine/validate';
@@ -294,6 +295,63 @@
 						</p>
 					{/if}
 				</div>
+
+				<div class="mb-3 grid grid-cols-2 gap-2">
+					<label class="block">
+						<span class="rubric text-ash">The land here</span>
+						<select
+							value={node.biome ?? ''}
+							onchange={(e) =>
+								void send({
+									do: 'updateNode',
+									nodeId: node.id,
+									patch: { biome: (e.currentTarget.value || null) as BiomeId | null }
+								})}
+							class="focus:border-ember mt-1 w-full rounded border border-rule bg-night px-2 py-1.5 text-sm text-parchment focus:outline-none"
+						>
+							<option value="">Whatever grows there</option>
+							{#each BIOME_IDS as id (id)}
+								<option value={id}>{BIOME_LABEL[id]}</option>
+							{/each}
+						</select>
+					</label>
+
+					<label class="block">
+						<span class="rubric text-ash">Its mark</span>
+						<input
+							value={node.sigil ?? ''}
+							maxlength="8"
+							placeholder="🌲"
+							oninput={(e) =>
+								sendSoon({
+									do: 'updateNode',
+									nodeId: node.id,
+									patch: { sigil: e.currentTarget.value.trim() || null }
+								})}
+							class="focus:border-ember mt-1 w-full rounded border border-rule bg-night px-2 py-1.5 text-center text-sm text-parchment focus:outline-none"
+						/>
+					</label>
+				</div>
+
+				<label class="mb-3 block">
+					<span class="rubric text-ash">Which stretch of the story</span>
+					<input
+						value={node.region ?? ''}
+						maxlength="40"
+						placeholder="schwarzholz"
+						oninput={(e) =>
+							sendSoon({
+								do: 'updateNode',
+								nodeId: node.id,
+								patch: { region: e.currentTarget.value.trim() || null }
+							})}
+						class="focus:border-ember mt-1 w-full rounded border border-rule bg-night px-2 py-1.5 text-sm text-parchment focus:outline-none"
+					/>
+					<p class="mt-1 text-[11px] text-ash/70">
+						Yours alone, like the tags — it only keeps a region together when you ask for an
+						arrangement.
+					</p>
+				</label>
 
 				<div class="mb-3">
 					<span class="rubric text-ash">Tags</span>

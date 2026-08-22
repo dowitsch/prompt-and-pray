@@ -57,6 +57,46 @@ export function openDb(path: string): { db: Db; close: () => void } {
 	return { db: drizzle(raw, { schema }), close: () => raw.close() };
 }
 
+/**
+ * Run something with foreign keys off, then put them back.
+ *
+ * This exists for one job: migrations that rebuild a table. SQLite cannot add a
+ * CHECK constraint to an existing table, so drizzle-kit emits the twelve-step
+ * dance — build `__new_nodes`, copy, `DROP TABLE nodes`, rename — and the drop
+ * fails outright while anything references the table, which `choices` and
+ * `node_attributes` always do.
+ *
+ * The generated SQL asks for this itself, with a `PRAGMA foreign_keys=OFF` at
+ * the top, and that pragma is **silently ignored inside a transaction** — which
+ * is exactly where the migrator runs it. So it has to be set out here, on the
+ * connection, before the transaction opens.
+ *
+ * `foreign_key_check` afterwards is not ceremony: with the guard off, a bad
+ * migration can leave orphans behind and nothing would say so until something
+ * far away broke.
+ */
+export function withForeignKeysOff(work: () => void): void {
+	const raw = handle;
+	if (!raw) {
+		work();
+		return;
+	}
+
+	raw.pragma('foreign_keys = OFF');
+	try {
+		work();
+	} finally {
+		raw.pragma('foreign_keys = ON');
+	}
+
+	const orphans = raw.pragma('foreign_key_check') as unknown[];
+	if (orphans.length) {
+		throw new Error(
+			`Migration left ${orphans.length} row(s) pointing at nothing: ${JSON.stringify(orphans.slice(0, 3))}`
+		);
+	}
+}
+
 export function closeDb(): void {
 	handle?.close();
 	handle = null;

@@ -3,6 +3,7 @@ import { distancesToHome } from './story.ts';
 import { storyInPlay } from './design.ts';
 import { LOCALES, type Locale } from '../i18n/index.ts';
 import type { Db } from './db.ts';
+import { DAS_PAKET } from './das-paket-story.ts';
 import { HOMEWARD, type StorySeed } from './homeward-story.ts';
 import { MITTERNACHT } from './mitternacht-story.ts';
 import { ATTRIBUTES, TEMPLATES } from './palette.ts';
@@ -127,6 +128,9 @@ function seedStory(db: Db, locale: Locale, seed: StorySeed): void {
 				endingType: node.endingType,
 				x: node.x,
 				y: node.y,
+				biome: node.biome ?? null,
+				sigil: node.sigil ?? null,
+				region: node.region ?? null,
 				createdAt: now(),
 				updatedAt: now()
 			})
@@ -200,7 +204,8 @@ function seedStory(db: Db, locale: Locale, seed: StorySeed): void {
  */
 const BUILT_IN: { locale: Locale; story: StorySeed }[] = [
 	...LOCALES.map((locale) => ({ locale, story: HOMEWARD[locale] })),
-	{ locale: 'de', story: MITTERNACHT }
+	{ locale: 'de', story: MITTERNACHT },
+	{ locale: 'de', story: DAS_PAKET }
 ];
 
 export function seed(db: Db): void {

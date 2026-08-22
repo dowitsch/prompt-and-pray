@@ -21,6 +21,17 @@
  * there is no place for a string/number mix-up to hide.
  */
 
+/**
+ * The one thing the engine borrows from the renderer, and only as a type.
+ *
+ * `BiomeId` names the six landscapes and lives with the table that describes
+ * them (`src/lib/map/biomes.ts`). A third copy of those six strings — the schema
+ * already keeps its own, deliberately — would be one more place to forget. The
+ * import is type-only and erased, so nothing in `map/` is loaded by anything
+ * that reads a story.
+ */
+import type { BiomeId } from '../map/biomes.ts';
+
 export type NodeKind = 'LOCATION' | 'CREATURE' | 'OBJECT' | 'EVENT';
 
 /**
@@ -77,6 +88,15 @@ export type StoryNode = {
 	/** Authored position on the canvas. Persisted, not computed. */
 	x: number;
 	y: number;
+	/**
+	 * What the land here looks like, or null for whatever the terrain generator
+	 * makes of the spot. Public, unlike the title: the ground has to be drawn
+	 * before anything has been discovered, and snow on the horizon tells nobody
+	 * which road kills.
+	 */
+	biome: BiomeId | null;
+	/** One glyph drawn where this place stands. Fogged, like the title. */
+	sigil: string | null;
 	/** Empty at an ending; the validator guarantees ≥ 2 anywhere else. */
 	choices: StoryChoice[];
 };

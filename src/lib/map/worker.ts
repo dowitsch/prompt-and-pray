@@ -13,12 +13,18 @@
  * the last step itself.
  */
 
+import type { BiomeId } from './biomes';
 import { grade } from './grade';
 import { loadSurfaces } from './textures';
 import { TEX_H, TEX_W, World } from './terrain';
 
 export type ToWorker =
-	| { type: 'start'; seed: number }
+	/**
+	 * `biomes` is what the story says the land looks like, keyed `'sx,sy'`. Sent
+	 * once, with the seed, because every place in a story is known before anything
+	 * has been discovered — the silhouette is public, only the answers are fogged.
+	 */
+	| { type: 'start'; seed: number; biomes: Record<string, BiomeId> }
 	/** `id` is echoed back so a reply that arrives after a teardown can be dropped. */
 	| { type: 'section'; id: number; sx: number; sy: number };
 
@@ -39,9 +45,12 @@ let world: World | undefined;
  * rather than a blank hold. Once the textures land the main thread is told, and
  * it asks for the same sections again.
  */
-async function dress(seed: number) {
+async function dress(seed: number, biomes: Record<string, BiomeId>) {
 	const surfaces = await loadSurfaces();
-	world = new World(seed, surfaces);
+	// The overrides have to be handed over again here. This is a *new* `World`,
+	// and forgetting them would make the story's own landscapes vanish at exactly
+	// the moment the map stops being flat colour and starts looking right.
+	world = new World(seed, surfaces, biomes);
 	post({ type: 'dressed' });
 }
 
@@ -53,9 +62,9 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
 	const message = event.data;
 
 	if (message.type === 'start') {
-		world = new World(message.seed);
+		world = new World(message.seed, undefined, message.biomes);
 		post({ type: 'ready' });
-		void dress(message.seed);
+		void dress(message.seed, message.biomes);
 		return;
 	}
 

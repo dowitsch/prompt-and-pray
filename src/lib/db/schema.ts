@@ -45,6 +45,15 @@ export const ENDING_TYPES = ['SUCCESS', 'FAILURE', 'NEUTRAL'] as const;
  */
 export const CHOICE_RESULTS = ['ADVANCE', 'DETOUR', 'SETBACK'] as const;
 export const STORY_STATUS = ['draft', 'published'] as const;
+/**
+ * What the ground around a place looks like.
+ *
+ * Re-declared here rather than imported from `src/lib/map/biomes.ts`, the same
+ * way `MATCH_PHASES` re-declares the engine's own enum: this file describes the
+ * database and depends on nothing that might be rearranged around it. The names
+ * are `BiomeId`; keep the two in step.
+ */
+export const BIOME_IDS = ['wiese', 'wald', 'wueste', 'seenland', 'schnee', 'berge'] as const;
 
 const list = (values: readonly string[]) => values.map((v) => `'${v}'`).join(', ');
 
@@ -130,6 +139,30 @@ export const nodes = sqliteTable(
 		/** Canvas position, authored by dragging. The game renders these directly. */
 		x: real('x').notNull().default(0),
 		y: real('y').notNull().default(0),
+		/**
+		 * What the land here looks like, overriding the terrain generator's own
+		 * guess for the section this place falls in.
+		 *
+		 * NULL means "whatever the noise says", which is what every place did before
+		 * this column existed. It is not decoration: authoring a position that
+		 * *lands* in the wanted biome is impossible, because the terrain seed is
+		 * hashed from a node's row id and those change on every re-seed.
+		 */
+		biome: text('biome'),
+		/**
+		 * One glyph drawn on the map where this place stands, instead of the plain
+		 * disc. Fogged like the title — a mark on an undiscovered place would say
+		 * something the fog is there to withhold.
+		 */
+		sigil: text('sigil'),
+		/**
+		 * Which stretch of the story this place belongs to, e.g. 'schwarzholz'.
+		 *
+		 * Free text, and read by nothing at play time. It groups a story in the
+		 * designer and keeps a region contiguous when the author asks for an
+		 * arrangement; that is the whole of it.
+		 */
+		region: text('region'),
 		createdAt: integer('created_at').notNull(),
 		updatedAt: integer('updated_at').notNull()
 	},
@@ -141,7 +174,10 @@ export const nodes = sqliteTable(
 		check(
 			'nodes_ending_type',
 			sql`${t.endingType} is null or ${t.endingType} in (${sql.raw(list(ENDING_TYPES))})`
-		)
+		),
+		check('nodes_biome', sql`${t.biome} is null or ${t.biome} in (${sql.raw(list(BIOME_IDS))})`),
+		// A glyph, not a caption. Wide enough for a two-codepoint emoji and no more.
+		check('nodes_sigil', sql`${t.sigil} is null or length(${t.sigil}) <= 8`)
 	]
 );
 
