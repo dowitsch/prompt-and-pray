@@ -1,5 +1,5 @@
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { databasePath, getDb } from './db.ts';
+import { runMigrations } from './migrate.ts';
 import { seed } from './seed.ts';
 
 /**
@@ -11,14 +11,20 @@ import { seed } from './seed.ts';
  * matches, because there is nothing to restore them *into* until the stories
  * exist.
  *
+ * Migrations go through `runMigrations` rather than calling drizzle's `migrate`
+ * here. That is not tidiness: a migration that rebuilds a table has to drop the
+ * old one while `choices` and `node_attributes` still point at it, and the
+ * `PRAGMA foreign_keys=OFF` the generated SQL asks for is silently ignored
+ * inside the migrator's transaction. Boot used its own bare `migrate()` call
+ * and so missed that guard, which is what broke the 0004 deploy.
+ *
  * Both halves are idempotent. Migrations are tracked in Drizzle's own journal,
  * and seeding replaces the built-in stories while leaving anything an author
  * made alone — which also means a redeploy carries story edits from the code
  * into the running database.
  */
 export function prepareDatabase(): string {
-	const db = getDb();
-	migrate(db, { migrationsFolder: './drizzle' });
-	seed(db);
+	runMigrations();
+	seed(getDb());
 	return databasePath();
 }
