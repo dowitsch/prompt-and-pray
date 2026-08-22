@@ -22,9 +22,10 @@ Both were measured at roughly **1–1.5 s per decision**, which is why the round
 to call the model live for every step of every round.
 
 Agents take their turns one at a time, so the provider sees one request at a time in the common
-case; `AI_CONCURRENCY` (default 4) is the ceiling rather than the norm. Steps that retrace
-already-proven ground still call the model — the agent genuinely re-decides every time — they
-are just presented briskly.
+case; `AI_CONCURRENCY` (default 4) is the ceiling rather than the norm. The model is called for
+every step of every round, and by default every one of those steps is also _told_ in full: a tale
+only skims over already-proven ground if its author turned **Known ground** on (`remember_path`),
+and even then the model is still asked — the step is merely presented briskly.
 
 > ⚠️ **The 70B endpoint's JSON mode is broken.** With `response_format: {"type":"json_object"}`
 > it emits a doubled opening brace (`{\n{\n "choice": ...`), which is not valid JSON and fails

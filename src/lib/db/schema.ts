@@ -85,6 +85,17 @@ export const stories = sqliteTable(
 		 */
 		parSteps: integer('par_steps').notNull().default(0),
 		status: text('status').notNull().default('draft'),
+		/**
+		 * Whether an agent may hurry over ground the world has already proven safe.
+		 *
+		 * Off by default, and deliberately so: with it off every step is a decision
+		 * the brain actually argues out loud, at reading pace, however many times
+		 * the same crossroads comes round. On, the second visit collapses into
+		 * "walks the road it knows" — quicker to watch, but the agent stops being
+		 * asked. A property of the tale rather than of the engine, because how much
+		 * repetition a tale can bear is the author's judgement.
+		 */
+		rememberPath: integer('remember_path', { mode: 'boolean' }).notNull().default(false),
 		builtIn: integer('built_in', { mode: 'boolean' }).notNull().default(false),
 		createdAt: integer('created_at').notNull(),
 		updatedAt: integer('updated_at').notNull()

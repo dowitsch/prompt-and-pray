@@ -100,6 +100,8 @@ export type StorySummary = {
 	status: 'draft' | 'published';
 	builtIn: boolean;
 	parSteps: number;
+	/** Whether familiar ground may be hurried over. See `stories.remember_path`. */
+	rememberPath: boolean;
 	nodeCount: number;
 };
 
@@ -121,6 +123,7 @@ export function listStories(db: Db, onlyPublished = false): StorySummary[] {
 			status: row.status as 'draft' | 'published',
 			builtIn: row.builtIn,
 			parSteps: row.parSteps,
+			rememberPath: row.rememberPath,
 			nodeCount: counts.get(row.id) ?? 0
 		}));
 }
@@ -212,6 +215,9 @@ export function loadStory(db: Db, slug: string): StoryGraph {
 			.map((n) => n.id),
 		parSteps,
 		stepBudget: stepBudgetFor(parSteps),
+		// The one thing here that is the author's decision rather than the graph's
+		// arithmetic: whether known ground may be hurried over at all.
+		rememberPath: story.rememberPath,
 		distanceHome,
 		nodes
 	};

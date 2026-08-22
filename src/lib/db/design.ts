@@ -50,6 +50,8 @@ export type DesignStory = {
 	builtIn: boolean;
 	startNodeId: number | null;
 	parSteps: number;
+	/** Whether familiar ground may be hurried over. See `stories.remember_path`. */
+	rememberPath: boolean;
 	nodes: DesignNode[];
 	choices: DesignChoice[];
 };
@@ -90,6 +92,7 @@ export function loadDesignStory(db: Db, slug: string): DesignStory {
 		builtIn: story.builtIn,
 		startNodeId: story.startNodeId,
 		parSteps: story.parSteps,
+		rememberPath: story.rememberPath,
 		nodes: nodeRows.map((n) => ({
 			id: n.id,
 			templateId: n.templateId,
@@ -206,6 +209,9 @@ export function duplicateStory(db: Db, slug: string): string {
 				description: source.description,
 				locale: source.locale,
 				status: 'draft',
+				// A copy is meant to play like the tale it came from, so the author's
+				// answer about hurrying travels with it.
+				rememberPath: source.rememberPath,
 				createdAt: now(),
 				updatedAt: now()
 			})
@@ -276,6 +282,27 @@ export function deleteStory(db: Db, slug: string): void {
 
 export function setStatus(db: Db, slug: string, status: 'draft' | 'published'): void {
 	db.update(t.stories).set({ status, updatedAt: now() }).where(eq(t.stories.slug, slug)).run();
+}
+
+/**
+ * Say whether this tale lets an agent hurry over ground already proven safe.
+ *
+ * Off is the default for every tale, new or copied or built-in, because the
+ * thing worth watching is an agent deciding — see `stories.remember_path`. It
+ * takes effect the next time a match on this tale begins a round; a round
+ * already in flight keeps the answer it started with.
+ */
+export function setRememberPath(db: Db, slug: string, on: boolean): void {
+	const story = db
+		.select({ id: t.stories.id })
+		.from(t.stories)
+		.where(eq(t.stories.slug, slug))
+		.get();
+	if (!story) throw new NotFound(`No story "${slug}".`);
+	db.update(t.stories)
+		.set({ rememberPath: on, updatedAt: now() })
+		.where(eq(t.stories.id, story.id))
+		.run();
 }
 
 export function renameStory(db: Db, slug: string, name: string, description: string): void {

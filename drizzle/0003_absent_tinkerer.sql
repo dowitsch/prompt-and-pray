@@ -1,0 +1,1 @@
+ALTER TABLE `stories` ADD `remember_path` integer DEFAULT false NOT NULL;

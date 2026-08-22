@@ -455,6 +455,26 @@
 					</button>
 				</form>
 
+				<!-- One bit of how the tale is *played*, so it sits with the tale. -->
+				<form method="POST" action="?/remember" use:enhance={reload} class="mb-4">
+					<input type="hidden" name="on" value={String(!story.rememberPath)} />
+					<span class="rubric text-ash">Known ground</span>
+					<button
+						type="submit"
+						class="mt-1 w-full rounded border px-3 py-1.5 text-left rubric
+						       {story.rememberPath
+							? 'border-moss/50 bg-moss/10 text-moss hover:bg-moss/20'
+							: 'hover:border-ember hover:text-ember border-rule text-ash'}"
+					>
+						{story.rememberPath ? 'Hurried over' : 'Decided every time'}
+					</button>
+					<p class="mt-1.5 text-[11px] leading-snug text-ash">
+						{story.rememberPath
+							? 'A road already proven safe collapses into one line — quicker to watch, but the agent is not asked.'
+							: 'Every step is argued out loud, however often the same crossroads comes round.'}
+					</p>
+				</form>
+
 				<p class="text-xs text-ash">
 					Pick something from the palette and click the map to set it down. Drag a place to move it;
 					drag from its rim to another place to lay a road. Click a place or a road to change it.

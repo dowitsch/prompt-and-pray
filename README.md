@@ -18,8 +18,10 @@ While an agent walks, the page beside it shows **what that agent carries** — i
 line someone corrupted struck out and attributed. Watching a rival act on a lie you planted is the
 best moment in the game.
 
-Ground the world has already proven safe is replayed briskly and collapsed into a single line,
-so the pace only lingers where something new actually happens.
+Every step is a decision the agent argues out loud, however many times the same crossroads comes
+round. A tale may instead let familiar ground be hurried over — replayed briskly and collapsed
+into a single "walks the road it knows" line — but that is off in every tale until its author
+turns **Known ground** on in the workshop.
 
 The telling is paced for reading. If it is still too fast or too slow, set `PACE_SCALE` in
 `.env` — `1.5` for a leisurely read-aloud pace, `0.6` for brisk — and restart.

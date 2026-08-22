@@ -83,6 +83,10 @@ function seedStory(db: Db, locale: Locale, seed: StorySeed): void {
 			locale,
 			builtIn: true,
 			status: 'published',
+			// Stated rather than left to the column default: the built-in tales ship
+			// with hurrying off, so every step of every round is decided out loud,
+			// and a re-seed puts them back that way.
+			rememberPath: false,
 			createdAt: now(),
 			updatedAt: now()
 		})

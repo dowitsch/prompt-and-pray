@@ -41,7 +41,7 @@ type NodeSpec = {
 };
 
 /** Assemble a graph the way the loader does, without needing a database. */
-function graph(startNode: string, specs: NodeSpec[]): StoryGraph {
+function graph(startNode: string, specs: NodeSpec[], rememberPath = false): StoryGraph {
 	const nodes: Record<string, StoryNode> = {};
 	const edges: { from: string; to: string }[] = [];
 
@@ -81,6 +81,7 @@ function graph(startNode: string, specs: NodeSpec[]): StoryGraph {
 			.map((n) => n.id),
 		parSteps,
 		stepBudget: stepBudgetFor(parSteps),
+		rememberPath,
 		distanceHome,
 		nodes
 	};
@@ -575,6 +576,45 @@ function walk(game: Game, label: string) {
 		startedAgain = false;
 	}
 	check(startedAgain, 'and the match can simply be started again');
+}
+
+// --- 7. Known ground is only hurried over when the tale allows it --------
+//
+// `rememberPath` is off unless an author turns it on, and off means the fast
+// lane never opens at all: nothing is familiar, no road counts as proven, so
+// every step of every round is a choice the brain is actually asked to make.
+{
+	const specs: NodeSpec[] = [
+		{
+			id: 'start',
+			ways: [
+				['Gate', 'home'],
+				['Round', 'loop']
+			]
+		},
+		{ id: 'loop', ways: [['Back', 'start']] },
+		{ id: 'home', ending: 'SUCCESS' }
+	];
+
+	/** One round walked from start to loop, then the next round begun. */
+	const secondRound = (story: StoryGraph) => {
+		const game = playing(story);
+		walk(game, 'Round');
+		game.endRound();
+		game.beginRound();
+		return game;
+	};
+
+	const forgetful = secondRound(graph('start', specs));
+	check(!forgetful.isFamiliar('start'), 'by default a place walked last round is not familiar');
+	check(
+		!forgetful.isProvenSafe('start->loop'),
+		'and a road already proven safe still has to be chosen'
+	);
+
+	const remembering = secondRound(graph('start', specs, true));
+	check(remembering.isFamiliar('start'), 'a tale that allows hurrying recognises the place');
+	check(remembering.isProvenSafe('start->loop'), 'and the road it proved safe last round');
 }
 
 console.log(`\n  ${passed} passed, ${failed} failed\n`);

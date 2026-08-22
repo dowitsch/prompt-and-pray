@@ -158,6 +158,7 @@ export class Game {
 	paceScale = 1;
 
 	private reveal: RevealState = { visitedNodes: [], takenChoices: {} };
+	/** Empty for the whole match unless the tale sets `rememberPath`. */
 	private familiarNodes = new Set<string>();
 	private provenSafe = new Set<string>();
 	private memoryLineSeq = 0;
@@ -439,12 +440,23 @@ export class Game {
 		// Snapshot what the world already knew before this round. Ground that was
 		// already proven safe gets replayed quickly, so the story lingers only on
 		// the step where something new actually happens.
-		this.familiarNodes = new Set(this.reveal.visitedNodes);
-		this.provenSafe = new Set(
-			Object.entries(this.reveal.takenChoices)
-				.filter(([, outcome]) => outcome !== 'death')
-				.map(([choiceId]) => choiceId)
-		);
+		//
+		// Unless the tale says otherwise, and by default it does: with
+		// `rememberPath` off both sets stay empty, nothing is ever familiar, and
+		// every step of every round is decided and told in full. Gated here rather
+		// than at the two readers below so there is one place where the tale's
+		// answer is consulted, and no way to consult it inconsistently.
+		if (!this.story.rememberPath) {
+			this.familiarNodes.clear();
+			this.provenSafe.clear();
+		} else {
+			this.familiarNodes = new Set(this.reveal.visitedNodes);
+			this.provenSafe = new Set(
+				Object.entries(this.reveal.takenChoices)
+					.filter(([, outcome]) => outcome !== 'death')
+					.map(([choiceId]) => choiceId)
+			);
+		}
 
 		for (const player of this.players) {
 			player.runCount += 1;
@@ -475,12 +487,20 @@ export class Game {
 		return [...bots.slice(shift), ...bots.slice(0, shift), ...humans];
 	}
 
-	/** Ground already walked before this round: replay it quickly. */
+	/**
+	 * Ground already walked before this round: replay it quickly.
+	 *
+	 * Always false in a tale that does not set `rememberPath`, which is every
+	 * tale until an author says otherwise — see `beginRound`.
+	 */
 	isFamiliar(nodeId: string): boolean {
 		return this.familiarNodes.has(nodeId);
 	}
 
-	/** A choice the world had already proven survivable before this round. */
+	/**
+	 * A choice the world had already proven survivable before this round. Also
+	 * always false without `rememberPath`.
+	 */
 	isProvenSafe(choiceId: string): boolean {
 		return this.provenSafe.has(choiceId);
 	}

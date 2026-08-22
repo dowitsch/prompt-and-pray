@@ -107,6 +107,16 @@ export type StoryGraph = {
 	 */
 	stepBudget: number;
 	/**
+	 * Whether this tale lets an agent hurry over ground already proven safe.
+	 *
+	 * False means every step is decided and told in full, even the eighth walk
+	 * down the same road: the brain is asked, the fork is read out, the reasoning
+	 * is spoken. True lets a familiar stretch collapse into one "walks the road it
+	 * knows" line, which is faster to watch at the cost of the agent visibly
+	 * thinking. Authors choose per tale (`stories.remember_path`); it starts off.
+	 */
+	rememberPath: boolean;
+	/**
 	 * Steps from each node to the nearest SUCCESS ending. Missing when home
 	 * cannot be reached from there at all.
 	 *

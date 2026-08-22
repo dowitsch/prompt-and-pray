@@ -6,6 +6,7 @@ import {
 	loadDesignStory,
 	loadPalette,
 	renameStory,
+	setRememberPath,
 	setStatus,
 	storyInPlay
 } from '$lib/db/design';
@@ -69,6 +70,20 @@ export const actions: Actions = {
 		requireDesigner();
 		setStatus(getDb(), params.slug, 'draft');
 		return { published: false };
+	},
+
+	/**
+	 * Turn hurrying over known ground on or off for this tale.
+	 *
+	 * A toggle rather than a checkbox in the rename form: it is one bit, it wants
+	 * to take effect when it is clicked, and it must not ride along on a save the
+	 * author made for a different reason.
+	 */
+	remember: async ({ request, params }) => {
+		requireDesigner();
+		const form = await request.formData();
+		setRememberPath(getDb(), params.slug, String(form.get('on')) === 'true');
+		return { remembered: true };
 	},
 
 	arrange: async ({ params }) => {
