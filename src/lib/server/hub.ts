@@ -26,7 +26,11 @@ export class Hub {
 	private readonly sessions = new Map<WebSocket, Session>();
 	private readonly runners = new Map<string, MatchRunner>();
 
-	constructor(private readonly brain: AgentBrain) {}
+	constructor(
+		private readonly brain: AgentBrain,
+		/** Multiplies every storytelling beat; see PACE_SCALE in .env.example. */
+		private readonly paceScale = 1
+	) {}
 
 	handleConnection(socket: WebSocket): void {
 		const session: Session = { socket, playerId: null, code: null };
@@ -171,6 +175,7 @@ export class Hub {
 
 	private onCreate(session: Session, name: string): void {
 		const game = createGame();
+		game.paceScale = this.paceScale;
 		const player = game.addPlayer(newPlayerId(), name.trim() || 'YOU');
 
 		session.playerId = player.id;
@@ -214,7 +219,12 @@ export class Hub {
 		const missing = MAX_PLAYERS - game.players.length;
 		const specs = makeBots(game.code, missing);
 
-		const runner = new MatchRunner(game, this.brain, (event) => this.broadcast(game, event));
+		const runner = new MatchRunner(
+			game,
+			this.brain,
+			(event) => this.broadcast(game, event),
+			this.paceScale
+		);
 		this.runners.set(game.code, runner);
 
 		specs.forEach((spec, index) => {

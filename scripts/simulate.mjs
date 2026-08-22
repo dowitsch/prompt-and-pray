@@ -24,6 +24,8 @@ const socket = new WebSocket(URL);
 const send = (message) => socket.send(JSON.stringify(message));
 
 let me = null;
+let roundStartedAt = 0;
+const matchStartedAt = Date.now();
 const names = new Map();
 
 /** What this simulated player has worked out by watching its own agent. */
@@ -81,10 +83,11 @@ socket.on('message', (raw) => {
 
 		case 'ROUND_STARTED':
 			log(`\n  ── ROUND ${event.round} ──`);
+			roundStartedAt = Date.now();
 			break;
 
-		case 'STEP_STARTED':
-			log(`\n  level ${event.step + 1}  (${event.alive} still walking)`);
+		case 'TURN_STARTED':
+			log(`\n  ${event.player.name}'s turn  (${event.index + 1} of ${event.total})`);
 			break;
 
 		case 'AGENT_CHOICE': {
@@ -121,7 +124,9 @@ socket.on('message', (raw) => {
 
 		case 'ROUND_ENDED': {
 			const { summary } = event;
-			console.log(`\n  ROUND ${summary.round}: ${summary.headline}`);
+			console.log(
+				`\n  ROUND ${summary.round} (${((Date.now() - roundStartedAt) / 1000).toFixed(0)}s): ${summary.headline}`
+			);
 			for (const o of [...summary.outcomes].sort((a, b) => b.depth - a.depth)) {
 				const tag = o.survived ? 'HOME' : `died at ${o.killedBy}`;
 				console.log(
@@ -154,7 +159,9 @@ socket.on('message', (raw) => {
 		case 'GAME_FINISHED': {
 			const winners = event.game.players.filter((p) => event.winnerIds.includes(p.id));
 			console.log(`\n  winner: ${winners.map((w) => w.name).join(' & ')}`);
-			console.log(`  rounds: ${event.game.round}`);
+			console.log(
+				`  rounds: ${event.game.round} in ${((Date.now() - matchStartedAt) / 60000).toFixed(1)} min`
+			);
 			console.log('  standings:');
 			for (const p of [...event.game.players].sort((a, b) => b.bestDepth - a.bestDepth)) {
 				console.log(

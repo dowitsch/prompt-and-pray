@@ -9,11 +9,13 @@
 		players: PublicPlayer[];
 		youId: string | null;
 		effects: Effect[];
-		/** During a round, frame every agent rather than following your own. */
-		focusAll?: boolean;
+		/** The agent whose turn is being told; the camera follows it and the rest dim. */
+		activeId?: string | null;
+		/** Agents still queued for their turn — kept off the board until it is theirs. */
+		hiddenIds?: string[];
 	};
 
-	let { tree, players, youId, effects, focusAll = false }: Props = $props();
+	let { tree, players, youId, effects, activeId = null, hiddenIds = [] }: Props = $props();
 
 	/** The camera window, in world units. Roughly four levels at a time. */
 	const CAM_W = 700;
@@ -76,11 +78,12 @@
 			return fitBox(minX, minY, minX + width, minY + height, 1, 0);
 		}
 
-		const tracked = (
-			focusAll
-				? players.map((p) => nodeById[p.agent.currentNode])
-				: [you ? nodeById[you.agent.currentNode] : undefined]
-		).filter((n): n is FoggedNode => Boolean(n));
+		// While an agent is walking, follow it alone. Between rounds nobody is
+		// walking, so frame all four where they fell — that view is the round.
+		const lead = activeId ? players.filter((p) => p.id === activeId) : players;
+		const tracked = (lead.length ? lead : you ? [you] : [])
+			.map((p) => nodeById[p.agent.currentNode])
+			.filter((n): n is FoggedNode => Boolean(n));
 
 		if (!tracked.length) return { scale: 1, x: CAM_W / 2, y: CAM_H / 2 };
 
@@ -102,17 +105,19 @@
 	 */
 	const ORBIT = 26;
 	const avatars = $derived(
-		players.map((player) => {
-			const node = nodeById[player.agent.currentNode];
-			const angle = ((-155 + player.seat * 43) * Math.PI) / 180;
-			return {
-				player,
-				isYou: player.id === youId,
-				x: (node?.x ?? 0) + Math.cos(angle) * ORBIT,
-				y: (node?.y ?? 0) + Math.sin(angle) * ORBIT,
-				colour: agentColor(player.seat, player.id === youId)
-			};
-		})
+		players
+			.filter((player) => !hiddenIds.includes(player.id))
+			.map((player) => {
+				const node = nodeById[player.agent.currentNode];
+				const angle = ((-155 + player.seat * 43) * Math.PI) / 180;
+				return {
+					player,
+					isYou: player.id === youId,
+					x: (node?.x ?? 0) + Math.cos(angle) * ORBIT,
+					y: (node?.y ?? 0) + Math.sin(angle) * ORBIT,
+					colour: agentColor(player.seat, player.id === youId)
+				};
+			})
 	);
 
 	const positionedEffects = $derived(
@@ -152,8 +157,8 @@
 	>
 		<defs>
 			<radialGradient id="home-glow">
-				<stop offset="0%" stop-color="#f5b544" stop-opacity="0.55" />
-				<stop offset="100%" stop-color="#f5b544" stop-opacity="0" />
+				<stop offset="0%" stop-color="#e8b45c" stop-opacity="0.55" />
+				<stop offset="100%" stop-color="#e8b45c" stop-opacity="0" />
 			</radialGradient>
 			<filter id="soft-glow" x="-120%" y="-120%" width="340%" height="340%">
 				<feGaussianBlur stdDeviation="4" result="blur" />
@@ -179,7 +184,7 @@
 					cx={(mote.x / 100) * CAM_W + CAM_W / 2}
 					cy={(mote.y / 100) * CAM_H}
 					r={mote.size}
-					fill="#9fb4d8"
+					fill="#d8c49a"
 					style="animation: drift {mote.duration}s linear {mote.delay}s infinite"
 				/>
 			{/each}
@@ -192,10 +197,10 @@
 					<path
 						d={edge.d}
 						stroke={edge.state === 'safe'
-							? '#f5b544'
+							? '#e8b45c'
 							: edge.state === 'lethal'
-								? '#5c2b2b'
-								: '#232838'}
+								? '#5b2f33'
+								: '#2a2c42'}
 						stroke-width={edge.state === 'safe' ? 2.4 : 1.6}
 						stroke-dasharray={edge.state === 'unknown' ? '3 7' : undefined}
 						opacity={edge.state === 'safe' ? 0.75 : edge.state === 'lethal' ? 0.7 : 0.5}
@@ -204,7 +209,7 @@
 						<!-- A faint current flowing along the confirmed route. -->
 						<path
 							d={edge.d}
-							stroke="#f5b544"
+							stroke="#e8b45c"
 							stroke-width="2.4"
 							stroke-dasharray="2 22"
 							opacity="0.85"
@@ -233,8 +238,8 @@
 
 						<circle
 							r={radius}
-							fill={isHome ? '#f5b544' : isDeath ? '#160f12' : isUnknown ? '#0d1017' : '#141926'}
-							stroke={isHome ? '#ffd894' : isDeath ? '#5c2b2b' : isUnknown ? '#232838' : '#f5b544'}
+							fill={isHome ? '#e8b45c' : isDeath ? '#1b1218' : isUnknown ? '#12131f' : '#1a1c2e'}
+							stroke={isHome ? '#f6d9a0' : isDeath ? '#5b2f33' : isUnknown ? '#2a2c42' : '#e8b45c'}
 							stroke-width={isUnknown ? 1 : 1.8}
 							stroke-dasharray={isUnknown ? '3 4' : undefined}
 							filter={isHome
@@ -245,7 +250,7 @@
 						/>
 
 						{#if isDeath}
-							<g stroke="#e0564a" stroke-width="1.8" stroke-linecap="round" opacity="0.85">
+							<g stroke="#cf5f57" stroke-width="1.8" stroke-linecap="round" opacity="0.85">
 								<line x1="-5" y1="-5" x2="5" y2="5" />
 								<line x1="5" y1="-5" x2="-5" y2="5" />
 							</g>
@@ -255,14 +260,14 @@
 								dy="4"
 								font-size="12"
 								class="select-none"
-								style="fill:#3d4356;font-family:var(--font-mono)">?</text
+								style="fill:#585370;font-family:var(--font-mono)">?</text
 							>
 						{:else if isHome}
 							<text
 								text-anchor="middle"
 								dy="5"
 								font-size="13"
-								fill="#3a2708"
+								fill="#3a2a0c"
 								style="font-family:var(--font-mono);font-weight:700;letter-spacing:0.06em"
 								class="select-none">◆</text
 							>
@@ -276,7 +281,7 @@
 							style="
 								font-family: var(--font-mono);
 								letter-spacing: 0.14em;
-								fill: {isHome ? '#f5b544' : isDeath ? '#7a4b4b' : isUnknown ? '#3d4356' : '#c9c6c0'};
+								fill: {isHome ? '#e8b45c' : isDeath ? '#8a6068' : isUnknown ? '#585370' : '#e6dcc8'};
 								font-weight: {isHome ? 700 : 500};
 							"
 						>
@@ -298,14 +303,14 @@
 										y="-2"
 										width="4"
 										height="4"
-										fill="#e0564a"
+										fill="#cf5f57"
 										style="--dx:{shard.dx}px; --dy:{shard.dy}px; animation: shatter 900ms ease-out forwards"
 									/>
 								{/each}
 								<circle
 									r="16"
 									fill="none"
-									stroke="#e0564a"
+									stroke="#cf5f57"
 									stroke-width="2"
 									style="animation: flare 700ms ease-out forwards"
 								/>
@@ -313,7 +318,7 @@
 								<circle
 									r="16"
 									fill="none"
-									stroke={effect.kind === 'win' ? '#ffd894' : effect.colour}
+									stroke={effect.kind === 'win' ? '#f6d9a0' : effect.colour}
 									stroke-width={effect.kind === 'win' ? 3 : 2}
 									style="animation: flare {effect.kind === 'win' ? 1200 : 700}ms ease-out forwards"
 								/>
@@ -327,10 +332,11 @@
 			<g>
 				{#each avatars as avatar (avatar.player.id)}
 					{@const dead = avatar.player.agent.status === 'dead'}
+					{@const spotlit = !activeId || avatar.player.id === activeId}
 					<g
 						class="avatar"
 						style:transform="translate({avatar.x}px, {avatar.y}px)"
-						style:opacity={dead ? 0.35 : 1}
+						style:opacity={dead ? 0.3 : spotlit ? 1 : 0.4}
 					>
 						{#if avatar.player.agent.thinking}
 							<circle
@@ -377,14 +383,14 @@
 		<button
 			type="button"
 			onclick={() => (mode = mode === 'follow' ? 'fit' : 'follow')}
-			class="rounded-md border border-edge bg-black/40 px-2.5 py-1 font-mono text-[10px] tracking-[0.18em] text-faint uppercase transition hover:border-edge-bright hover:text-parchment"
+			class="rounded border border-rule bg-black/40 px-2.5 py-1 text-[10px] tracking-[0.18em] text-faded uppercase transition hover:border-rule-bright hover:text-parchment"
 		>
-			{mode === 'follow' ? 'Fit map' : 'Follow'}
+			{mode === 'follow' ? 'The whole land' : 'Follow'}
 		</button>
 	</div>
 
-	<div class="pointer-events-none absolute bottom-3 left-4 eyebrow">
-		{tree.mapName} · {tree.depth} levels
+	<div class="pointer-events-none absolute bottom-3 left-4 rubric">
+		{tree.mapName}
 	</div>
 </div>
 

@@ -68,6 +68,8 @@ export type GameSnapshot = {
 	winnerIds: string[];
 	lastSummary: RoundSummary | null;
 	maxPlayers: number;
+	/** How slowly the tale is told, so the client can pace its sentences to match. */
+	paceScale: number;
 };
 
 export type ResolveResult = {
@@ -97,8 +99,12 @@ export class Game {
 	winnerIds: string[] = [];
 	startedAt = 0;
 	lastSummary: RoundSummary | null = null;
+	/** Set by the hub from PACE_SCALE; presentation only, never a rule. */
+	paceScale = 1;
 
 	private reveal: RevealState = { visitedNodes: [], takenChoices: {} };
+	private familiarNodes = new Set<string>();
+	private provenSafe = new Set<string>();
 	private memoryLineSeq = 0;
 	/** Where each player died last round, for spotting repeated mistakes. */
 	private previousDeaths = new Map<string, string>();
@@ -183,11 +189,21 @@ export class Game {
 		};
 	}
 
-	/** Everyone sets out together. */
+	/** Everyone sets out this round; they take their turns one at a time. */
 	beginRound(): number {
 		this.round += 1;
 		this.phase = 'running';
 		this.teachingEndsAt = 0;
+
+		// Snapshot what the world already knew before this round. Ground that was
+		// already proven safe gets replayed quickly, so the story lingers only on
+		// the step where something new actually happens.
+		this.familiarNodes = new Set(this.reveal.visitedNodes);
+		this.provenSafe = new Set(
+			Object.entries(this.reveal.takenChoices)
+				.filter(([, outcome]) => outcome !== 'death')
+				.map(([choiceId]) => choiceId)
+		);
 
 		for (const player of this.players) {
 			player.runCount += 1;
@@ -204,9 +220,33 @@ export class Game {
 		return this.round;
 	}
 
-	/** Agents still walking. The round runs until this is empty. */
-	livingPlayers(): Player[] {
-		return this.players.filter((p) => p.agent.status === 'running');
+	/**
+	 * The order agents take their turns in.
+	 *
+	 * Rivals go first and humans last, so a round builds towards your own agent
+	 * rather than trailing off after it. Rivals rotate each round so the same one
+	 * is not always opening.
+	 */
+	turnOrder(): Player[] {
+		const bots = this.players.filter((p) => p.isBot);
+		const humans = this.players.filter((p) => !p.isBot);
+		const shift = bots.length ? (this.round - 1) % bots.length : 0;
+		return [...bots.slice(shift), ...bots.slice(0, shift), ...humans];
+	}
+
+	/** Ground already walked before this round: replay it quickly. */
+	isFamiliar(nodeId: string): boolean {
+		return this.familiarNodes.has(nodeId);
+	}
+
+	/** A choice the world had already proven survivable before this round. */
+	isProvenSafe(choiceId: string): boolean {
+		return this.provenSafe.has(choiceId);
+	}
+
+	/** The deepest anyone has ever reached. A step past it is worth its own line. */
+	deepestSoFar(): number {
+		return this.players.reduce((deepest, p) => Math.max(deepest, p.agent.bestDepth), 0);
 	}
 
 	/** Close the round, build its story, and hand everyone their characters. */
@@ -501,7 +541,8 @@ export class Game {
 			tree: this.foggedTree(),
 			winnerIds: this.winnerIds,
 			lastSummary: this.lastSummary,
-			maxPlayers: SEAT_COUNT
+			maxPlayers: SEAT_COUNT,
+			paceScale: this.paceScale
 		};
 	}
 }

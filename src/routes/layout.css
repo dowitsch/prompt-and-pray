@@ -5,68 +5,75 @@
 /*
  * HOMEWARD — visual identity.
  *
- * Dark, cold and a little haunted. Restrained palette, strong contrast, no
- * dashboard chrome. Everything that is not the decision tree is deliberately
- * quiet so the tree reads as the centre of the screen.
+ * A storybook read by candlelight. Deep night blues and warm parchment, gold
+ * where the light falls, old serif type throughout. Nothing here should look
+ * like a dashboard: the screen is a page, the tree is an illustration, and the
+ * agents' memories are things written down by hand.
  *
- * The player's own agent is the only warm colour on the board.
+ * Your own agent is the candle — the one warm light on the board.
  */
 
 @theme {
-	--color-ink: #06070a;
-	--color-ink-2: #0b0d13;
-	--color-veil: #11141d;
-	--color-edge: #1e2230;
-	--color-edge-bright: #2c3243;
+	/* Night: deep, slightly violet, never flat black. */
+	--color-night: #0d0e17;
+	--color-night-2: #131524;
+	--color-vellum: #191b2c;
+	--color-rule: #2a2c42;
+	--color-rule-bright: #3b3d58;
 
-	--color-parchment: #e9e7e2;
-	--color-muted: #8b8fa0;
-	--color-faint: #575c6e;
+	/* Ink on parchment. */
+	--color-parchment: #f2e8d5;
+	--color-quill: #a89e8c;
+	--color-faded: #6b6579;
 
-	/* You. The only warm light on the map. */
-	--color-ember: #f5b544;
-	--color-ember-dim: #7a5a22;
+	/* Candlelight. You. */
+	--color-candle: #e8b45c;
+	--color-candle-dim: #7a5c26;
 
-	--color-blood: #e0564a;
-	--color-bone: #4c4a55;
-	--color-verdant: #58c3a0;
+	--color-rose: #cf5f57;
+	--color-moss: #7fa77f;
+	--color-ash: #4a4658;
 
-	/* Opponent seats, deliberately cool and quieter than the ember. */
-	--color-seat-1: #7c9cf5;
-	--color-seat-2: #a98cf0;
-	--color-seat-3: #56b6c2;
+	/* The other three, cool and quieter than the candle. */
+	--color-seat-1: #8fa6e8;
+	--color-seat-2: #b48ce0;
+	--color-seat-3: #6fb3ae;
 
-	--font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
-	--font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	/* Old serif everywhere — the single strongest storybook signal. */
+	--font-serif:
+		Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'Times New Roman',
+		serif;
+	--font-sans: var(--font-serif);
+	--font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 @layer base {
 	html {
-		background-color: var(--color-ink);
+		background-color: var(--color-night);
 		color-scheme: dark;
 	}
 
 	body {
 		min-height: 100vh;
 		background:
-			radial-gradient(120% 80% at 50% -10%, #141a2b 0%, transparent 60%),
-			radial-gradient(90% 60% at 50% 110%, #10121c 0%, transparent 55%), var(--color-ink);
+			radial-gradient(120% 85% at 50% -15%, #1e2140 0%, transparent 62%),
+			radial-gradient(85% 55% at 50% 115%, #171a2e 0%, transparent 58%), var(--color-night);
 		color: var(--color-parchment);
-		font-family: var(--font-sans);
+		font-family: var(--font-serif);
 		-webkit-font-smoothing: antialiased;
 	}
 
 	::selection {
-		background: var(--color-ember);
-		color: var(--color-ink);
+		background: var(--color-candle);
+		color: var(--color-night);
 	}
 
 	::-webkit-scrollbar {
-		width: 6px;
-		height: 6px;
+		width: 5px;
+		height: 5px;
 	}
 	::-webkit-scrollbar-thumb {
-		background: var(--color-edge-bright);
+		background: var(--color-rule-bright);
 		border-radius: 999px;
 	}
 	::-webkit-scrollbar-track {
@@ -74,24 +81,31 @@
 	}
 }
 
-@utility panel {
-	background: linear-gradient(180deg, rgb(255 255 255 / 3.5%), rgb(255 255 255 / 1.5%));
-	border: 1px solid var(--color-edge);
-	border-radius: 0.75rem;
-	backdrop-filter: blur(6px);
+/* A page of the book. */
+@utility leaf {
+	background: linear-gradient(180deg, rgb(255 250 240 / 4%), rgb(255 250 240 / 1.5%));
+	border: 1px solid var(--color-rule);
+	border-radius: 0.5rem;
 }
 
-/* Small-caps monospace label, used for every section heading. */
-@utility eyebrow {
-	font-family: var(--font-mono);
-	font-size: 0.625rem;
-	letter-spacing: 0.22em;
+/* Small-caps section label, letterspaced like a chapter heading. */
+@utility rubric {
+	font-family: var(--font-serif);
+	font-size: 0.6875rem;
+	letter-spacing: 0.28em;
 	text-transform: uppercase;
-	color: var(--color-faint);
+	color: var(--color-faded);
 }
 
-@utility hairline {
-	border-bottom: 1px solid var(--color-edge);
+/* Display type for titles: wide, quiet, old. */
+@utility title {
+	font-family: var(--font-serif);
+	letter-spacing: 0.16em;
+	font-weight: 400;
+}
+
+@utility rule-b {
+	border-bottom: 1px solid var(--color-rule);
 }
 
 /* ------------------------------------------------------------------ motion */
@@ -99,22 +113,22 @@
 @keyframes breathe {
 	0%,
 	100% {
-		opacity: 0.55;
+		opacity: 0.5;
 		transform: scale(1);
 	}
 	50% {
 		opacity: 1;
-		transform: scale(1.06);
+		transform: scale(1.07);
 	}
 }
 
 @keyframes think-ring {
 	0% {
 		transform: scale(0.7);
-		opacity: 0.9;
+		opacity: 0.85;
 	}
 	100% {
-		transform: scale(2.6);
+		transform: scale(2.7);
 		opacity: 0;
 	}
 }
@@ -141,16 +155,17 @@
 	}
 }
 
+/* Embers rising through the scene. */
 @keyframes drift {
 	0% {
 		transform: translateY(0);
 		opacity: 0;
 	}
-	20% {
-		opacity: 0.5;
+	25% {
+		opacity: 0.55;
 	}
 	100% {
-		transform: translateY(-70px);
+		transform: translateY(-80px);
 		opacity: 0;
 	}
 }
@@ -161,14 +176,25 @@
 	}
 }
 
-@keyframes slide-up {
+@keyframes rise {
 	from {
 		opacity: 0;
-		transform: translateY(6px);
+		transform: translateY(8px);
 	}
 	to {
 		opacity: 1;
 		transform: translateY(0);
+	}
+}
+
+@keyframes ink-in {
+	from {
+		opacity: 0;
+		filter: blur(3px);
+	}
+	to {
+		opacity: 1;
+		filter: blur(0);
 	}
 }
 
@@ -191,17 +217,12 @@
 	}
 }
 
-@keyframes sweep {
-	from {
-		background-position: -140% 0;
-	}
-	to {
-		background-position: 240% 0;
-	}
+.animate-rise {
+	animation: rise 320ms ease-out both;
 }
 
-.animate-slide-up {
-	animation: slide-up 260ms ease-out both;
+.animate-ink {
+	animation: ink-in 520ms ease-out both;
 }
 
 .animate-shake {

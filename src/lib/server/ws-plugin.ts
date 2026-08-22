@@ -16,7 +16,10 @@ import { Hub } from './hub.ts';
  */
 export function homewardServer(env: Env): Plugin {
 	const { brain, settings } = createBrain(env);
-	const hub = new Hub(brain);
+	// How slowly the tale is told. 1 is the tuned default; 1.5 is a leisurely
+	// read-aloud pace, 0.6 is brisk. Restarting the dev server applies it.
+	const paceScale = Number(env.PACE_SCALE) > 0 ? Number(env.PACE_SCALE) : 1;
+	const hub = new Hub(brain, paceScale);
 	let announced = false;
 
 	// Vite types this as `http.Server | Http2SecureServer`; we only need `on`.
@@ -39,7 +42,11 @@ export function homewardServer(env: Env): Plugin {
 
 		if (!announced) {
 			announced = true;
-			console.log(`\n  \x1b[35m➜\x1b[0m  HOMEWARD: ${describeBrain(settings)}\n`);
+			console.log(
+				`\n  \x1b[35m➜\x1b[0m  HOMEWARD: ${describeBrain(settings)}` +
+					(paceScale === 1 ? '' : `\n  \x1b[35m➜\x1b[0m  HOMEWARD: telling at ${paceScale}× pace`) +
+					'\n'
+			);
 		}
 	};
 

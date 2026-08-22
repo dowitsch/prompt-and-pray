@@ -41,10 +41,11 @@ export type ServerEvent =
 	| { type: 'PLAYER_JOINED'; player: PublicPlayer; game: GameSnapshot }
 	| { type: 'PLAYER_UPDATED'; player: PublicPlayer }
 	| { type: 'GAME_STARTED'; game: GameSnapshot }
-	/** Every agent sets out at once. */
-	| { type: 'ROUND_STARTED'; round: number; game: GameSnapshot }
-	/** A synchronised beat: all surviving agents are about to face this level. */
-	| { type: 'STEP_STARTED'; round: number; step: number; alive: number }
+	/** A new round. `order` is the sequence agents take their turns in. */
+	| { type: 'ROUND_STARTED'; round: number; order: string[]; game: GameSnapshot }
+	/** The spotlight moves to one agent; its whole attempt follows. */
+	| { type: 'TURN_STARTED'; playerId: string; player: PublicPlayer; index: number; total: number }
+	| { type: 'TURN_ENDED'; playerId: string; player: PublicPlayer }
 	/** The round is over; carries its story. */
 	| { type: 'ROUND_ENDED'; summary: RoundSummary; game: GameSnapshot }
 	/** Teaching is open until `endsAt`, or until everyone readies up. */
@@ -57,6 +58,8 @@ export type ServerEvent =
 			nodeTitle: string;
 			nodeDescription: string;
 			reveal: ChoicesRevealed;
+			/** The world has stood here before — the client keeps the arrival quiet. */
+			familiar: boolean;
 	  }
 	| {
 			type: 'AGENT_CHOICE';
@@ -67,6 +70,8 @@ export type ServerEvent =
 			reasoning: string;
 			/** True when the decision came from the offline fallback brain. */
 			improvised: boolean;
+			/** Walking proven ground: collapsed into a single line rather than narrated. */
+			retrace: boolean;
 	  }
 	| {
 			type: 'AGENT_SURVIVED';
@@ -74,6 +79,8 @@ export type ServerEvent =
 			player: PublicPlayer;
 			choiceId: string;
 			depth: number;
+			/** This step went deeper than any agent had ever been. */
+			record: boolean;
 			revealed: NodeRevealed;
 	  }
 	| {

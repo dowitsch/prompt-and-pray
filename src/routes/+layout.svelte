@@ -27,7 +27,7 @@
 {#if conn.error}
 	<div class="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
 		<p
-			class="pointer-events-auto panel border-blood/50 px-4 py-2 font-mono text-xs text-blood"
+			class="pointer-events-auto leaf border-rose/50 px-4 py-2 font-mono text-xs text-rose"
 			role="alert"
 		>
 			{conn.error}
@@ -36,8 +36,8 @@
 {/if}
 
 {#if conn.status === 'closed'}
-	<div class="fixed top-0 right-0 left-0 z-40 bg-blood/90 py-1 text-center">
-		<span class="font-mono text-[10px] tracking-[0.2em] text-ink uppercase">
+	<div class="fixed top-0 right-0 left-0 z-40 bg-rose/90 py-1 text-center">
+		<span class="font-mono text-[10px] tracking-[0.2em] text-night uppercase">
 			Connection lost — reconnecting
 		</span>
 	</div>

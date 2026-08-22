@@ -21,9 +21,10 @@ deployments are documented in `doc/apertus-v1p5-007.md`:
 Both were measured at roughly **1–1.5 s per decision**, which is why the round loop can afford
 to call the model live for every step of every round.
 
-Because rounds are **lockstep**, all four agents decide concurrently and the beat waits for the
-slowest of them — so a slow response costs everyone a moment rather than giving one agent an
-advantage. `AI_CONCURRENCY` defaults to 4 for exactly this: one in-flight call per agent.
+Agents take their turns one at a time, so the provider sees one request at a time in the common
+case; `AI_CONCURRENCY` (default 4) is the ceiling rather than the norm. Steps that retrace
+already-proven ground still call the model — the agent genuinely re-decides every time — they
+are just presented briskly.
 
 > ⚠️ **The 70B endpoint's JSON mode is broken.** With `response_format: {"type":"json_object"}`
 > it emits a doubled opening brace (`{\n{\n "choice": ...`), which is not valid JSON and fails

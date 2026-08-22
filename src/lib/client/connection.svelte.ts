@@ -6,6 +6,7 @@ import type { GameSnapshot, PublicPlayer } from '$lib/engine/game';
 import type { RoundSummary } from '$lib/engine/types';
 import type { ClientMessage, ServerEvent } from '$lib/protocol';
 import { WS_PATH } from '$lib/protocol';
+import { roman } from '$lib/client/palette';
 
 /**
  * The browser's view of the match.
@@ -41,6 +42,38 @@ export type Effect = {
 	nodeId: string;
 };
 
+/**
+ * One beat of the story, built up as the events arrive: where the agent is,
+ * what it said, what it chose, and what came of it. The narration card renders
+ * this single object, so the tale fills in rather than flickering.
+ */
+/**
+ * One short sentence of the tale.
+ *
+ * A turn is told as a sequence of these rather than one block of prose: the
+ * agent sets out, it comes somewhere, it says what it remembers, it chooses,
+ * and it lives or it doesn't. They are revealed one at a time so the telling
+ * has a rhythm you can actually follow.
+ */
+export type LineTone =
+	| 'open'
+	| 'place'
+	| 'scene'
+	| 'ways'
+	| 'speech'
+	| 'act'
+	| 'good'
+	| 'record'
+	| 'bad'
+	| 'home'
+	| 'quiet';
+
+export type Line = {
+	id: number;
+	tone: LineTone;
+	text: string;
+};
+
 export type Toast = {
 	id: number;
 	title: string;
@@ -58,8 +91,20 @@ export class Connection {
 	game = $state<GameSnapshot | null>(null);
 	/** Last completed round’s story, shown between rounds. */
 	summary = $state<RoundSummary | null>(null);
-	/** Which synchronised beat the round is on, e.g. “LEVEL 3 · 2 still walking”. */
-	stepLabel = $state<string | null>(null);
+	/** Whose turn is being told right now, if any. */
+	activeId = $state<string | null>(null);
+	/** The order agents take their turns in this round. */
+	order = $state<string[]>([]);
+	/** Position of the current turn within the round, e.g. 3 of 4. */
+	turnIndex = $state(0);
+	turnTotal = $state(0);
+	/** The sentences of the current turn, oldest first. */
+	lines = $state<Line[]>([]);
+	/** Sentences waiting their turn to appear. */
+	private queue: Omit<Line, 'id'>[] = [];
+	private reveal: ReturnType<typeof setInterval> | null = null;
+	/** True once this turn has already announced it is retracing. */
+	private saidRetracing = false;
 	log = $state<LogEntry[]>([]);
 	effects = $state<Effect[]>([]);
 	toast = $state<Toast | null>(null);
@@ -82,6 +127,12 @@ export class Connection {
 	get opponents(): PublicPlayer[] {
 		if (!this.game) return [];
 		return this.game.players.filter((p) => p.id !== this.you);
+	}
+
+	/** Agents whose turn has not come yet: they should not be on the board. */
+	get waitingTurn(): string[] {
+		if (this.game?.phase !== 'running' || !this.order.length) return [];
+		return this.order.slice(this.turnIndex + 1);
 	}
 
 	get isHost(): boolean {
@@ -188,7 +239,9 @@ export class Connection {
 		this.game = null;
 		this.you = null;
 		this.summary = null;
-		this.stepLabel = null;
+		this.order = [];
+		this.activeId = null;
+		this.newPage();
 		this.log = [];
 		this.effects = [];
 	}
@@ -226,6 +279,45 @@ export class Connection {
 		setTimeout(() => {
 			this.effects = this.effects.filter((e) => e.id !== effect.id);
 		}, 1400);
+	}
+
+	/**
+	 * Queue sentences for the current turn. They surface one at a time so the
+	 * telling has a rhythm; if the server gets ahead of us the queue drains
+	 * faster rather than falling behind the board.
+	 */
+	private say(...lines: { tone: LineTone; text: string }[]): void {
+		this.queue.push(...lines);
+		if (this.reveal) return;
+
+		const step = () => {
+			const next = this.queue.shift();
+			if (!next) {
+				if (this.reveal) clearInterval(this.reveal);
+				this.reveal = null;
+				return;
+			}
+			this.lines = [...this.lines, { ...next, id: ++this.seq }].slice(-14);
+		};
+
+		step();
+		// Sentences are spread across the server's beat, so turning PACE_SCALE up
+		// slows the telling itself rather than just adding dead air after it.
+		const stagger = 420 * (this.game?.paceScale ?? 1);
+		this.reveal = setInterval(() => {
+			// Backed up behind a fast server: catch up two at a time.
+			if (this.queue.length > 3) step();
+			step();
+		}, stagger);
+	}
+
+	/** Clear the page for a new teller. */
+	private newPage(): void {
+		if (this.reveal) clearInterval(this.reveal);
+		this.reveal = null;
+		this.queue = [];
+		this.lines = [];
+		this.saidRetracing = false;
 	}
 
 	private notify(title: string, body: string, tone: Toast['tone']): void {
@@ -288,7 +380,15 @@ export class Connection {
 
 			case 'ROUND_STARTED': {
 				this.game = event.game;
-				this.stepLabel = null;
+				this.activeId = null;
+				this.order = event.order;
+				this.newPage();
+				const first = this.playerName(event.order[0] ?? '');
+				this.say(
+					{ tone: 'open', text: `Round ${roman(event.round)}.` },
+					{ tone: 'quiet', text: 'All four go back to the beginning.' },
+					{ tone: 'place', text: `${first} goes first.` }
+				);
 				this.push({
 					kind: 'round',
 					playerId: '',
@@ -298,15 +398,44 @@ export class Connection {
 				return;
 			}
 
-			case 'STEP_STARTED': {
-				// A synchronised beat — everyone still alive faces this level at once.
-				this.stepLabel = `LEVEL ${event.step + 1} · ${event.alive} still walking`;
+			case 'TURN_STARTED': {
+				this.replacePlayer(event.player);
+				this.activeId = event.playerId;
+				this.turnIndex = event.index;
+				this.turnTotal = event.total;
+				this.newPage();
+
+				const carried = event.player.memory.length;
+				const lies = event.player.memory.filter((line) => line.sabotagedBy).length;
+				this.say({ tone: 'open', text: `${event.player.name} sets out.` });
+				if (carried === 0) {
+					this.say({ tone: 'quiet', text: 'It knows nothing at all.' });
+				} else {
+					this.say({
+						tone: 'quiet',
+						text: `It carries ${carried} ${carried === 1 ? 'line' : 'lines'}.`
+					});
+					// The best beat in the game: watching an agent walk off on a lie.
+					if (lies) {
+						this.say({
+							tone: 'bad',
+							text: lies === 1 ? 'One of them is false.' : `${lies} of them are false.`
+						});
+					}
+				}
+				return;
+			}
+
+			case 'TURN_ENDED': {
+				this.replacePlayer(event.player);
 				return;
 			}
 
 			case 'ROUND_ENDED': {
 				this.game = event.game;
 				this.summary = event.summary;
+				this.activeId = null;
+				this.newPage();
 				this.push({
 					kind: 'recap',
 					playerId: '',
@@ -317,13 +446,28 @@ export class Connection {
 
 			case 'TEACHING_STARTED': {
 				this.game = event.game;
-				this.stepLabel = null;
+				this.activeId = null;
+				this.newPage();
 				return;
 			}
 
 			case 'AGENT_THINKING': {
 				this.replacePlayer(event.player);
 				if (this.game) applyChoicesRevealed(this.game.tree, event.reveal);
+				if (!event.familiar) {
+					const ways = event.reveal.choices.map((c) => c.label);
+					this.say(
+						{ tone: 'place', text: `It comes to ${event.nodeTitle}.` },
+						{ tone: 'scene', text: event.nodeDescription },
+						{
+							tone: 'ways',
+							text:
+								ways.length > 1
+									? `${ways.slice(0, -1).join(', ')} or ${ways.at(-1)}?`
+									: `${ways[0]}?`
+						}
+					);
+				}
 				this.push({
 					kind: 'sight',
 					playerId: event.playerId,
@@ -335,6 +479,18 @@ export class Connection {
 
 			case 'AGENT_CHOICE': {
 				this.replacePlayer(event.player);
+				if (event.retrace) {
+					// Known road: said once, not once per step.
+					if (!this.saidRetracing) {
+						this.saidRetracing = true;
+						this.say({ tone: 'quiet', text: 'It hurries along the road it knows.' });
+					}
+				} else {
+					this.say(
+						{ tone: 'speech', text: `\u201C${event.reasoning}\u201D` },
+						{ tone: 'act', text: `It takes the ${event.choiceLabel}.` }
+					);
+				}
 				this.push({
 					kind: 'speech',
 					playerId: event.playerId,
@@ -349,6 +505,12 @@ export class Connection {
 				this.replacePlayer(event.player);
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
 				this.flash('survive', event.playerId, event.revealed.node.id);
+				// A step past everything anyone has ever managed deserves its own line.
+				this.say(
+					event.record
+						? { tone: 'record', text: 'No one has ever come this far.' }
+						: { tone: 'good', text: 'The way holds.' }
+				);
 				this.push({
 					kind: 'ok',
 					playerId: event.playerId,
@@ -362,6 +524,10 @@ export class Connection {
 				this.replacePlayer(event.player);
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
 				this.flash('death', event.playerId, event.revealed.node.id);
+				this.say(
+					{ tone: 'bad', text: 'It does not come back.' },
+					{ tone: 'scene', text: event.epitaph }
+				);
 				this.push({ kind: 'dead', playerId: event.playerId, text: event.epitaph });
 				return;
 			}
@@ -370,6 +536,7 @@ export class Connection {
 				this.replacePlayer(event.player);
 				if (this.game) applyNodeRevealed(this.game.tree, event.revealed);
 				this.flash('win', event.playerId, event.revealed.node.id);
+				this.say({ tone: 'home', text: 'The gate opens.' }, { tone: 'home', text: 'It is home.' });
 				this.push({ kind: 'home', playerId: event.playerId, text: 'REACHED HOME' });
 				return;
 			}

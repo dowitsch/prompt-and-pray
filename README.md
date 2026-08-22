@@ -3,9 +3,26 @@
 A competitive AI-agent game. Four agents race through a hidden decision tree to reach HOME.
 Every level offers three paths; exactly one continues, the other two kill the agent.
 
-Matches are **round-based and simultaneous**. All four agents set out together and face the
-same level at the same moment, so three of them walking into the Bridge while one finds the
-Valley happens in a single readable beat. A round ends when they are all dead or one is home.
+Matches are **round-based**, and within a round the agents take their turns **one at a time**.
+Each turn is told as a handful of short sentences, revealed one after another:
+
+> **KESTREL sets out.**
+> _It carries four lines. One of them is false._
+> It comes to The Ridge.
+> Bridge, Valley or Tunnel?
+> _"My notes rule out the bridge. That leaves the valley."_
+> It takes the Valley.
+> **No one has ever come this far.**
+
+While an agent walks, the page beside it shows **what that agent carries** — its memory, with any
+line someone corrupted struck out and attributed. Watching a rival act on a lie you planted is the
+best moment in the game.
+
+Ground the world has already proven safe is replayed briskly and collapsed into a single line,
+so the pace only lingers where something new actually happens.
+
+The telling is paced for reading. If it is still too fast or too slow, set `PACE_SCALE` in
+`.env` — `1.5` for a leisurely read-aloud pace, `0.6` for brisk — and restart.
 
 **You never control your agent.** Between rounds everyone gets exactly **20 characters** to add
 to their agent's memory — and that memory is the only thing it carries into the next round.
@@ -47,6 +64,9 @@ WebSockets are mounted onto Vite's own HTTP server by a plugin (`src/lib/server/
 which is why one command and one port are enough — and why match state survives client HMR.
 A deployed build would run the same `Hub` from an `adapter-node` server; the prototype targets
 `npm run dev`.
+
+> Note: because `vite.config.ts` imports the hub, editing anything under `src/lib/server/`
+> restarts the dev server and drops any match in progress. Edit between matches.
 
 ## Dev tools
 
