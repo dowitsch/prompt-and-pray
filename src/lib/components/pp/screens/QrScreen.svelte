@@ -15,10 +15,19 @@
 	 * poster frame when the reader has asked for less motion. The poster is also
 	 * what covers the first few hundred milliseconds before the video has enough
 	 * to play, which is why it is a real file rather than a black rectangle.
+	 *
+	 * Everything under the code is what makes holding it out actually work: the
+	 * four characters spelled out, because the joiner's fallback is to type them
+	 * and this screen used to be the one place they were not written down; and the
+	 * seat strip, because the phone is pointed away from you while somebody scans
+	 * and "did that work" otherwise has no answer until you leave the screen.
+	 * They are anchored to the bottom as one column rather than at fixed offsets —
+	 * a short phone should crowd them, not push them off the end.
 	 */
 	import QrCode from '../QrCode.svelte';
 	import Icon from '../Icon.svelte';
 	import DotMenu from '../DotMenu.svelte';
+	import SeatStrip from '../SeatStrip.svelte';
 	import { conn } from '$lib/client/connection.svelte';
 	import { ui } from '$lib/client/ui.svelte';
 
@@ -80,16 +89,19 @@
 		/>
 	</h1>
 
-	<div class="absolute top-[312px] left-[71px] h-[248px] w-[248px]">
-		<button
-			type="button"
-			onclick={onForward}
-			aria-label={t.forward}
-			class="block h-full w-full rounded-[26px] bg-bright shadow-[0_18px_40px_rgba(28,31,34,0.35)]
-				transition hover:scale-[1.02]"
+	<div class="absolute top-[300px] left-[77px] h-[236px] w-[236px]">
+		<!--
+			Deliberately not a button. The whole code used to be a second forward
+			button, and this is the one screen you hold out to somebody else — a
+			stray thumb on it skipped past the thing they were trying to scan. The
+			arrow beside it is the way onward, and it is the only one.
+		-->
+		<div
+			class="h-full w-full overflow-hidden rounded-[26px] bg-white
+				shadow-[0_18px_40px_rgba(28,31,34,0.35)]"
 		>
 			<QrCode value={target} />
-		</button>
+		</div>
 
 		<button
 			type="button"
@@ -104,7 +116,32 @@
 		</button>
 	</div>
 
-	<div class="absolute inset-x-0 bottom-16 flex justify-center">
+	<div class="absolute inset-x-0 bottom-12 flex flex-col items-center gap-5">
+		<div class="flex flex-col items-center gap-1.5">
+			<p
+				data-shot="join-code"
+				aria-label={conn.t.lobby.passphrase}
+				class="display text-[22px] tracking-[0.3em] text-white
+					drop-shadow-[0_2px_10px_rgba(28,31,34,0.65)]"
+			>
+				{code}
+			</p>
+			<!--
+				Says what the square above it is for. Nothing else on this screen did,
+				and at arm's length it is read by whoever is *not* holding the phone —
+				so it takes the width the code gave up and spends it on weight and
+				full-strength white rather than on more line.
+			-->
+			<p
+				class="max-w-[300px] text-center text-[15px] leading-snug font-semibold
+					text-white drop-shadow-[0_2px_10px_rgba(28,31,34,0.9)]"
+			>
+				{t.scanToJoin}
+			</p>
+		</div>
+
+		<SeatStrip />
+
 		<button
 			type="button"
 			onclick={() => (ui.overlay = 'scan')}

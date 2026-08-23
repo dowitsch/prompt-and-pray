@@ -92,7 +92,8 @@
 		{/each}
 	</ul>
 
-	<div class="absolute right-6 bottom-[76px] left-[110px]">
+	<!-- Kept level with the config screen's own button; see the note there. -->
+	<div class="absolute right-6 bottom-[88px] left-[110px]">
 		<button
 			type="button"
 			data-shot="ready"

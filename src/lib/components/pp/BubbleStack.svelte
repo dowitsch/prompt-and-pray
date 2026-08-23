@@ -1,12 +1,11 @@
 <script lang="ts">
 	/**
-	 * The last few things said this turn, stacked and fading.
+	 * The last couple of things said this turn, stacked and fading.
 	 *
-	 * A turn is a beat of three — here is the fork, here is what I make of it, here
-	 * is what it cost — and each line only means something next to the one before
-	 * it. So they stay on screen together, the newest at the bottom in full and the
-	 * older ones dimming upward out of the way. It reads as one thought forming
-	 * rather than three unrelated captions.
+	 * A line only means something next to the one before it — here is the fork,
+	 * here is what I make of it — so the two stay on screen together, the newest at
+	 * the bottom in full and the older one stepped back out of the way. It reads as
+	 * one thought forming rather than two unrelated captions.
 	 *
 	 * The fade is by position rather than by a timer, which is what keeps the map
 	 * readable *and* keeps the newest line up for as long as it has: nothing

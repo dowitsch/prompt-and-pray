@@ -41,7 +41,16 @@ export type ClientMessage =
 	| { type: 'START_GAME' }
 	| { type: 'ADD_MEMORY'; text: string }
 	| { type: 'SABOTAGE'; targetPlayerId: string; lineIndex: number; text: string }
-	| { type: 'PLAY_AGAIN' }
+	/**
+	 * "I'm out." Leaving is the only way out of a match now.
+	 *
+	 * There is no rematch and no going back to the lobby: a seat you walk away
+	 * from is taken over by a simulated operator, and a match nobody is left at is
+	 * shut down. Which means this message is a request to be *forgotten* — the
+	 * server answers it with an empty `STATE_SYNC`, the same thing it says to a
+	 * socket that claims a match it is not in.
+	 */
+	| { type: 'LEAVE_GAME' }
 	/**
 	 * This device is reading the tale aloud — or has stopped.
 	 *
@@ -91,8 +100,16 @@ export type ServerEvent =
 	 * tap that completes the set would tell nobody that the count had begun.
 	 */
 	| { type: 'START_COUNTDOWN'; startsAt: number }
-	/** Back to the lobby, same code, same people, nothing else carried over. */
-	| { type: 'MATCH_RESET'; game: GameSnapshot }
+	/**
+	 * Somebody left, and what became of their seat.
+	 *
+	 * Carries a snapshot because the seat itself changed shape: in the lobby the
+	 * player is gone and everyone behind them has shuffled up a seat, and in a
+	 * match the same seat is still there but a bot is walking it now. `replaced`
+	 * is which of the two happened — the client has no business deriving that from
+	 * two snapshots.
+	 */
+	| { type: 'PLAYER_LEFT'; playerId: string; name: string; replaced: boolean; game: GameSnapshot }
 	/** A new round. `order` is the sequence agents take their turns in. */
 	| { type: 'ROUND_STARTED'; round: number; order: string[]; game: GameSnapshot }
 	/** The spotlight moves to one agent; its whole attempt follows. */

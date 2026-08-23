@@ -51,7 +51,10 @@ export function attachHub(
 	// The longest a beat will hold for a phone reading the tale aloud. A ceiling,
 	// not a duration: it is only ever reached by a phone that stopped answering.
 	const ceiling = Number(env.SPEECH_CEILING_MS) > 0 ? Number(env.SPEECH_CEILING_MS) : 30_000;
-	const hub = new Hub(brain, paceScale, ceiling);
+	// How long a match waits for the people who are not there before it hands
+	// their seats to bots — or, if nobody is left at all, shuts itself down.
+	const grace = Number(env.ABSENCE_GRACE_MS) > 0 ? Number(env.ABSENCE_GRACE_MS) : 90_000;
+	const hub = new Hub(brain, paceScale, ceiling, grace);
 
 	// Matches outlive the process now. Editing anything under `src/lib/server/`
 	// still restarts the dev server, but it no longer costs anyone their match.

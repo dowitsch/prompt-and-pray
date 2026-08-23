@@ -1,13 +1,19 @@
 <script lang="ts">
 	/**
-	 * The global menu. Both destructive items go through a second confirmation,
-	 * because one stray tap should not end three other people's match.
+	 * The global menu. Its one destructive item goes through a second confirmation,
+	 * because one stray tap should not walk you out of a round you are winning.
+	 *
+	 * There used to be two of them — "new round" and "play again" — and between
+	 * them they meant three different things depending on which screen you were
+	 * looking at, one of which was "drag everybody back to a lobby". Leaving is now
+	 * the only way out and it means one thing everywhere: you are out, and your
+	 * seat carries on without you.
 	 *
 	 * Three of the items are switches rather than actions, and they are the reason
 	 * this sheet does not close on a tap: sound is something you adjust while
 	 * listening to it, and a menu that shut itself after every tap would make
 	 * turning the music down a matter of reopening it. They sit below the rules so
-	 * the destructive pair stays where the hand already knows to find it.
+	 * the one destructive item stays where the hand already knows to find it.
 	 *
 	 * "Story & language" only appears before a match exists: inside one the
 	 * language is fixed, and it has to be — players write their agent's memory by
@@ -29,18 +35,11 @@
 	const items = $derived(
 		[
 			{
-				key: 'new',
-				icon: 'newRound' as const,
-				label: t.newRound,
+				key: 'leave',
+				icon: 'leave' as const,
+				label: t.leaveRound,
 				on: null,
-				run: () => ask('new-round')
-			},
-			{
-				key: 'again',
-				icon: 'again' as const,
-				label: t.playAgain,
-				on: null,
-				run: () => ask('play-again')
+				run: () => ask('leave-round')
 			},
 			{
 				key: 'rules',

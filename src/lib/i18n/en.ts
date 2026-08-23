@@ -140,6 +140,9 @@ export const en: Strings = {
 		sabotagedBody: '{actor} rewrote line {line}: "{before}" became "{after}".',
 		joinedTitle: 'ANOTHER TELLER',
 		joinedBody: '{name} joined the tale.',
+		leftTitle: 'AN EMPTY CHAIR',
+		leftBody: '{name} left the round.',
+		replacedBody: '{name} left — their agent is on its own now.',
 		reconnecting: 'The thread broke — finding it again',
 		offline: 'The thread is lost — reload to begin again'
 	},
@@ -152,6 +155,9 @@ export const en: Strings = {
 		codeSubmit: 'Join',
 		cameraBlocked: 'No camera here. Type the code of the round instead.',
 		showQr: 'Show the QR code',
+		scanToJoin: 'Friends can join you by scanning this',
+		invite: 'Invite',
+		hereCount: '{n} of {total} here',
 		forward: 'Onward',
 		menu: 'Menu',
 		readAloud: 'Read the tale aloud',
@@ -213,8 +219,7 @@ export const en: Strings = {
 	},
 	menu: {
 		title: 'Menu',
-		newRound: 'New round',
-		playAgain: 'Play again',
+		leaveRound: 'Leave the round',
 		showRules: 'Show the rules',
 		readAloud: 'Read the tale aloud',
 		backgroundMusic: 'Background music',
@@ -230,8 +235,7 @@ export const en: Strings = {
 		]
 	},
 	confirm: {
-		newRound: 'End your current round?',
-		playAgain: 'Back to the lobby?',
+		leaveRound: 'Leave this round?',
 		inject: 'Replace \u201C{before}\u201D with \u201C{after}\u201D?',
 		yes: 'Yes',
 		no: 'No'
@@ -239,7 +243,7 @@ export const en: Strings = {
 	end: {
 		wins: '{name} wins',
 		youWin: 'You win',
-		playAgain: 'Play again',
+		leaveRound: 'Leave the round',
 		close: 'Close'
 	},
 	headlines: {

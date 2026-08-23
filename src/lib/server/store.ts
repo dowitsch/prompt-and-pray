@@ -66,6 +66,17 @@ export function getGame(code: string): Game | undefined {
 	return games.get(code.trim().toUpperCase());
 }
 
+/**
+ * Is this object still the live match for its code?
+ *
+ * Asked by the hub before it writes: a match that has been shut down can still
+ * be referenced by a round loop that has not noticed yet, and saving from one of
+ * those would put the match it just deleted straight back into the database.
+ */
+export function isLive(game: Game): boolean {
+	return games.get(game.code) === game;
+}
+
 export function deleteGame(code: string): void {
 	games.delete(code);
 	deleteMatch(getDb(), code);

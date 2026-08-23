@@ -268,6 +268,62 @@ export class Game {
 		return player;
 	}
 
+	/**
+	 * Somebody walked away before the match began: their seat goes with them.
+	 *
+	 * Lobby only, and the phase check is the whole reason there are two of these.
+	 * Nothing has happened yet, so there is nothing to preserve — the honest
+	 * result is a lobby of three rather than a lobby of four with a ghost in it,
+	 * and empty seats are filled with rivals when the match starts anyway.
+	 *
+	 * Seats are renumbered, because `seat` is a position in the row of people and
+	 * not an identity: a gap in it shows up as a hole in the lobby strip. The host
+	 * moves on to whoever is now first, so a host leaving cannot wedge a lobby.
+	 */
+	removePlayer(id: string): Player {
+		if (this.phase !== 'lobby') throw new GameError('The match has already started.');
+		const index = this.players.findIndex((p) => p.id === id);
+		if (index === -1) throw new GameError('Unknown player.');
+
+		const [gone] = this.players.splice(index, 1);
+		this.players.forEach((player, seat) => (player.seat = seat));
+		if (this.hostId === id) this.hostId = this.players[0]?.id ?? '';
+		return gone;
+	}
+
+	/**
+	 * Somebody walked away mid-match: a simulated operator takes over the seat.
+	 *
+	 * The opposite call to `removePlayer`, and for the opposite reason — here
+	 * there *is* something to preserve. The agent has walked somewhere, its
+	 * memory has lines in it that other people's recaps refer to by name, and it
+	 * may be the one that reaches home. Taking the seat off the board mid-round
+	 * would rewrite all of that; handing it to a bot changes nothing except who
+	 * writes the next twenty characters.
+	 *
+	 * Kept, deliberately: the name and the colour. Past round summaries and
+	 * sabotaged lines store the name as it was, and the whole board uses the
+	 * colour to mean this seat — renaming or recolouring it now would read as a
+	 * different player having done all of it.
+	 *
+	 * `ready` is cleared rather than set: the bot has not written its note yet,
+	 * and a seat that claimed to be done teaching the moment it changed hands
+	 * would cut the interval short for everyone else.
+	 */
+	replaceWithBot(id: string, traits: BotTraits): Player {
+		const player = this.getPlayer(id);
+		if (player.isBot) return player;
+
+		player.isBot = true;
+		player.botSkill = traits.skill;
+		player.botSabotages = traits.sabotages;
+		// Bots are always present. This is what stops `allReady` from going on
+		// excusing the seat now that something is actually driving it.
+		player.connected = true;
+		player.ready = false;
+		return player;
+	}
+
 	setReady(id: string, ready: boolean): void {
 		this.getPlayer(id).ready = ready;
 	}
@@ -368,54 +424,6 @@ export class Game {
 		this.startedAt = Date.now();
 		this.startsAt = 0;
 		this.markVisited(this.story.startNode);
-	}
-
-	/**
-	 * Play the same land again, with the same people and the same code.
-	 *
-	 * Every field is named explicitly rather than reconstructing the object,
-	 * because the ones that matter most are private and a partial reset leaks
-	 * them. `reveal` above all: carrying it over would hand the new match the
-	 * previous match's fog, which is to say the answer.
-	 *
-	 * A no-op when already in the lobby — four players tapping "play again" at
-	 * once must not produce three error toasts.
-	 */
-	rematch(): void {
-		if (this.phase === 'lobby') return;
-		if (this.phase === 'running' || this.phase === 'teaching') {
-			throw new GameError('The match is still going.');
-		}
-
-		this.phase = 'lobby';
-		this.round = 0;
-		this.teachingEndsAt = 0;
-		this.startsAt = 0;
-		this.winnerIds = [];
-		this.lastSummary = null;
-		this.startedAt = 0;
-
-		// The private half. Forgetting any of these is a silent bug rather than a
-		// broken screen.
-		this.reveal = { visitedNodes: [], takenChoices: {} };
-		this.familiarNodes.clear();
-		this.provenSafe.clear();
-		this.previousDeaths.clear();
-		this.memoryLineSeq = 0;
-
-		for (const player of this.players) {
-			player.memory = [];
-			player.runs = [];
-			player.runCount = 0;
-			player.sabotageUsed = false;
-			player.wasSabotaged = false;
-			player.sabotagedThisRound = false;
-			player.pendingGrants = 0;
-			player.ready = false;
-			// A plain fresh agent: unlike the restore path, `bestDepth` goes back to
-			// zero. Nobody has been anywhere yet.
-			player.agent = this.freshAgent();
-		}
 	}
 
 	/* -------------------------------------------------------------- rounds */

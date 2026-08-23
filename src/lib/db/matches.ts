@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, notInArray } from 'drizzle-orm';
 import { Game, type MatchState } from '../engine/game.ts';
 import type {
 	Agent,
@@ -84,6 +84,26 @@ export function saveMatch(db: Db, game: Game): void {
 			.returning({ id: t.matches.id })
 			.get();
 
+		/*
+		 * Seats that are no longer in the match.
+		 *
+		 * Somebody leaving a lobby takes their seat with them and everyone behind
+		 * them moves up one, and `match_players` is unique on (match, seat) — so
+		 * without this the shuffled-up rows collide with the row of the player who
+		 * left and the whole save throws. Their memory and runs cascade away.
+		 *
+		 * It has to happen before the upserts below for the same reason. Those then
+		 * write seats in ascending order into space this has just freed.
+		 */
+		const seated = state.players.map((player) => player.id);
+		tx.delete(t.matchPlayers)
+			.where(
+				seated.length
+					? and(eq(t.matchPlayers.matchId, match.id), notInArray(t.matchPlayers.playerId, seated))
+					: eq(t.matchPlayers.matchId, match.id)
+			)
+			.run();
+
 		// How far each player's history is already written. Runs are immutable once
 		// recorded, so without this watermark every beat of round thirty would
 		// re-offer all thirty rounds of decisions to be conflict-ignored, and the
@@ -124,6 +144,15 @@ export function saveMatch(db: Db, game: Game): void {
 				.onConflictDoUpdate({
 					target: [t.matchPlayers.matchId, t.matchPlayers.playerId],
 					set: {
+						// Both of these change *after* a player exists now: a seat moves up
+						// when somebody ahead of them leaves the lobby, and a seat somebody
+						// walked away from mid-match is taken over by a bot. Leaving either
+						// out of the update set means a restart hands the match back with
+						// the hole, or the departed human, still in it.
+						seat: player.seat,
+						isBot: player.isBot,
+						botSkill: player.botSkill ?? null,
+						botSabotages: player.botSabotages ?? false,
 						name: player.name,
 						character: player.character,
 						colour: player.colour,

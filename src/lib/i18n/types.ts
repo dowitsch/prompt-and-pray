@@ -182,6 +182,10 @@ export type Strings = {
 		sabotagedBody: string;
 		joinedTitle: string;
 		joinedBody: string;
+		/** Somebody left. One title, two bodies: the seat is gone, or it is a bot's now. */
+		leftTitle: string;
+		leftBody: string;
+		replacedBody: string;
 		reconnecting: string;
 		/** Terminal: retrying gave up and the page needs a reload. */
 		offline: string;
@@ -199,6 +203,12 @@ export type Strings = {
 		codeSubmit: string;
 		cameraBlocked: string;
 		showQr: string;
+		/** Under the code: what the thing above it is actually for. */
+		scanToJoin: string;
+		/** The label on the config screen's QR button. */
+		invite: string;
+		/** The seat strip's count, read out for anyone not counting discs. */
+		hereCount: string;
 		forward: string;
 		menu: string;
 		/** The lobby's speaker button, in both of its states. */
@@ -282,8 +292,14 @@ export type Strings = {
 	/** The global menu and its sheets. */
 	menu: {
 		title: string;
-		newRound: string;
-		playAgain: string;
+		/**
+		 * The one way out of a round, and the only destructive item in the menu.
+		 *
+		 * It replaced a pair — "new round" and "play again" — that between them meant
+		 * three different things depending on which screen you were on. Leaving means
+		 * one thing everywhere: you are out, and your seat carries on without you.
+		 */
+		leaveRound: string;
 		showRules: string;
 		/** The three switches. All are a property of this device and of nothing else. */
 		readAloud: string;
@@ -300,8 +316,7 @@ export type Strings = {
 		paragraphs: string[];
 	};
 	confirm: {
-		newRound: string;
-		playAgain: string;
+		leaveRound: string;
 		inject: string;
 		yes: string;
 		no: string;
@@ -309,7 +324,7 @@ export type Strings = {
 	end: {
 		wins: string;
 		youWin: string;
-		playAgain: string;
+		leaveRound: string;
 		close: string;
 	};
 

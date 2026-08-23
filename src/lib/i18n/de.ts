@@ -142,6 +142,9 @@ export const de: Strings = {
 		sabotagedBody: '{actor} schrieb Zeile {line} um: aus „{before}“ wurde „{after}“.',
 		joinedTitle: 'NOCH EIN ERZÄHLER',
 		joinedBody: '{name} ist der Geschichte beigetreten.',
+		leftTitle: 'EIN LEERER STUHL',
+		leftBody: '{name} hat die Runde verlassen.',
+		replacedBody: '{name} ist weg — der Agent ist jetzt auf sich allein gestellt.',
 		reconnecting: 'Der Faden riss — er wird wieder gesucht',
 		offline: 'Der Faden ist verloren — neu laden, um neu zu beginnen'
 	},
@@ -154,6 +157,9 @@ export const de: Strings = {
 		codeSubmit: 'Beitreten',
 		cameraBlocked: 'Keine Kamera verf\u00fcgbar. Gib stattdessen den Code der Runde ein.',
 		showQr: 'QR-Code zeigen',
+		scanToJoin: 'Freunde können dir durch Scannen beitreten',
+		invite: 'Einladen',
+		hereCount: '{n} von {total} da',
 		forward: 'Weiter',
 		menu: 'Men\u00fc',
 		readAloud: 'Geschichte vorlesen',
@@ -216,8 +222,7 @@ export const de: Strings = {
 	},
 	menu: {
 		title: 'Men\u00fc',
-		newRound: 'Neue Runde',
-		playAgain: 'Erneut spielen',
+		leaveRound: 'Runde verlassen',
 		showRules: 'Spielregeln anzeigen',
 		readAloud: 'Geschichte vorlesen',
 		backgroundMusic: 'Hintergrundmusik',
@@ -233,8 +238,7 @@ export const de: Strings = {
 		]
 	},
 	confirm: {
-		newRound: 'Deine aktuelle Runde beenden?',
-		playAgain: 'In die Lobby zur\u00fcckkehren?',
+		leaveRound: 'Diese Runde wirklich verlassen?',
 		inject: '\u00ab{before}\u00bb durch \u00ab{after}\u00bb ersetzen?',
 		yes: 'Ja',
 		no: 'Nein'
@@ -242,7 +246,7 @@ export const de: Strings = {
 	end: {
 		wins: '{name} gewinnt',
 		youWin: 'Du gewinnst',
-		playAgain: 'Erneut spielen',
+		leaveRound: 'Runde verlassen',
 		close: 'Schlie\u00dfen'
 	},
 	headlines: {

@@ -16,7 +16,7 @@
 import { CHARACTER_COUNT } from './identity';
 
 export type Overlay = 'menu' | 'rules' | 'confirm' | 'scan' | 'settings' | null;
-export type Confirm = 'new-round' | 'play-again' | 'inject' | null;
+export type Confirm = 'leave-round' | 'inject' | null;
 /** Which of the two pre-match screens is showing, before a lobby exists. */
 export type Stage = 'config' | 'qr';
 /** Which screen the lobby route is showing. */

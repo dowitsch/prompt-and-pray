@@ -16,6 +16,8 @@
 	 * camera has gone on following the turn the whole time you were reading, so
 	 * there is nothing to catch up on.
 	 */
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { conn } from '$lib/client/connection.svelte';
 	import { closeOverlay, ui } from '$lib/client/ui.svelte';
 	import MapScreen from '$lib/components/pp/screens/MapScreen.svelte';
@@ -48,10 +50,14 @@
 	{/if}
 
 	{#if finished}
+		<!-- The card's one button. The match is over; the front door opens a new one. -->
 		<EndCard
-			onPlayAgain={() => {
-				conn.playAgain();
+			onLeave={() => {
+				conn.leaveGame();
 				closeOverlay();
+				ui.lobbyView = 'qr';
+				ui.configured = false;
+				void goto(resolve('/'));
 			}}
 		/>
 	{/if}

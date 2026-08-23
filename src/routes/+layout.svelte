@@ -7,8 +7,8 @@
 	 * phone reads as a rendering bug rather than as a message.
 	 *
 	 * The menu and its sheets are here rather than in a screen because the brief
-	 * asks for them to be reachable from everywhere, and because both destructive
-	 * items have to work identically whether you are in a lobby or mid-round.
+	 * asks for them to be reachable from everywhere, and because leaving the round
+	 * has to work identically whether you are in a lobby or mid-match.
 	 *
 	 * The story designer opts out of all of it: it has its own layout and its own
 	 * look, and it is not played on a phone.
@@ -64,8 +64,7 @@
 
 	const confirmQuestion = $derived.by(() => {
 		const t = conn.t.confirm;
-		if (ui.confirm === 'new-round') return t.newRound;
-		if (ui.confirm === 'play-again') return t.playAgain;
+		if (ui.confirm === 'leave-round') return t.leaveRound;
 		if (ui.confirm === 'inject') {
 			const target = conn.game?.players
 				.find((p) => p.id === ui.selectedId)
@@ -75,9 +74,31 @@
 		return '';
 	});
 
-	/** Leave this round entirely and open a fresh one. */
+	/**
+	 * Out of this round, and back to the front door — which opens one of its own.
+	 *
+	 * The table is told, rather than the tab quietly going quiet: the seat is taken
+	 * over by a bot so the round you were in carries on being a round, and a match
+	 * you were the last one at is shut down instead of being left to play itself.
+	 */
+	function leaveRound() {
+		conn.leaveGame();
+		closeOverlay();
+		ui.configured = false;
+		ui.lobbyView = 'qr';
+		void goto(resolve('/'));
+	}
+
+	/**
+	 * The same exit, except a tale has been picked on the way out.
+	 *
+	 * Neither the story nor the language can change under a match that already
+	 * exists (see `SettingsSheet`), so choosing one is choosing to be somewhere
+	 * else — and the front door would open the *previous* tale, which is why this
+	 * asks for the new round itself rather than navigating.
+	 */
 	function newRound(slug?: string, locale?: Locale) {
-		conn.leave();
+		conn.leaveGame();
 		if (locale) conn.setPreference(locale);
 		closeOverlay();
 		ui.configured = false;
@@ -86,12 +107,7 @@
 	}
 
 	function confirmYes() {
-		if (ui.confirm === 'new-round') return newRound();
-		if (ui.confirm === 'play-again') {
-			conn.playAgain();
-			closeOverlay();
-			return;
-		}
+		if (ui.confirm === 'leave-round') return leaveRound();
 		if (ui.confirm === 'inject') {
 			const target = conn.game?.players.find((p) => p.id === ui.selectedId);
 			const index = target?.memory.findIndex((line) => line.id === ui.injectLineId) ?? -1;

@@ -147,10 +147,10 @@ function atTheTable(): boolean {
 /**
  * How many bubbles stand on the map at once.
  *
- * Three is a turn: the question, the answer, and what came of it. A fourth would
- * start covering the land the bubbles are meant to be about.
+ * Two: the line being said now and the one it answers. A third starts covering
+ * the land the bubbles are meant to be about.
  */
-const BUBBLE_DEPTH = 3;
+const BUBBLE_DEPTH = 2;
 
 const STORAGE_PLAYER = 'homeward:playerId';
 const STORAGE_LOCALE = 'homeward:locale';
@@ -182,11 +182,11 @@ export class Connection {
 	/**
 	 * The last few things said this turn, oldest first.
 	 *
-	 * A short fading history rather than one bubble at a time. A turn is a beat of
-	 * three — here is the fork, here is what I make of it, here is what it cost —
-	 * and replacing each with the next threw away the first two before you could
-	 * put them together. Held as a stack they read as one thought, with the older
-	 * lines dimming out of the way rather than vanishing.
+	 * A short fading history rather than one bubble at a time. A line only means
+	 * something next to the one before it — the fork and what the agent made of
+	 * it — and replacing each with the next threw the first away before you could
+	 * put the two together. Held as a pair they read as one thought, with the
+	 * older line dimming out of the way rather than vanishing.
 	 *
 	 * Capped, because this is a map with a story on it and not a log: past
 	 * `BUBBLE_DEPTH` the oldest line has faded to nothing anyway.
@@ -259,6 +259,16 @@ export class Connection {
 	private seq = 0;
 	private retry = 0;
 	private closing = false;
+	/**
+	 * True between saying LEAVE_GAME and the server's answer to it.
+	 *
+	 * That answer is an empty `STATE_SYNC` — which is also what a client holding a
+	 * code the server has never heard of gets told, and *that* case has to bounce
+	 * you to the front door. This is what tells the two apart: leaving on purpose
+	 * must not start a navigation of its own, because whoever asked to leave is
+	 * already going somewhere.
+	 */
+	private leaving = false;
 
 	/* --------------------------------------------------------------- derived */
 
@@ -304,6 +314,8 @@ export class Connection {
 		socket.addEventListener('open', () => {
 			this.status = 'open';
 			this.retry = 0;
+			// A fresh socket is not mid-departure, whatever the last one was doing.
+			this.leaving = false;
 			this.send({
 				type: 'HELLO',
 				playerId: sessionStorage.getItem(STORAGE_PLAYER),
@@ -373,9 +385,18 @@ export class Connection {
 		this.send({ type: 'CONFIGURE', ...patch });
 	}
 
-	/** Same land, same people, same code. */
-	playAgain(): void {
-		this.send({ type: 'PLAY_AGAIN' });
+	/**
+	 * Leave the round. The only way out of one, and it is one-way.
+	 *
+	 * Both halves in one call, in this order: the table is told while the socket
+	 * still knows which table it is, and then this device forgets the match. What
+	 * happens next is the caller's — the menu and the end card both send you to the
+	 * front door, which opens a fresh round of its own.
+	 */
+	leaveGame(): void {
+		this.leaving = true;
+		this.send({ type: 'LEAVE_GAME' });
+		this.leave();
 	}
 
 	setReady(ready: boolean): void {
@@ -553,11 +574,15 @@ export class Connection {
 			case 'STATE_SYNC': {
 				this.synced = true;
 				if (!event.game || !event.you) {
+					const deliberate = this.leaving;
+					this.leaving = false;
 					// The server has no memory of us — start over from the front door.
 					// Only from a table we were supposedly sitting at: this connection is
 					// opened on every page, and pages that are not the game (the story
-					// designer, say) have no business being redirected by it.
-					if (browser && atTheTable()) {
+					// designer, say) have no business being redirected by it. And only if
+					// this is news: the answer to LEAVE_GAME says the same thing, and
+					// there the caller is already on its way somewhere.
+					if (!deliberate && browser && atTheTable()) {
 						this.leave();
 						void goto(resolve('/'));
 					}
@@ -615,13 +640,17 @@ export class Connection {
 				return;
 			}
 
-			case 'MATCH_RESET': {
+			case 'PLAYER_LEFT': {
+				// The snapshot, not a patch: in the lobby the seats behind them have all
+				// moved up, so the row of people is a different row of people.
 				this.game = event.game;
-				this.forgetStory();
-				if (browser && atTheTable()) {
-					const target = resolve('/lobby/[code]', { code: event.game.code });
-					if (location.pathname !== target) void goto(target);
-				}
+				this.notify(
+					this.t.toast.leftTitle,
+					fmt(event.replaced ? this.t.toast.replacedBody : this.t.toast.leftBody, {
+						name: event.name
+					}),
+					'danger'
+				);
 				return;
 			}
 

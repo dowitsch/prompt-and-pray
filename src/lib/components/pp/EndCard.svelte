@@ -10,10 +10,10 @@
 	 * what you had written. That is the part players actually talk about
 	 * afterwards, and the design's card had nowhere to put it, so it scrolls.
 	 *
-	 * There is no way out of it but "play again", which is the revised design's call
-	 * and the right one: dismissing it left you looking at a finished board with a
-	 * dead clock and no way back to the card, which read as the app having lost the
-	 * result. The match is over — the only thing left to do is start another.
+	 * There is one way out of it, and it is the door: dismissing it left you looking
+	 * at a finished board with a dead clock and no way back to the card, which read
+	 * as the app having lost the result. The match is over — the only thing left to
+	 * do is leave it, which lands you at a fresh round of your own.
 	 */
 	import CharacterCard from './CharacterCard.svelte';
 	import Icon from './Icon.svelte';
@@ -22,8 +22,8 @@
 	import { fmt } from '$lib/i18n';
 	import { PLAYER_COLORS } from '$lib/client/theme';
 
-	type Props = { onPlayAgain: () => void };
-	let { onPlayAgain }: Props = $props();
+	type Props = { onLeave: () => void };
+	let { onLeave }: Props = $props();
 
 	const t = $derived(conn.t.end);
 	const tv = $derived(conn.t.victory);
@@ -63,13 +63,13 @@
 
 			<button
 				type="button"
-				onclick={onPlayAgain}
+				onclick={onLeave}
 				class="flex h-[74px] w-full items-center justify-center gap-4 rounded-[22px] bg-dark
 					shadow-[0_16px_34px_rgba(28,31,34,0.3)] transition hover:-translate-y-0.5
 					hover:bg-[#2A2E31]"
 			>
-				<span class="display text-2xl text-white">{t.playAgain}</span>
-				<Icon name="again" size={22} width={2.4} colour="#fff" />
+				<span class="display text-2xl text-white">{t.leaveRound}</span>
+				<Icon name="leave" size={22} width={2.4} colour="#fff" />
 			</button>
 
 			<!-- What happened, for the argument afterwards. -->

@@ -92,16 +92,22 @@ export class SpeechGate {
 	}
 
 	/**
-	 * The match is over, or starting again. Release anything still outstanding
-	 * rather than leave a runner holding a promise nobody will ever resolve.
+	 * The match is over. Release anything still outstanding rather than leave a
+	 * runner holding a promise nobody will ever resolve.
 	 *
-	 * Deliberately does *not* forget who is listening. Reading the tale aloud is a
-	 * property of the phone, not of the match — the same people with the same
-	 * phones are about to play the same land again, and making them re-announce
-	 * themselves would silence the rematch until they did.
+	 * Deliberately does *not* forget who is listening: reading the tale aloud is a
+	 * property of the phone rather than of the match, and those phones are still
+	 * in the same hands. `forget` is the one that clears them, and it is only
+	 * called when the match itself is going away.
 	 */
 	release(code: string): void {
 		this.settle(code);
+	}
+
+	/** The match is gone. Nobody is listening to it, and nothing is waited for. */
+	forget(code: string): void {
+		this.settle(code);
+		this.voiced.delete(code);
 	}
 
 	/**

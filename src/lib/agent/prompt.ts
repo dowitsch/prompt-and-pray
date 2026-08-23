@@ -17,6 +17,15 @@ import { personaDoctrine } from './personas.ts';
  * of four figures it is — which is why, before this, four agents sounded like one
  * voice with a temperature jitter on top.
  *
+ * The voice is asked for three times over, and that repetition is the design.
+ * `reasoning` is the only field a player ever reads — it is the line in the
+ * speech bubble on the map — so a flat, narrator-ish sentence there undoes all
+ * four doctrines no matter how sharply they are written. So: the shared rules say
+ * it must sound like the figure, each doctrine says what that figure's voice
+ * *is* and shows it twice, and `instruction` says it once more as the very last
+ * line before the question. The last one is the cheap one and probably the most
+ * effective, for the same reason the figure is named again in the user prompt.
+ *
  * The response contract gained a field, and its **position** is the point:
  * a model writes JSON in order, so `notes` before `choice` means it has to say
  * which note applies before it is allowed to commit to a road. That ordering is
@@ -62,12 +71,15 @@ const PROMPTS: Record<Locale, PromptStrings> = {
 			'Reply with ONLY a JSON object, no other text, with exactly these three fields in exactly',
 			'this order:',
 			'{"notes": "<which note applies here, or \'none\'>", "choice": "<path id>", ' +
-				'"reasoning": "<one short first-person sentence, max 20 words>"}',
+				'"reasoning": "<one short first-person sentence in your own voice, max 20 words>"}',
 			'',
 			'Write "notes" BEFORE "choice": check first, then commit.',
 			'"notes" is ONE short line — at most 15 words, no line breaks, no numbered list.',
 			'"choice" MUST be copied exactly from the list of path ids you are given.',
-			'Write "notes" and "reasoning" in English.'
+			'Write "notes" and "reasoning" in English.',
+			'"reasoning" MUST sound strongly like the personality of the agent you are: it is that',
+			'figure speaking out loud, in character, and it should be enjoyable to read. Never a',
+			'neutral narrator, never a flat restatement of the rule you just applied.'
 		].join('\n'),
 		neutral: [
 			'',
@@ -80,7 +92,7 @@ const PROMPTS: Record<Locale, PromptStrings> = {
 		memoryEmpty: '(empty — nothing has ever been written down for you)',
 		attempt: 'THIS ATTEMPT SO FAR',
 		attemptNone: '(you have only just set out)',
-		instruction: 'Choose one path id.',
+		instruction: 'Choose one path id. Make "reasoning" sound unmistakably like you.',
 		fallbackReason: 'I follow my notes.'
 	},
 	de: {
@@ -100,12 +112,15 @@ const PROMPTS: Record<Locale, PromptStrings> = {
 			'Antworte NUR mit einem JSON-Objekt, ohne weiteren Text, mit genau diesen drei Feldern in',
 			'genau dieser Reihenfolge:',
 			'{"notes": "<welche Notiz hier gilt, oder \'keine\'>", "choice": "<Weg-ID>", ' +
-				'"reasoning": "<ein kurzer Satz in der Ich-Form, höchstens 20 Wörter>"}',
+				'"reasoning": "<ein kurzer Satz in der Ich-Form, in deiner eigenen Stimme, höchstens 20 Wörter>"}',
 			'',
 			'Schreibe "notes" VOR "choice": erst prüfen, dann festlegen.',
 			'"notes" ist EINE kurze Zeile — höchstens 15 Wörter, keine Zeilenumbrüche, keine Aufzählung.',
 			'"choice" MUSS exakt aus der Liste der Weg-IDs übernommen werden.',
-			'Schreibe "notes" und "reasoning" auf Deutsch.'
+			'Schreibe "notes" und "reasoning" auf Deutsch.',
+			'"reasoning" MUSS stark der Persönlichkeit des Agenten entsprechen: dort spricht diese Figur',
+			'selbst, in ihrer Rolle, und es soll Spaß machen, das zu lesen. Niemals ein neutraler',
+			'Erzähler, niemals eine blasse Wiederholung der Regel, die du gerade angewendet hast.'
 		].join('\n'),
 		neutral: [
 			'',
@@ -118,7 +133,7 @@ const PROMPTS: Record<Locale, PromptStrings> = {
 		memoryEmpty: '(leer — es wurde nie etwas für dich aufgeschrieben)',
 		attempt: 'DIESER VERSUCH BISHER',
 		attemptNone: '(du bist gerade erst aufgebrochen)',
-		instruction: 'Wähle eine Weg-ID.',
+		instruction: 'Wähle eine Weg-ID. Lass "reasoning" unverkennbar nach dir klingen.',
 		fallbackReason: 'Ich folge meinen Notizen.'
 	}
 };

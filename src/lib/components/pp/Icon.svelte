@@ -20,7 +20,7 @@
 		| 'down'
 		| 'close'
 		| 'again'
-		| 'newRound'
+		| 'leave'
 		| 'info'
 		| 'question'
 		| 'cross'
@@ -53,7 +53,8 @@
 		down: ['M12 4v15', 'M5 12.5l7 7 7-7'],
 		close: ['M5 5l14 14M19 5L5 19'],
 		again: ['M20 12a8 8 0 10-3 6.2', 'M20 5v5h-5'],
-		newRound: ['M8.5 8.5l6 6', 'M18.5 6.5v6.5', 'M6.5 18.5h6.5'],
+		// A door left open, and the way out of it.
+		leave: ['M12 4H5v16h7', 'M10.5 12H21', 'M16.5 7.5L21 12l-4.5 4.5'],
 		cross: ['M6 6l12 12M18 6L6 18'],
 		// A folded map: three creases and a route across it.
 		map: ['M3 6.5l6-2.5 6 2.5 6-2.5v15l-6 2.5-6-2.5-6 2.5z', 'M9 4v15', 'M15 6.5v15']

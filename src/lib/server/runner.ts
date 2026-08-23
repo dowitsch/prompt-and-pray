@@ -159,6 +159,23 @@ export class MatchRunner {
 		this.bots.set(controller.playerId, controller);
 	}
 
+	/**
+	 * A seat changed hands mid-match: this is what now drives it.
+	 *
+	 * `registerBot` is enough for a seat that was a bot when the match began,
+	 * because `openTeaching` schedules every registered bot as the interval opens.
+	 * A seat handed over *during* an interval has already missed that, and would
+	 * sit there not writing its note until the hard deadline — so it is scheduled
+	 * here instead, exactly as the interval would have.
+	 */
+	adoptBot(controller: BotController): void {
+		this.registerBot(controller);
+		if (this.stopped || this.game.phase !== 'teaching') return;
+
+		const player = this.game.players.find((p) => p.id === controller.playerId);
+		if (player) this.later(() => this.botTurn(player, controller), controller.thinkTime());
+	}
+
 	/** Round one starts immediately — nobody has anything to teach yet. */
 	startMatch(): void {
 		void this.runRound();

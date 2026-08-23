@@ -210,7 +210,16 @@
 		{/each}
 	</fieldset>
 
-	<div class="absolute right-6 bottom-[76px] left-[110px]">
+	<!--
+		Twelve pixels higher than the drawing has it, on this screen and on the
+		lobby both. The invite button below is a labelled pill now rather than a
+		54px square, and at "Einladen" it reaches far enough right to pass under
+		this one — six pixels of overlap, which is exactly the kind of thing that
+		reads as a broken layout. Moved on both screens rather than one, because
+		they cross-fade into each other and a button that slides is worse than a
+		button that sits slightly high.
+	-->
+	<div class="absolute right-6 bottom-[88px] left-[110px]">
 		<button
 			type="button"
 			data-shot="config-done"
@@ -224,14 +233,21 @@
 		</button>
 	</div>
 
+	<!--
+		Named, not just drawn. A bare QR glyph reads as "look at a code"; what it
+		actually does from here is fetch the people you are about to play with, and
+		this is the screen where somebody is deciding who they are rather than
+		looking for a way out of it.
+	-->
 	<button
 		type="button"
+		data-shot="config-invite"
 		onclick={onShowQr}
-		aria-label={conn.t.pp.showQr}
-		class="absolute bottom-7 left-6 grid h-[54px] w-[54px] place-items-center rounded-2xl bg-white
+		class="absolute bottom-7 left-6 flex h-[54px] items-center gap-2.5 rounded-2xl bg-white px-4
 			shadow-[0_10px_22px_rgba(28,31,34,0.25)] transition hover:-translate-y-0.5
 			hover:bg-[#F2F2F2]"
 	>
 		<Icon name="qr" size={24} colour="#1C1F22" />
+		<span class="display text-[15px] text-dark">{conn.t.pp.invite}</span>
 	</button>
 </div>
