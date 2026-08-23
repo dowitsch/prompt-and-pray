@@ -32,24 +32,35 @@ let failed = 0;
 
 const { db, close } = openDb(process.env.DATABASE_PATH ?? './data/homeward.db');
 
-const stories: Record<Locale, StoryGraph> = {
-	en: loadStory(db, 'homeward-en'),
-	de: loadStory(db, 'homeward-de')
+/**
+ * The tales the note cases are written against.
+ *
+ * HOMEWARD is where the mechanics themselves are checked. THE SHORTCUT is the
+ * demo tale, and it is here for a reason of its own: its roads are named so that
+ * how a name *sounds* says nothing about where it leads. That deliberately takes
+ * away the one thing a player could fall back on if notes stopped working, so a
+ * broken note there is a broken game rather than a harder one.
+ */
+const stories: Record<'homeward' | 'shortcut', Record<Locale, StoryGraph>> = {
+	homeward: { en: loadStory(db, 'homeward-en'), de: loadStory(db, 'homeward-de') },
+	shortcut: { en: loadStory(db, 'shortcut-en'), de: loadStory(db, 'shortcut-de') }
 };
+
+type Tale = keyof typeof stories;
 
 /**
  * Find a place by the ways that lead out of it.
  *
- * Node ids are database rows and differ between the two seeded stories, so the
- * test cannot name one directly. Naming a place by what it offers — "the place
- * where River, Forest and Volcano are on offer" — is stable, and states the
- * thing the test actually depends on.
+ * Node ids are database rows and differ between the seeded stories, so the test
+ * cannot name one directly. Naming a place by what it offers — "the place where
+ * River, Forest and Volcano are on offer" — is stable, and states the thing the
+ * test actually depends on.
  */
-function placeOffering(locale: Locale, slugs: string[]): StoryNode {
-	const node = Object.values(stories[locale].nodes).find((n) =>
+function placeOffering(tale: Tale, locale: Locale, slugs: string[]): StoryNode {
+	const node = Object.values(stories[tale][locale].nodes).find((n) =>
 		slugs.every((slug) => n.choices.some((c) => c.slug === slug))
 	);
-	if (!node) throw new Error(`No ${locale} place offers ${slugs.join(', ')}.`);
+	if (!node) throw new Error(`No ${locale} place in "${tale}" offers ${slugs.join(', ')}.`);
 	return node;
 }
 
@@ -68,6 +79,7 @@ function ask(locale: Locale, here: StoryNode, memory: string[], pathSoFar: strin
 }
 
 async function expect(
+	tale: Tale,
 	locale: Locale,
 	offers: string[],
 	memory: string[],
@@ -75,7 +87,7 @@ async function expect(
 	why: string,
 	pathSoFar: string[] = []
 ): Promise<void> {
-	const decision = await ask(locale, placeOffering(locale, offers), memory, pathSoFar);
+	const decision = await ask(locale, placeOffering(tale, locale, offers), memory, pathSoFar);
 
 	const ok = decision.choice === want;
 	if (ok) passed++;
@@ -93,13 +105,14 @@ async function expect(
  * is wanted — otherwise writing a useless note would replay an identical round.
  */
 async function expectNoDirective(
+	tale: Tale,
 	locale: Locale,
 	offers: string[],
 	memory: string[],
 	why: string,
 	pathSoFar: string[] = []
 ): Promise<void> {
-	const here = placeOffering(locale, offers);
+	const here = placeOffering(tale, locale, offers);
 	const decision = await ask(locale, here, memory, pathSoFar);
 
 	const claimed = here.choices.some((c) =>
@@ -116,14 +129,23 @@ const EN_START = ['river', 'forest', 'volcano'];
 const EN_FOREST = ['mountain', 'black-water', 'cave'];
 
 await expect(
+	'homeward',
 	'en',
 	EN_START,
 	['Volcano kills', 'River kills'],
 	'forest',
 	'warnings leave one way open'
 );
-await expect('en', EN_START, ['Forest is safe'], 'forest', 'a positive note points somewhere');
 await expect(
+	'homeward',
+	'en',
+	EN_START,
+	['Forest is safe'],
+	'forest',
+	'a positive note points somewhere'
+);
+await expect(
+	'homeward',
 	'en',
 	EN_FOREST,
 	['after forest go mountain'],
@@ -132,6 +154,7 @@ await expect(
 	['Forest']
 );
 await expectNoDirective(
+	'homeward',
 	'en',
 	EN_FOREST,
 	['after ferry go cave'],
@@ -146,16 +169,40 @@ const DE_MOUNTAIN = ['tal', 'brücke', 'tunnel'];
 const DE_VALLEY = ['obstgarten', 'grube', 'mühle'];
 
 await expect(
+	'homeward',
 	'de',
 	DE_START,
 	['Vulkan tötet', 'Fluss tötet'],
 	'wald',
 	'warnings leave one way open'
 );
-await expect('de', DE_START, ['Wald ist sicher'], 'wald', 'a positive note points somewhere');
-await expect('de', DE_MOUNTAIN, ['Brücke tötet', 'Tunnel tötet'], 'tal', 'umlauts match');
-await expect('de', DE_FOREST, ['nach Wald geh Berg'], 'berg', 'directive fires in place', ['Wald']);
 await expect(
+	'homeward',
+	'de',
+	DE_START,
+	['Wald ist sicher'],
+	'wald',
+	'a positive note points somewhere'
+);
+await expect(
+	'homeward',
+	'de',
+	DE_MOUNTAIN,
+	['Brücke tötet', 'Tunnel tötet'],
+	'tal',
+	'umlauts match'
+);
+await expect(
+	'homeward',
+	'de',
+	DE_FOREST,
+	['nach Wald geh Berg'],
+	'berg',
+	'directive fires in place',
+	['Wald']
+);
+await expect(
+	'homeward',
 	'de',
 	DE_VALLEY,
 	['nicht Grube', 'nicht Mühle'],
@@ -163,11 +210,57 @@ await expect(
 	'"nicht" reads as a warning'
 );
 await expectNoDirective(
+	'homeward',
 	'de',
 	DE_FOREST,
 	['nach Fähre geh Höhle'],
 	'a directive about elsewhere changes nothing here',
 	['Wald']
+);
+
+// --- THE SHORTCUT, the demo tale -----------------------------------------
+// Its roads are named so that tone and outcome are uncorrelated: the Ashpit is
+// the way on and the sunny Meadow is a grave, and at the very next place it is
+// the other way round. Nothing is left to guess with, so these two cases are the
+// whole of what makes that tale playable rather than a lottery.
+const SC_START_EN = ['meadow', 'ashpit', 'cairn'];
+const SC_DRAGON_EN = ['embers', 'courtesy', 'amber'];
+const SC_START_DE = ['sonnenhang', 'aschgrube', 'steinmal'];
+const SC_LANTERN_DE = ['docht', 'spiegelglas', 'abstieg'];
+
+await expect(
+	'shortcut',
+	'en',
+	SC_START_EN,
+	['Meadow kills', 'Cairn kills'],
+	'ashpit',
+	'the ominous-sounding road is the one the notes leave open'
+);
+await expect(
+	'shortcut',
+	'en',
+	SC_DRAGON_EN,
+	['after Wick Embers'],
+	'embers',
+	'a directive still fits in twenty characters',
+	['Wick']
+);
+await expect(
+	'shortcut',
+	'de',
+	SC_START_DE,
+	['Sonnenhang tot', 'Steinmal tot'],
+	'aschgrube',
+	'the ominous-sounding road is the one the notes leave open'
+);
+await expect(
+	'shortcut',
+	'de',
+	SC_LANTERN_DE,
+	['nach Modergang Docht'],
+	'docht',
+	'a directive still fits in twenty characters',
+	['Modergang']
 );
 
 // --- Every seeded story --------------------------------------------------
