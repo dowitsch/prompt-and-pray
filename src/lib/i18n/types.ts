@@ -288,6 +288,8 @@ export type Strings = {
 		theirNoNotes: string;
 		/** Backing out of a chosen sabotage target. */
 		cancelInject: string;
+		/** More than one line is owed. Takes {n}, how many. */
+		grantsLeft: string;
 	};
 	/** The global menu and its sheets. */
 	menu: {
@@ -301,11 +303,18 @@ export type Strings = {
 		 */
 		leaveRound: string;
 		showRules: string;
-		/** The three switches. All are a property of this device and of nothing else. */
+		/** The two switches. Both are a property of this device and of nothing else. */
 		readAloud: string;
-		backgroundMusic: string;
-		soundEffects: string;
-		storyAndLanguage: string;
+		/**
+		 * One row for everything the phone makes a noise about.
+		 *
+		 * Music and the short cues used to be two switches, and nobody ever wanted
+		 * one without the other — the choice being made here is "quiet or not".
+		 */
+		sound: string;
+		settings: string;
+		/** The heading the tales are gathered under inside the settings sheet. */
+		mapSection: string;
 		close: string;
 	};
 	rules: {

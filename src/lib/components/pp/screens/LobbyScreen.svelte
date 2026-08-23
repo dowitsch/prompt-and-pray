@@ -15,7 +15,6 @@
 	import Icon from '../Icon.svelte';
 	import DotMenu from '../DotMenu.svelte';
 	import { conn } from '$lib/client/connection.svelte';
-	import { audio } from '$lib/client/audio.svelte';
 	import { colorOf } from '$lib/client/identity';
 	import { clock, secondsUntil, tick } from '$lib/client/clock.svelte';
 	import { MAX_PLAYERS } from '$lib/engine/types';
@@ -118,45 +117,25 @@
 	</div>
 
 	<!--
-		Stacked rather than side by side: the ready button starts at 110px from the
-		left, which is not enough room for two of these next to each other, and the
-		column above the QR code is empty.
+		The same named pill as the config screen, in the same corner. These two
+		screens cross-fade into each other and the button does the same job on both,
+		so anything that made it change shape halfway through — a bare glyph here, a
+		label there — read as two different buttons.
 
-		The voice switch belongs here specifically. This is the last screen before
-		the tale begins, and reading it aloud is a decision about the tale — it
-		changes the pace of the whole thing for everyone at the table, so it wants
-		asking before the first agent sets out rather than discovering mid-round.
-		It stays reachable from the menu once one has.
+		The voice switch used to sit above it. Reading aloud is now one row in the
+		menu like the rest of the sound, which is the one place a player already
+		looks for it; a second copy of the same switch on one screen only made the
+		corner look like a control panel.
 	-->
-	<div class="absolute bottom-7 left-6 flex flex-col gap-3.5">
-		<button
-			type="button"
-			data-shot="voice"
-			onclick={() => conn.setVoice(!audio.voice)}
-			aria-pressed={audio.voice}
-			aria-label={audio.voice ? conn.t.pp.readAloudStop : conn.t.pp.readAloud}
-			class="grid h-[54px] w-[54px] place-items-center rounded-2xl transition
-				hover:-translate-y-0.5 {audio.voice
-				? 'bg-p1 shadow-[0_10px_22px_rgba(28,31,34,0.25)]'
-				: 'bg-white/15 hover:bg-white/25'}"
-		>
-			<Icon
-				name={audio.voice ? 'speaker' : 'speakerOff'}
-				size={24}
-				width={2.2}
-				colour={audio.voice ? '#1C1F22' : '#fff'}
-			/>
-		</button>
-
-		<button
-			type="button"
-			onclick={onShowQr}
-			aria-label={conn.t.pp.showQr}
-			class="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-white
-				shadow-[0_10px_22px_rgba(28,31,34,0.25)] transition hover:-translate-y-0.5
-				hover:bg-[#F2F2F2]"
-		>
-			<Icon name="qr" size={24} colour="#1C1F22" />
-		</button>
-	</div>
+	<button
+		type="button"
+		data-shot="lobby-invite"
+		onclick={onShowQr}
+		class="absolute bottom-7 left-6 flex h-[54px] items-center gap-2.5 rounded-2xl bg-white px-4
+			shadow-[0_10px_22px_rgba(28,31,34,0.25)] transition hover:-translate-y-0.5
+			hover:bg-[#F2F2F2]"
+	>
+		<Icon name="qr" size={24} colour="#1C1F22" />
+		<span class="display text-[15px] text-dark">{conn.t.pp.invite}</span>
+	</button>
 </div>

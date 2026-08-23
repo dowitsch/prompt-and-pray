@@ -215,16 +215,17 @@ export const en: Strings = {
 		poisonedBy: 'Overwritten by {name}',
 		noNotesYet: 'You have not written anything yet.',
 		theirNoNotes: 'This agent has not been told anything yet.',
-		cancelInject: 'Leave this note alone'
+		cancelInject: 'Leave this note alone',
+		grantsLeft: '{n} available'
 	},
 	menu: {
 		title: 'Menu',
 		leaveRound: 'Leave the round',
 		showRules: 'Show the rules',
-		readAloud: 'Read the tale aloud',
-		backgroundMusic: 'Background music',
-		soundEffects: 'Sound effects',
-		storyAndLanguage: 'Story & language',
+		readAloud: 'Read aloud',
+		sound: 'Music',
+		settings: 'Settings',
+		mapSection: 'Map',
 		close: 'Close'
 	},
 	rules: {

@@ -25,6 +25,26 @@
 
 	/** Newest is whole; each step back is a touch smaller, never fainter. */
 	const STEP_BACK = 0.96;
+
+	/*
+	 * Where the roster's faces are, so a tail can point at one.
+	 *
+	 * These four numbers are `BottomBar`'s layout read off in px: its row starts at
+	 * `inset-x-3.5`, each face is 58 wide with a `gap-2.5` after it, and this stack
+	 * sits at `inset-x-[18px]`. Duplicated rather than measured because measuring
+	 * would mean a `ResizeObserver` on a row that never changes size, and a tail
+	 * that lags a frame behind the bubble it belongs to is worse than one that is
+	 * two pixels out.
+	 */
+	const ROSTER_LEFT = 14;
+	const FACE = 58;
+	const FACE_GAP = 10;
+	const STACK_LEFT = 18;
+
+	/** The centre of a seat's face, in px from this stack's own left edge. */
+	function faceAt(index: number): number {
+		return ROSTER_LEFT + index * (FACE + FACE_GAP) + FACE / 2 - STACK_LEFT;
+	}
 </script>
 
 <div
@@ -35,13 +55,14 @@
 >
 	{#each bubbles as bubble, i (bubble.id)}
 		{@const age = bubbles.length - 1 - i}
-		{@const speaker = players.find((p) => p.id === bubble.playerId) ?? null}
+		{@const seat = players.findIndex((p) => p.id === bubble.playerId)}
+		{@const speaker = seat < 0 ? null : players[seat]}
 		<div
 			class="w-full origin-bottom transition-all duration-500 ease-out"
 			style:scale={age ? STEP_BACK : 1}
 			aria-hidden={age > 0}
 		>
-			<StepBubble {bubble} player={speaker} tail={age === 0} />
+			<StepBubble {bubble} player={speaker} tail={age === 0} tailAt={faceAt(Math.max(seat, 0))} />
 		</div>
 	{/each}
 </div>

@@ -2,7 +2,6 @@ import { getDb } from '../db/db.ts';
 import { deleteMatch } from '../db/matches.ts';
 import { listStories, loadStory } from '../db/story.ts';
 import { Game, GameError } from '../engine/game.ts';
-import { DEFAULT_LOCALE, type Locale } from '../i18n/index.ts';
 
 /**
  * The live match registry.
@@ -16,9 +15,23 @@ import { DEFAULT_LOCALE, type Locale } from '../i18n/index.ts';
 
 const games = new Map<string, Game>();
 
-/** The story a match plays when nobody has picked one: HOMEWARD, in its language. */
-export function defaultStorySlug(locale: Locale): string {
-	return `homeward-${locale}`;
+/**
+ * The story a match plays when nobody has picked one: DIE ABKÜRZUNG, in German.
+ *
+ * The tale rather than the language is what is fixed here. THE SHORTCUT exists in
+ * both languages, but the German one is the tale this game is shown with — five
+ * steps, over in a few rounds, and every road named so that how it *sounds* says
+ * nothing about where it goes. A front door that opened a different tale depending
+ * on the host's browser would demo two different games.
+ *
+ * It takes no locale for that reason. A match is told in the language its story is
+ * written in (see `createGame` below), so a German slug is what makes an
+ * English-preferring host's match a German one. Anyone who wants the English
+ * translation picks `shortcut-en` — from the menu, or with `?tale=shortcut-en` at
+ * the front door.
+ */
+export function defaultStorySlug(): string {
+	return 'shortcut-de';
 }
 
 /** No I, O, 0 or 1 — game codes get read aloud and typed by hand. */
@@ -32,12 +45,13 @@ function randomCode(length = 4): string {
 	return code;
 }
 
-export function createGame(locale: Locale = DEFAULT_LOCALE, storySlug?: string): Game {
+export function createGame(storySlug?: string): Game {
 	const db = getDb();
 
-	// A story is written in one language, so the match's language picks the story
-	// rather than translating it. See the note in `src/lib/i18n/types.ts`.
-	const slug = storySlug?.trim() || defaultStorySlug(locale);
+	// A story is written in one language, and the match is told in the story's —
+	// so picking the tale is picking the language, and the host's browser setting
+	// has no say here. See the note in `src/lib/i18n/types.ts`.
+	const slug = storySlug?.trim() || defaultStorySlug();
 
 	// A chosen tale is checked before it is loaded rather than after. Refusing is
 	// the right answer: quietly starting a different story than the one the host

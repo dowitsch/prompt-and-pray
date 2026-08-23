@@ -16,6 +16,7 @@
 	 */
 	import Icon from './Icon.svelte';
 	import { conn } from '$lib/client/connection.svelte';
+	import { fmt } from '$lib/i18n';
 	import { MEMORY_GRANT_CHARS } from '$lib/engine/types';
 
 	type Props = {
@@ -71,6 +72,20 @@
 		onSend(draft.trim());
 		draft = '';
 	}
+
+	/**
+	 * Enter sends.
+	 *
+	 * A phone's keyboard puts a send key where Enter is and a player will press it,
+	 * so a row that only answers to the arrow beside it loses a line the player
+	 * believed they had written — which, in a game where a line is rationed to
+	 * twenty characters a round, is the worst possible thing to quietly drop.
+	 */
+	function onKey(event: KeyboardEvent) {
+		if (event.key !== 'Enter') return;
+		event.preventDefault();
+		send();
+	}
 </script>
 
 <div
@@ -101,6 +116,7 @@
 
 		<input
 			bind:value={draft}
+			onkeydown={onKey}
 			data-shot="clue-input"
 			maxlength={MEMORY_GRANT_CHARS}
 			disabled={!canType}
@@ -112,10 +128,19 @@
 				placeholder:text-white/45 focus:ring-0 disabled:cursor-not-allowed"
 		/>
 
-		{#if (me?.pendingGrants ?? 0) > 1}
-			<!-- A round was missed, so there is more than one line to give. -->
-			<span class="shrink-0 rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-bold text-white">
-				×{me?.pendingGrants}
+		{#if mode === 'clue' && (me?.pendingGrants ?? 0) > 1}
+			<!--
+				A round was missed, so there is more than one line to give. Written out
+				rather than set as "×3": the number is the point — it is how many more
+				times this row can be used before the ration is gone — and a bare
+				multiplier next to a text field read as a price.
+
+				Never on an injection. There is exactly one lie per match however many
+				lines you are owed, so a count beside that row would be promising
+				something the rules do not allow.
+			-->
+			<span class="shrink-0 rounded-md bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white">
+				{fmt(tb.grantsLeft, { n: me?.pendingGrants ?? 0 })}
 			</span>
 		{/if}
 

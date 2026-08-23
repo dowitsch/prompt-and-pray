@@ -3,7 +3,7 @@
 	 * Which land, and in which language.
 	 *
 	 * The design has no room for this, but there are two tales in each language and
-	 * without it one of them is unreachable — so it lives as a fourth menu item
+	 * without it one of them is unreachable — so it lives as a third menu item
 	 * rather than as a screen.
 	 *
 	 * Picking either one starts a fresh round, because neither can change under a
@@ -44,11 +44,31 @@
 	});
 
 	const shown = $derived(stories.filter((story) => story.locale === locale));
+
+	/**
+	 * A tale's name, in a case you can read a whole line of.
+	 *
+	 * The names are stored in capitals because that is how they are set on the map
+	 * and on the end card, where they are two or three words on their own line.
+	 * Here they are a list of four, and DIE MITTERNACHTSPFORTE in caps is both
+	 * wider than the sheet and slower to read than the same word in title case.
+	 * Only touched when the stored name is *entirely* capitals, so a name that was
+	 * written with its own casing keeps it.
+	 */
+	function titled(name: string): string {
+		if (name !== name.toUpperCase()) return name;
+		return name
+			.toLowerCase()
+			.replace(
+				/(^|[\s(«"'\u2013\u2014-])(\p{L})/gu,
+				(_, before, letter) => before + letter.toUpperCase()
+			);
+	}
 </script>
 
-<Sheet onClose={closeOverlay} fill label={t.storyAndLanguage}>
+<Sheet onClose={closeOverlay} fill label={t.settings}>
 	<div class="flex shrink-0 items-start justify-between gap-3 px-5 pt-5 pb-4">
-		<h2 class="pt-1 pl-1.5 display text-[22px] text-white">{t.storyAndLanguage}</h2>
+		<h2 class="pt-1 pl-1.5 display text-[22px] text-white">{t.settings}</h2>
 		<button
 			type="button"
 			onclick={closeOverlay}
@@ -74,20 +94,33 @@
 			{/each}
 		</div>
 
-		<ul class="flex flex-col gap-2">
-			{#each shown as story (story.slug)}
-				<li>
-					<button
-						type="button"
-						onclick={() => onPick(story.slug, story.locale)}
-						class="flex w-full items-center justify-between gap-3 rounded-2xl bg-white/10 px-4
-							py-3.5 text-left transition hover:bg-white/20"
-					>
-						<span class="min-w-0 truncate display text-base text-white">{story.name}</span>
-						<Icon name="right" size={16} width={3} colour="#fff" />
-					</button>
-				</li>
-			{/each}
-		</ul>
+		<!--
+			The tales are all one thing — which land you are about to walk — so they
+			are gathered under a heading that says so rather than sitting loose under
+			the language buttons as four unexplained names.
+		-->
+		<section class="flex flex-col gap-2">
+			<h3 class="pl-1 font-mono text-[10px] tracking-[0.14em] text-white/55 uppercase">
+				{t.mapSection}
+			</h3>
+			<ul class="flex flex-col gap-2">
+				{#each shown as story (story.slug)}
+					<li>
+						<button
+							type="button"
+							onclick={() => onPick(story.slug, story.locale)}
+							class="flex w-full items-center justify-between gap-3 rounded-2xl bg-white/10 px-4
+								py-3 text-left transition hover:bg-white/20"
+						>
+							<!-- No truncation: the whole name is the thing being chosen. -->
+							<span class="min-w-0 text-sm leading-snug font-bold text-white">
+								{titled(story.name)}
+							</span>
+							<Icon name="right" size={15} width={3} colour="#fff" />
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</section>
 	</div>
 </Sheet>

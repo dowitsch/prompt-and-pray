@@ -1,4 +1,4 @@
-import { and, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, eq, inArray, lt, notInArray } from 'drizzle-orm';
 import { Game, type MatchState } from '../engine/game.ts';
 import type {
 	Agent,
@@ -253,6 +253,34 @@ export function saveMatch(db: Db, game: Game): void {
 /** Forget a match entirely. Players, memory, runs and fog cascade away with it. */
 export function deleteMatch(db: Db, code: string): void {
 	db.delete(t.matches).where(eq(t.matches.code, code)).run();
+}
+
+/**
+ * Forget matches nobody has touched in `maxAgeMs`, and say how many went.
+ *
+ * `store.sweepStaleGames` does the same job for matches the process is holding
+ * in memory, and cannot do this one: a row left behind by a *previous* process
+ * is in no map to walk. Those rows are not merely untidy. Seeding refuses to
+ * replace a built-in story while any match still points at it (`storyInPlay`),
+ * so one abandoned lobby from last week is enough to make every later deploy
+ * silently ship the old text — the tale in the code and the tale in the database
+ * drift apart with nothing saying so.
+ *
+ * Hence: run this before seeding, on boot. The cutoff matches the in-memory
+ * sweep, which keeps the promise that matters either way — a restart, including
+ * the one a deploy causes, still restores a match that was actually being played
+ * minutes ago.
+ */
+export function dropStaleMatches(db: Db, maxAgeMs = 2 * 60 * 60 * 1000): number {
+	const cutoff = Date.now() - maxAgeMs;
+	const rows = db
+		.select({ code: t.matches.code })
+		.from(t.matches)
+		.where(lt(t.matches.updatedAt, cutoff))
+		.all();
+
+	for (const row of rows) deleteMatch(db, row.code);
+	return rows.length;
 }
 
 /**

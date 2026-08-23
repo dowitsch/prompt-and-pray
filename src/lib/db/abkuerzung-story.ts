@@ -46,14 +46,30 @@ import type { StorySeed } from './homeward-story.ts';
  *
  * ---
  *
- * **The land.** Six regions walked in order — Vorland, Dämmerwald, Schlucht,
- * Aschfeld, Grat, Heimat — one row each, one biome each. The generator works in
- * sections of `SECTION_W` = 192 units and a place claims the section it stands in,
- * so two places of different biomes must never share one. The rows sit 300 apart,
- * which puts them in sections 0 · 1 · 3 · 4 · 6 · 7 even after `meander` displaces
- * every place by ±55. Every grave takes the biome of the row it is drawn in rather
- * than the region of the place that killed it — which is also the truth of it, since
- * you die on the road out of one land and into the next.
+ * **The land.** Six regions walked in order, one biome each, and each one a *band*
+ * running the full width of the map: Vorland (Wiese) is the open country the three
+ * signposted roads leave from, Dämmerwald (Wald) the trees the Steg's gorge is cut
+ * into, Schlucht (Seenland) the water below it, Grat (Berge) the ridge the Tor is
+ * the pass through, Heimat (Schnee) the valley floor beyond the wall — and Aschfeld
+ * (Wüste), which is not a band at all but the one patch of burnt ground the dragon
+ * sits in the middle of, walled in by the lakeland on both sides.
+ *
+ * A band is one row of places, so a whole row shares its ground and the ground
+ * a place stands in never argues with what is written about it: the Sonnenhang is
+ * warm grass, the Modergang and the Seilfähre are on water, the caves and the wall
+ * are in rock. Which is the point of doing it this way round — the road names in
+ * this tale are already lying to the player on purpose, and the map is not in on it.
+ *
+ * The mechanics of that. The generator dices the world into `SECTION_W` = 192-unit
+ * squares, and a place claims the square it stands in plus the eight around it —
+ * so two places of different biomes landing in one square put a stripe of the wrong
+ * ground on the map. `meander` displaces every place by up to ±55 first, so two
+ * places are only *guaranteed* into different squares when they differ by more than
+ * 192 + 2·55 = **302 units on one axis**. Hence the rows at y 0 · 320 · 660 · 1000 ·
+ * 1340 · 1680, none closer than 340 apart, and the dragon at x 0 with the lakeland
+ * either side of him at ±400. Inside a band nothing has to clear anything, which is
+ * what lets the wings sit at a walkable ±320…400. Check the 302 before moving a
+ * place: nothing at runtime will complain, the map will just look muddled.
  *
  * `region` is for the author and the designer's arranger; the game never reads it.
  */
@@ -65,7 +81,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 		description: 'Fünf Schritte bis nach Hause. Kein einziger sieht aus wie das, was er ist.',
 		startKey: 'clearing',
 		nodes: [
-			/* ───────────────────────── das Vorland · Wiese · y 0 */
+			/* ──────────────────── das Vorland · Wiese · y 0…320 */
 			{
 				key: 'clearing',
 				template: 'Crossroads',
@@ -103,8 +119,6 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 					}
 				]
 			},
-
-			/* ──────────────────── der Dämmerwald · Wald · y 300 */
 			{
 				key: 'dead_meadow',
 				template: 'Hollow',
@@ -113,10 +127,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Der Hang war sanft, bis er aufhörte. Unten steht ein zweiter Wegweiser: HEIM, fünf Schritte. Er zeigt nach oben.',
 				endingType: 'FAILURE',
 				x: 0,
-				y: 300,
-				biome: 'wald',
+				y: 320,
+				biome: 'wiese',
 				sigil: '☀️',
-				region: 'daemmerwald',
+				region: 'vorland',
 				attributes: ['bright', 'wide'],
 				choices: []
 			},
@@ -128,10 +142,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Etwas Kleines sitzt in der Asche und sortiert sie nach Größe. Neben ihr steht ein Honigtopf, der ihr sichtbar nicht gehört, und hinter ihr wölbt sich ein Bogen aus Dornen.',
 				endingType: null,
 				x: -320,
-				y: 300,
-				biome: 'wald',
+				y: 320,
+				biome: 'wiese',
 				sigil: '🧚',
-				region: 'daemmerwald',
+				region: 'vorland',
 				attributes: ['small', 'old', 'friendly'],
 				choices: [
 					{
@@ -164,10 +178,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Er sitzt auf dem Rechenstein, eine Axt neben sich, ein Kochfeuer davor. Beides sieht gleich alt aus, und nur eines davon ist noch scharf.',
 				endingType: null,
 				x: 320,
-				y: 300,
-				biome: 'wald',
+				y: 320,
+				biome: 'wiese',
 				sigil: '🪓',
-				region: 'daemmerwald',
+				region: 'vorland',
 				attributes: ['large', 'old', 'dangerous'],
 				choices: [
 					{
@@ -193,7 +207,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				]
 			},
 
-			/* ───────────────────── die Schlucht · Seenland · y 600 */
+			/* ──────────────────── der Dämmerwald · Wald · y 660 */
 			{
 				key: 'dead_thorns',
 				template: 'Forest',
@@ -202,10 +216,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Es war kein Tor. Es war ein Maul mit sehr viel Geduld. Die Fee sortiert seither auch Splitter.',
 				endingType: 'FAILURE',
 				x: -400,
-				y: 600,
-				biome: 'seenland',
+				y: 660,
+				biome: 'wald',
 				sigil: '🌿',
-				region: 'schlucht',
+				region: 'daemmerwald',
 				attributes: ['dense', 'dangerous'],
 				choices: []
 			},
@@ -217,10 +231,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Ein Brett über einer Schlucht, in der Wasser steht statt Boden. Drüben teilt sich alles sofort wieder in drei.',
 				endingType: null,
 				x: 0,
-				y: 600,
-				biome: 'seenland',
+				y: 660,
+				biome: 'wald',
 				sigil: '🌉',
-				region: 'schlucht',
+				region: 'daemmerwald',
 				attributes: ['old', 'deep'],
 				choices: [
 					{
@@ -253,15 +267,15 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Orkische Gastfreundschaft kennt kein Ende, nur Nachschlag. Man fand den Agenten drei Tage später, satt und deutlich gequollen.',
 				endingType: 'FAILURE',
 				x: 400,
-				y: 600,
-				biome: 'seenland',
+				y: 660,
+				biome: 'wald',
 				sigil: '🍖',
-				region: 'schlucht',
+				region: 'daemmerwald',
 				attributes: ['dangerous', 'sudden'],
 				choices: []
 			},
 
-			/* ───────────────────── das Aschfeld · Wüste · y 900 */
+			/* ──────────────────── die Schlucht · Seenland · y 1000 */
 			{
 				key: 'lantern',
 				template: 'Lantern',
@@ -269,11 +283,11 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'Die Laterne',
 				body: 'Eine Laterne an einer Stange, mitten im Nichts, und sie brennt. Jemand kommt hier regelmäßig vorbei. Das ist entweder sehr erfreulich oder überhaupt nicht.',
 				endingType: null,
-				x: -380,
-				y: 900,
-				biome: 'wueste',
+				x: -400,
+				y: 1000,
+				biome: 'seenland',
 				sigil: '🏮',
-				region: 'aschfeld',
+				region: 'schlucht',
 				attributes: ['old', 'abandoned'],
 				choices: [
 					{
@@ -299,6 +313,23 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				]
 			},
 			{
+				key: 'dead_ferry',
+				template: 'Raft',
+				kind: 'OBJECT',
+				title: 'Die Seilfähre',
+				body: 'Das Seil hielt bis zweiundzwanzig. Der Agent hatte auf hundert gehofft, aber nichts davon aufgeschrieben.',
+				endingType: 'FAILURE',
+				x: 400,
+				y: 1000,
+				biome: 'seenland',
+				sigil: '🪢',
+				region: 'schlucht',
+				attributes: ['old', 'abandoned'],
+				choices: []
+			},
+
+			/* ──────────────────── das Aschfeld · Wüste · y 1000, die Brandinsel im Seenland */
+			{
 				key: 'dragon',
 				template: 'Dragon',
 				kind: 'CREATURE',
@@ -306,7 +337,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Der Drache ist wach, uralt und gelangweilt. Sein Gold liegt unsortiert herum, seine Glut ist heruntergebrannt, und er hat seit vierzig Jahren mit niemandem geredet.',
 				endingType: null,
 				x: 0,
-				y: 900,
+				y: 1000,
 				biome: 'wueste',
 				sigil: '🐉',
 				region: 'aschfeld',
@@ -335,23 +366,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 					}
 				]
 			},
-			{
-				key: 'dead_ferry',
-				template: 'Raft',
-				kind: 'OBJECT',
-				title: 'Die Seilfähre',
-				body: 'Das Seil hielt bis zweiundzwanzig. Der Agent hatte auf hundert gehofft, aber nichts davon aufgeschrieben.',
-				endingType: 'FAILURE',
-				x: 380,
-				y: 900,
-				biome: 'wueste',
-				sigil: '🪢',
-				region: 'aschfeld',
-				attributes: ['old', 'abandoned'],
-				choices: []
-			},
 
-			/* ─────────────────────────── der Grat · Berge · y 1200 */
+			/* ──────────────────── der Grat · Berge · y 1340 */
 			{
 				key: 'dead_mirror',
 				template: 'Pit',
@@ -359,8 +375,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'Das Leuchtfeuer',
 				body: 'Man sah das Licht drei Täler weit. Etwas in einem der drei Täler sah es auch.',
 				endingType: 'FAILURE',
-				x: -720,
-				y: 1200,
+				x: -780,
+				y: 1340,
 				biome: 'berge',
 				sigil: '🪞',
 				region: 'grat',
@@ -374,8 +390,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'Die Zuhörerschaft',
 				body: 'Es ist eine gute Geschichte. Sie hat einen Mittelteil, und der Mittelteil dauert bis zum Morgen. Der Agent lebt, hört zu und ist für diese Runde draußen.',
 				endingType: 'NEUTRAL',
-				x: -380,
-				y: 1200,
+				x: -400,
+				y: 1340,
 				biome: 'berge',
 				sigil: '🕯️',
 				region: 'grat',
@@ -390,7 +406,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Die letzte Mauer vor dem Tal. Am Tor hängt eine Glocke mit einem unangenehm langen Seil, links klafft ein Riss, und rechts steht ein Fallgitter halb offen wie ein Gähnen.',
 				endingType: null,
 				x: 0,
-				y: 1200,
+				y: 1340,
 				biome: 'berge',
 				sigil: '🚪',
 				region: 'grat',
@@ -425,8 +441,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'Der Hort',
 				body: 'Der Drache zählt sein Gold nicht. Er wiegt es. Es fehlten vierzehn Gramm, und kurz darauf fehlte ein Agent.',
 				endingType: 'FAILURE',
-				x: 380,
-				y: 1200,
+				x: 400,
+				y: 1340,
 				biome: 'berge',
 				sigil: '💎',
 				region: 'grat',
@@ -434,7 +450,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				choices: []
 			},
 
-			/* ─────────────────────────── die Heimat · Schnee · y 1500 */
+			/* ──────────────────── die Heimat · Schnee · y 1680 */
 			{
 				key: 'dead_crack',
 				template: 'Wall',
@@ -442,8 +458,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'Der Riss',
 				body: 'Er kam hinein. Er kam nicht hinaus. Die Mauer hat seither eine Verzierung, über die niemand gern spricht.',
 				endingType: 'FAILURE',
-				x: -330,
-				y: 1500,
+				x: -340,
+				y: 1680,
 				biome: 'schnee',
 				sigil: '🧱',
 				region: 'heimat',
@@ -458,7 +474,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Jemand macht auf, sieht nach unten, sieht einen Holzagenten mit fremden Notizen in der Brust und sagt: da bist du ja. Fünf Schritte. Es waren nie fünf Schritte.',
 				endingType: 'SUCCESS',
 				x: 0,
-				y: 1500,
+				y: 1680,
 				biome: 'schnee',
 				sigil: '🏡',
 				region: 'heimat',
@@ -472,8 +488,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'Das Fallgitter',
 				body: 'Es heißt Fallgitter. Es hat auch nie etwas anderes von sich behauptet.',
 				endingType: 'FAILURE',
-				x: 330,
-				y: 1500,
+				x: 340,
+				y: 1680,
 				biome: 'schnee',
 				sigil: '⛓️',
 				region: 'heimat',
@@ -489,7 +505,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 		description: 'Five steps to get home. Not one of them looks like what it is.',
 		startKey: 'clearing',
 		nodes: [
-			/* ───────────────────────── the Lowland · meadow · y 0 */
+			/* ──────────────────── the Lowland · meadow · y 0…320 */
 			{
 				key: 'clearing',
 				template: 'Crossroads',
@@ -526,8 +542,6 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 					}
 				]
 			},
-
-			/* ──────────────────── the Duskwood · forest · y 300 */
 			{
 				key: 'dead_meadow',
 				template: 'Hollow',
@@ -536,10 +550,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'The slope was gentle right up until it stopped. At the bottom stands a second signpost: HOME, five steps. It points up.',
 				endingType: 'FAILURE',
 				x: 0,
-				y: 300,
-				biome: 'wald',
+				y: 320,
+				biome: 'wiese',
 				sigil: '☀️',
-				region: 'duskwood',
+				region: 'lowland',
 				attributes: ['bright', 'wide'],
 				choices: []
 			},
@@ -551,10 +565,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Something small sits in the ash, sorting it by size. Beside her stands a honeypot that is plainly not hers, and behind her an archway of thorns.',
 				endingType: null,
 				x: -320,
-				y: 300,
-				biome: 'wald',
+				y: 320,
+				biome: 'wiese',
 				sigil: '🧚',
-				region: 'duskwood',
+				region: 'lowland',
 				attributes: ['small', 'old', 'friendly'],
 				choices: [
 					{
@@ -587,10 +601,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'He sits on the reckoning stone with an axe beside him and a cook fire in front of him. They look the same age, and only one of them is still sharp.',
 				endingType: null,
 				x: 320,
-				y: 300,
-				biome: 'wald',
+				y: 320,
+				biome: 'wiese',
 				sigil: '🪓',
-				region: 'duskwood',
+				region: 'lowland',
 				attributes: ['large', 'old', 'dangerous'],
 				choices: [
 					{
@@ -616,7 +630,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				]
 			},
 
-			/* ───────────────────── the Gorge · lakeland · y 600 */
+			/* ──────────────────── the Duskwood · forest · y 660 */
 			{
 				key: 'dead_thorns',
 				template: 'Forest',
@@ -625,10 +639,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'It was not a gate. It was a mouth with a great deal of patience. The fairy sorts splinters now too.',
 				endingType: 'FAILURE',
 				x: -400,
-				y: 600,
-				biome: 'seenland',
+				y: 660,
+				biome: 'wald',
 				sigil: '🌿',
-				region: 'gorge',
+				region: 'duskwood',
 				attributes: ['dense', 'dangerous'],
 				choices: []
 			},
@@ -640,10 +654,10 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'A plank over a gorge with water at the bottom instead of ground. On the far side everything immediately splits into three again.',
 				endingType: null,
 				x: 0,
-				y: 600,
-				biome: 'seenland',
+				y: 660,
+				biome: 'wald',
 				sigil: '🌉',
-				region: 'gorge',
+				region: 'duskwood',
 				attributes: ['old', 'deep'],
 				choices: [
 					{
@@ -676,15 +690,15 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Orkish hospitality has no ending, only seconds. They found the agent three days later, full and noticeably swollen.',
 				endingType: 'FAILURE',
 				x: 400,
-				y: 600,
-				biome: 'seenland',
+				y: 660,
+				biome: 'wald',
 				sigil: '🍖',
-				region: 'gorge',
+				region: 'duskwood',
 				attributes: ['dangerous', 'sudden'],
 				choices: []
 			},
 
-			/* ───────────────────── the Ashfield · desert · y 900 */
+			/* ──────────────────── the Gorge · lakeland · y 1000 */
 			{
 				key: 'lantern',
 				template: 'Lantern',
@@ -692,11 +706,11 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'The Lantern',
 				body: 'A lantern on a pole in the middle of nowhere, and it is lit. Somebody comes through here regularly. That is either very good news or the other kind.',
 				endingType: null,
-				x: -380,
-				y: 900,
-				biome: 'wueste',
+				x: -400,
+				y: 1000,
+				biome: 'seenland',
 				sigil: '🏮',
-				region: 'ashfield',
+				region: 'gorge',
 				attributes: ['old', 'abandoned'],
 				choices: [
 					{
@@ -722,6 +736,23 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				]
 			},
 			{
+				key: 'dead_ferry',
+				template: 'Raft',
+				kind: 'OBJECT',
+				title: 'The Ropeferry',
+				body: 'The rope held to twenty-two. The agent had been hoping for a hundred, but had written none of it down.',
+				endingType: 'FAILURE',
+				x: 400,
+				y: 1000,
+				biome: 'seenland',
+				sigil: '🪢',
+				region: 'gorge',
+				attributes: ['old', 'abandoned'],
+				choices: []
+			},
+
+			/* ──────────────────── the Ashfield · desert · y 1000, the burnt island in the lakeland */
+			{
 				key: 'dragon',
 				template: 'Dragon',
 				kind: 'CREATURE',
@@ -729,7 +760,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'The dragon is awake, ancient and bored. Its gold lies about unsorted, its embers have burned down, and it has not spoken to anybody in forty years.',
 				endingType: null,
 				x: 0,
-				y: 900,
+				y: 1000,
 				biome: 'wueste',
 				sigil: '🐉',
 				region: 'ashfield',
@@ -757,23 +788,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 					}
 				]
 			},
-			{
-				key: 'dead_ferry',
-				template: 'Raft',
-				kind: 'OBJECT',
-				title: 'The Ropeferry',
-				body: 'The rope held to twenty-two. The agent had been hoping for a hundred, but had written none of it down.',
-				endingType: 'FAILURE',
-				x: 380,
-				y: 900,
-				biome: 'wueste',
-				sigil: '🪢',
-				region: 'ashfield',
-				attributes: ['old', 'abandoned'],
-				choices: []
-			},
 
-			/* ─────────────────────────── the Ridge · mountains · y 1200 */
+			/* ──────────────────── the Ridge · mountains · y 1340 */
 			{
 				key: 'dead_mirror',
 				template: 'Pit',
@@ -781,8 +797,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'The Beacon',
 				body: 'The light could be seen three valleys away. Something in one of the three valleys saw it too.',
 				endingType: 'FAILURE',
-				x: -720,
-				y: 1200,
+				x: -780,
+				y: 1340,
 				biome: 'berge',
 				sigil: '🪞',
 				region: 'ridge',
@@ -796,8 +812,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'The Audience',
 				body: 'It is a good story. It has a middle, and the middle lasts until morning. The agent is alive, listening, and out of this round.',
 				endingType: 'NEUTRAL',
-				x: -380,
-				y: 1200,
+				x: -400,
+				y: 1340,
 				biome: 'berge',
 				sigil: '🕯️',
 				region: 'ridge',
@@ -812,7 +828,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'The last wall before the valley. A bell hangs at the gate on an uncomfortably long rope, a crack gapes to the left, and to the right a portcullis stands half open like a yawn.',
 				endingType: null,
 				x: 0,
-				y: 1200,
+				y: 1340,
 				biome: 'berge',
 				sigil: '🚪',
 				region: 'ridge',
@@ -846,8 +862,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'The Hoard',
 				body: 'The dragon does not count its gold. It weighs it. Fourteen grams were missing, and shortly afterwards an agent was missing.',
 				endingType: 'FAILURE',
-				x: 380,
-				y: 1200,
+				x: 400,
+				y: 1340,
 				biome: 'berge',
 				sigil: '💎',
 				region: 'ridge',
@@ -855,7 +871,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				choices: []
 			},
 
-			/* ─────────────────────────── Home · snow · y 1500 */
+			/* ──────────────────── Home · snow · y 1680 */
 			{
 				key: 'dead_crack',
 				template: 'Wall',
@@ -863,8 +879,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'The Crack',
 				body: 'It got in. It did not get out. The wall has had a decoration ever since that nobody likes to talk about.',
 				endingType: 'FAILURE',
-				x: -330,
-				y: 1500,
+				x: -340,
+				y: 1680,
 				biome: 'schnee',
 				sigil: '🧱',
 				region: 'homeland',
@@ -879,7 +895,7 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				body: 'Somebody opens the door, looks down, sees a wooden agent with other people’s notes in its chest and says: there you are. Five steps. It was never five steps.',
 				endingType: 'SUCCESS',
 				x: 0,
-				y: 1500,
+				y: 1680,
 				biome: 'schnee',
 				sigil: '🏡',
 				region: 'homeland',
@@ -893,8 +909,8 @@ export const ABKUERZUNG: Record<Locale, StorySeed> = {
 				title: 'The Portcullis',
 				body: 'It is called a portcullis. It has never claimed to be anything else.',
 				endingType: 'FAILURE',
-				x: 330,
-				y: 1500,
+				x: 340,
+				y: 1680,
 				biome: 'schnee',
 				sigil: '⛓️',
 				region: 'homeland',

@@ -4,8 +4,10 @@
 	 * between the map and a memory, and the faces of everyone in the round.
 	 *
 	 * On the map a face moves the camera. In a brain it changes whose head you are
-	 * reading. Your own face keeps its white ring in both, because the bubble on the
-	 * map and your own memory are the only things that are yours.
+	 * reading. Only the face you have picked is ringed — your own used to wear a
+	 * white one permanently, which meant the one ring in the row that could not be
+	 * moved was also the one that never told you anything you did not know. Your own
+	 * agent is still marked where it matters: as a white ring on the map token.
 	 *
 	 * The roster comes first and the toggle sits on the right, which is the revised
 	 * design's order and the better one: the faces are the thing you reach for, and
@@ -15,7 +17,6 @@
 	 */
 	import type { PublicPlayer } from '$lib/engine/game';
 	import Avatar from './Avatar.svelte';
-	import Icon from './Icon.svelte';
 	import { conn } from '$lib/client/connection.svelte';
 	import { colorOf } from '$lib/client/identity';
 	import { PLAYER_COLORS } from '$lib/client/theme';
@@ -49,10 +50,17 @@
 </script>
 
 <div class="absolute inset-x-3.5 bottom-[22px] flex items-center gap-3">
+	<!--
+		The padding is not decoration. A ring is a `box-shadow`, which draws outside
+		the element's box, and `overflow-x-auto` clips on both axes — so without room
+		above and below, every face in this row was shaved flat top and bottom along
+		with the 3px it lifts on hover. The matching negative margin keeps the row
+		the height it was, so nothing else on the bar moves.
+	-->
 	<div
 		data-shot="roster"
 		data-mode={mode}
-		class="flex pp-scroll min-w-0 flex-1 items-center gap-2.5 overflow-x-auto"
+		class="-my-2 flex pp-scroll min-w-0 flex-1 items-center gap-2.5 overflow-x-auto py-2"
 	>
 		{#each players as player (player.id)}
 			{@const picked = player.id === activeId}
@@ -74,7 +82,7 @@
 					{youId}
 					size={58}
 					ring={3}
-					ringColour={player.id === youId ? '#fff' : picked ? colorOf(player) : 'transparent'}
+					ringColour={picked ? colorOf(player) : 'transparent'}
 				/>
 			</button>
 		{/each}
@@ -96,9 +104,15 @@
 				{/each}
 			</span>
 		{:else}
-			<!-- Back to the land. Not a QR mark: that means "show my code" here. -->
+			<!--
+				Back to the land, as a piece of the land: a scrap of terrain says "map"
+				faster than a drawing of a folded one does, and it is the only button in
+				the design that leads somewhere with a picture of its own. Decorative, so
+				the label on the button carries the meaning; `object-cover` because the
+				square is 58px and the scrap is not.
+			-->
 			<span class="grid h-full w-full place-items-center bg-bright">
-				<Icon name="map" size={24} colour="#fff" />
+				<img src="/map-thumb.webp" alt="" class="h-full w-full object-cover" />
 			</span>
 		{/if}
 	</button>

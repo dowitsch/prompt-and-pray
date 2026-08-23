@@ -1,4 +1,5 @@
 import { databasePath, getDb } from './db.ts';
+import { dropStaleMatches } from './matches.ts';
 import { runMigrations } from './migrate.ts';
 import { seed } from './seed.ts';
 
@@ -18,13 +19,22 @@ import { seed } from './seed.ts';
  * inside the migrator's transaction. Boot used its own bare `migrate()` call
  * and so missed that guard, which is what broke the 0004 deploy.
  *
- * Both halves are idempotent. Migrations are tracked in Drizzle's own journal,
- * and seeding replaces the built-in stories while leaving anything an author
- * made alone — which also means a redeploy carries story edits from the code
- * into the running database.
+ * All three steps are idempotent. Migrations are tracked in Drizzle's own
+ * journal, and seeding replaces the built-in stories while leaving anything an
+ * author made alone — which also means a redeploy carries story edits from the
+ * code into the running database.
+ *
+ * The sweep in the middle is what keeps that last promise true. Seeding will not
+ * replace a story a match is still pointing at, and match rows outlive the
+ * process that made them: without this, an abandoned lobby from last week would
+ * quietly veto every future deploy of that tale. It runs *before* seeding, and
+ * before the hub restores anything, because both of those read the rows it is
+ * there to clear out.
  */
 export function prepareDatabase(): string {
 	runMigrations();
+	const dropped = dropStaleMatches(getDb());
+	if (dropped) console.log(`[homeward] dropped ${dropped} match(es) nobody has touched in hours.`);
 	seed(getDb());
 	return databasePath();
 }

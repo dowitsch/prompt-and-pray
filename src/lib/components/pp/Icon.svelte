@@ -29,7 +29,8 @@
 		| 'flask'
 		| 'speaker'
 		| 'speakerOff'
-		| 'music';
+		| 'music'
+		| 'gear';
 
 	type Props = {
 		name: Name;
@@ -144,6 +145,31 @@
 				stroke-linecap="round"
 			/>
 		{/if}
+	</svg>
+{:else if name === 'gear'}
+	<!--
+		Eight teeth and a hub. Generated rather than hand-drawn so the teeth are
+		evenly spaced, and it needs a circle inside it, so it cannot live in the
+		path table either.
+	-->
+	<svg
+		{...{ 'aria-hidden': 'true' }}
+		width={size}
+		height={size}
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke={colour}
+		stroke-width={width}
+		stroke-linecap="round"
+		stroke-linejoin="round"
+	>
+		<path
+			d="M10.1 2.7L13.9 2.7L13.1 5.2L16 6.4L17.3 4.1L19.9 6.7L17.6 8L18.8 10.9L21.3 10.1L21.3
+				13.9L18.8 13.1L17.6 16L19.9 17.3L17.3 19.9L16 17.6L13.1 18.8L13.9 21.3L10.1 21.3L10.9
+				18.8L8 17.6L6.7 19.9L4.1 17.3L6.4 16L5.2 13.1L2.7 13.9L2.7 10.1L5.2 10.9L6.4 8L4.1
+				6.7L6.7 4.1L8 6.4L10.9 5.2Z"
+		/>
+		<circle cx="12" cy="12" r="3.4" />
 	</svg>
 {:else if name === 'music'}
 	<!-- Two notes on a beam. Needs circles, so it cannot live in the path table. -->

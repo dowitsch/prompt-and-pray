@@ -9,16 +9,20 @@
 	 * the only way out and it means one thing everywhere: you are out, and your
 	 * seat carries on without you.
 	 *
-	 * Three of the items are switches rather than actions, and they are the reason
+	 * Two of the items are switches rather than actions, and they are the reason
 	 * this sheet does not close on a tap: sound is something you adjust while
 	 * listening to it, and a menu that shut itself after every tap would make
 	 * turning the music down a matter of reopening it. They sit below the rules so
 	 * the one destructive item stays where the hand already knows to find it.
 	 *
-	 * "Story & language" only appears before a match exists: inside one the
-	 * language is fixed, and it has to be — players write their agent's memory by
-	 * hand and the agent matches those words against the road names in front of it,
-	 * so two languages in one match would break the matching outright.
+	 * The music and the short cues used to be two rows. Nobody ever wanted one
+	 * without the other — the decision being made in this menu is "quiet or not" —
+	 * so they are one switch now, under the note that carries the louder half.
+	 *
+	 * "Settings" only appears before a match exists: inside one the language is
+	 * fixed, and it has to be — players write their agent's memory by hand and the
+	 * agent matches those words against the road names in front of it, so two
+	 * languages in one match would break the matching outright.
 	 */
 	import Sheet from './Sheet.svelte';
 	import Icon from './Icon.svelte';
@@ -56,31 +60,28 @@
 				run: () => conn.setVoice(!audio.voice)
 			},
 			{
-				key: 'sfx',
-				icon: 'bang' as const,
-				label: t.soundEffects,
-				on: audio.sfx,
+				key: 'sound',
+				icon: 'music' as const,
+				label: t.sound,
+				// The two move together, so either being on is "on". They can only
+				// disagree on a phone that remembers a preference from when this was
+				// two rows, and the first tap puts them back in step.
+				on: audio.music || audio.sfx,
 				run: () => {
-					const on = !audio.sfx;
+					const on = !(audio.music || audio.sfx);
+					setMusic(on);
 					setSfx(on);
 					// Switching it on plays the thing you just switched on. Without this
 					// the row is a claim you cannot check until the next agent dies.
 					if (on) cue('agent-survive');
 				}
 			},
-			{
-				key: 'music',
-				icon: 'music' as const,
-				label: t.backgroundMusic,
-				on: audio.music,
-				run: () => setMusic(!audio.music)
-			},
 			...(canPickStory
 				? [
 						{
 							key: 'settings',
-							icon: 'info' as const,
-							label: t.storyAndLanguage,
+							icon: 'gear' as const,
+							label: t.settings,
 							on: null,
 							run: () => (ui.overlay = 'settings')
 						}

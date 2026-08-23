@@ -29,10 +29,22 @@
 	);
 </script>
 
+<!--
+	White whenever somebody is named, and a size down from the rest of the display
+	type.
+
+	"MALAKOR ist unterwegs" was set in the walker's own colour, which is a light
+	warm hue laid over whatever the map happens to be — a green field, most of the
+	time — and it was the one line on the screen you could not read. It is also the
+	longest string this bar ever holds, and at 19px it ran under the countdown and
+	got clipped mid-word. Both are fixed here rather than by shortening the
+	sentence: the colour is already said by the bubble, the token and the ground of
+	the memory screen, so this line does not need to say it a fourth time.
+-->
 <div
 	data-shot="phase-title"
-	class="min-w-0 flex-1 truncate display text-[19px] transition-colors duration-300"
-	style:color={teaching ? '#fff' : mine}
+	class="min-w-0 flex-1 truncate display text-[15px] transition-colors duration-300"
+	style:color={title ? '#fff' : teaching ? '#fff' : mine}
 >
 	{label}
 </div>

@@ -39,9 +39,20 @@
 		 * three of them pointing at the same agent would read as three mouths.
 		 */
 		tail?: boolean;
+		/**
+		 * Where the tail's point sits, in px from this bubble's left edge.
+		 *
+		 * `BubbleStack` works it out from the speaker's place in the roster below, so
+		 * the notch lands over that agent's face rather than over the first one. See
+		 * the note there for the arithmetic.
+		 */
+		tailAt?: number;
 	};
 
-	let { bubble, player, tail = true }: Props = $props();
+	let { bubble, player, tail = true, tailAt = 26 }: Props = $props();
+
+	/** The tail's left border, which is what stands between its box and its point. */
+	const TAIL_LEAD = 10;
 
 	const colour = $derived(player ? colorOf(player) : '#F59D89');
 	// The agent speaks, so the bubble is signed with the character. The operator's
@@ -67,26 +78,33 @@
 							{bubble.title}
 						</div>
 					{/if}
-					<div class="pt-1.5 text-base leading-snug text-white">{bubble.text}</div>
+					<div class="pt-1.5 text-base leading-relaxed text-white">{bubble.text}</div>
 				</div>
 			{:else if bubble.kind === 'fail'}
+				<!--
+					Set to the thought bubble's own measurements — the same corner, the same
+					gap, the same padding, and a disc the size of a face. It is the third
+					beat of the same turn and it sat a few pixels off from the two before it,
+					which read as a different kind of thing having happened rather than as
+					the same agent's story ending.
+				-->
 				<div
-					class="flex items-center gap-3.5 rounded-[34px] bg-dark py-[7px] pr-6 pl-[7px]
+					class="flex items-center gap-3.5 rounded-[26px] bg-dark py-[18px] pr-[22px] pl-4
 						shadow-[0_14px_34px_rgba(0,0,0,0.35)]"
 				>
 					<span
-						class="grid h-11 w-11 shrink-0 place-items-center rounded-full border-[2.4px]"
+						class="grid h-10 w-10 shrink-0 place-items-center rounded-full border-[2.4px]"
 						style:border-color={colour}
 					>
-						<Icon name="cross" size={20} width={2.6} {colour} />
+						<Icon name="cross" size={18} width={2.6} {colour} />
 					</span>
-					<span class="text-[17px] leading-tight font-bold" style:color={colour}>
+					<span class="text-base leading-relaxed font-bold" style:color={colour}>
 						{bubble.text}
 					</span>
 				</div>
 			{:else}
 				<div
-					class="relative flex items-start gap-3.5 rounded-[26px] py-[18px] pr-[22px] pl-4
+					class="relative flex items-center gap-3.5 rounded-[26px] py-[18px] pr-[22px] pl-4
 						shadow-[0_14px_34px_rgba(0,0,0,0.35)]"
 					style:background={colour}
 				>
@@ -95,9 +113,12 @@
 						belongs there is the face: the bubble is somebody talking, and the
 						colour alone stops meaning "who" the moment two agents share a hue
 						across matches.
+
+						Unringed: the bubble is already the agent's own colour, so a white
+						hairline around the face was a border between a thing and itself.
 					-->
-					<Avatar {player} size={40} ring={2} ringColour="#fff" />
-					<span class="pt-2 text-base leading-snug text-white">
+					<Avatar {player} size={40} ring={0} />
+					<span class="text-base leading-relaxed text-white">
 						{bubble.text}
 						<!--
 							Said, but not by the character: the model did not answer in time and
@@ -111,11 +132,16 @@
 						{/if}
 					</span>
 					{#if tail}
-						<!-- The tail, notched under the left edge so it points at the roster. -->
+						<!--
+							The tail, notched under the bubble and aimed: its point sits over the
+							speaker's own face in the roster below, so a line of dialogue says who
+							is saying it without anybody having to match two colours across an
+							inch of map.
+						-->
 						<span
-							class="absolute bottom-[-14px] left-[26px] h-0 w-0
-								border-t-[18px] border-r-[20px] border-l-[10px] border-r-transparent
-								border-l-transparent"
+							class="absolute bottom-[-14px] h-0 w-0 border-t-[18px] border-r-[20px]
+								border-l-[10px] border-r-transparent border-l-transparent"
+							style:left="{tailAt - TAIL_LEAD}px"
 							style:border-top-color={colour}
 						></span>
 					{/if}

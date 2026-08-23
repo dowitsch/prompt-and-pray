@@ -68,8 +68,12 @@ function seedStory(db: Db, locale: Locale, seed: StorySeed): void {
 	// where each agent stands, which roads the fog has uncovered — so replacing
 	// the rows would either break the foreign keys or, worse, silently repoint a
 	// match at different places. Seeding waits until nobody is playing it.
-	if (existing && storyInPlay(db, existing.id) > 0) {
-		console.log(`[homeward] "${seed.slug}" is being played — leaving it as it is.`);
+	const playing = existing ? storyInPlay(db, existing.id) : 0;
+	if (playing > 0) {
+		console.log(
+			`[homeward] "${seed.slug}" is in ${playing} live match(es) — leaving it as it is. ` +
+				'The next boot after they end carries this version in.'
+		);
 		return;
 	}
 

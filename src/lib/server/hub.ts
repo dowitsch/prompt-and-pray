@@ -2,7 +2,6 @@ import type { WebSocket } from 'ws';
 import type { Game } from '../engine/game.ts';
 import { GameError } from '../engine/game.ts';
 import { LOBBY_COUNTDOWN_SECONDS, MAX_PLAYERS } from '../engine/types.ts';
-import { DEFAULT_LOCALE, isLocale, type Locale } from '../i18n/index.ts';
 import type { ClientMessage, ServerEvent } from '../protocol.ts';
 import type { AgentBrain } from '../agent/index.ts';
 import { BotController, makeBots } from './bots.ts';
@@ -249,7 +248,7 @@ export class Hub {
 			case 'HELLO':
 				return this.onHello(session, message.playerId, message.code);
 			case 'CREATE_GAME':
-				return this.onCreate(session, message.name, message.locale, message.storySlug);
+				return this.onCreate(session, message.name, message.storySlug);
 			case 'JOIN_GAME':
 				return this.onJoin(session, message.code, message.name);
 			case 'CONFIGURE': {
@@ -370,12 +369,13 @@ export class Hub {
 		this.watchAbsence(game);
 	}
 
-	private onCreate(session: Session, name: string, locale: Locale, storySlug?: string): void {
-		// The host picks the language and the tale; everyone in the match reads the
-		// one they chose. A slug that is not a published story is refused rather
-		// than quietly swapped, so nobody is dropped into a different tale than the
-		// one they picked.
-		const game = createGame(isLocale(locale) ? locale : DEFAULT_LOCALE, storySlug);
+	private onCreate(session: Session, name: string, storySlug?: string): void {
+		// The host picks the tale, and the tale carries the language — the `locale`
+		// the client sends with CREATE_GAME is its own UI preference and says nothing
+		// about which story to open. A slug that is not a published story is refused
+		// rather than quietly swapped, so nobody is dropped into a different tale
+		// than the one they picked.
+		const game = createGame(storySlug);
 		// Only now that there is somewhere to go: a refused tale must not have cost
 		// anyone the round they were already in.
 		this.depart(session, game.code);

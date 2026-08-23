@@ -110,20 +110,30 @@
 	</div>
 
 	{#if showInput}
+		<!--
+			Your own row hangs from the bottom of the panel, under the ration seam that
+			only your own row has. An injection has no seam, so the same `justify-end`
+			left it pinned low with a band of empty panel above it; centred, the row
+			sits in the middle of its own box the way it looks like it should.
+		-->
 		<div
-			class="animate-pp-rise absolute inset-x-[18px] bottom-24 flex h-[88px] flex-col justify-end
-				rounded-3xl bg-dark"
+			class="animate-pp-rise absolute inset-x-[18px] bottom-24 flex h-[88px] flex-col
+				rounded-3xl bg-dark {isMine ? 'justify-end' : 'justify-center'}"
 		>
 			{#if isMine}
 				<ClueInput tint="#fff" onSend={(text) => conn.addMemory(text)} />
 			{:else}
-				<div class="flex items-end">
-					<!-- Backing out of a lie has to be as easy as starting one. -->
+				<div class="flex items-center">
+					<!--
+						Backing out of a lie has to be as easy as starting one. Centred on the
+						row it belongs to rather than sitting on its baseline: it is the twin
+						of the send arrow at the other end, and the two were not level.
+					-->
 					<button
 						type="button"
 						onclick={() => (ui.injectLineId = null)}
 						aria-label={t.cancelInject}
-						class="flex h-[52px] w-11 shrink-0 items-center justify-start pl-3.5 transition
+						class="flex h-[46px] w-11 shrink-0 items-center justify-start pl-3.5 transition
 							hover:opacity-60"
 					>
 						<Icon name="cross" size={20} width={2.8} colour="#fff" />

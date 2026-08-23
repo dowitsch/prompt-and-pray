@@ -218,16 +218,17 @@ export const de: Strings = {
 		poisonedBy: 'Von {name} \u00fcberschrieben',
 		noNotesYet: 'Du hast noch nichts geschrieben.',
 		theirNoNotes: 'Dieser Charakter hat noch keine Hinweise erhalten.',
-		cancelInject: 'Diesen Hinweis in Ruhe lassen'
+		cancelInject: 'Diesen Hinweis in Ruhe lassen',
+		grantsLeft: '{n} verf\u00fcgbar'
 	},
 	menu: {
 		title: 'Men\u00fc',
 		leaveRound: 'Runde verlassen',
 		showRules: 'Spielregeln anzeigen',
-		readAloud: 'Geschichte vorlesen',
-		backgroundMusic: 'Hintergrundmusik',
-		soundEffects: 'Soundeffekte',
-		storyAndLanguage: 'Geschichte & Sprache',
+		readAloud: 'Vorlesen',
+		sound: 'Musik',
+		settings: 'Einstellungen',
+		mapSection: 'Karte',
 		close: 'Schlie\u00dfen'
 	},
 	rules: {
