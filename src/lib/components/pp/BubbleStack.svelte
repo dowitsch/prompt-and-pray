@@ -24,8 +24,8 @@
 
 	let { bubbles, players }: Props = $props();
 
-	/** Newest is whole; each step back is dimmer and a touch smaller. */
-	const DEPTH = [1, 0.5, 0.26];
+	/** Newest is whole; each step back is a touch smaller, never fainter. */
+	const STEP_BACK = 0.96;
 </script>
 
 <div
@@ -39,8 +39,7 @@
 		{@const speaker = players.find((p) => p.id === bubble.playerId) ?? null}
 		<div
 			class="w-full origin-bottom transition-all duration-500 ease-out"
-			style:opacity={DEPTH[age] ?? 0}
-			style:scale={age ? 0.96 : 1}
+			style:scale={age ? STEP_BACK : 1}
 			aria-hidden={age > 0}
 		>
 			<StepBubble {bubble} player={speaker} tail={age === 0} />

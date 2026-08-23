@@ -256,6 +256,8 @@ export type Strings = {
 		storyOf: string;
 		focusOn: string;
 		lettersLeft: string;
+		/** Names the map itself, and says how to move it. */
+		canvas: string;
 	};
 	/** Screen 5: somebody's whole history, and what you can put in it. */
 	brain: {

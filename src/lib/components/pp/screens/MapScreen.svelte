@@ -54,6 +54,7 @@
 		paceScale={game.paceScale ?? 1}
 		focusId={watched?.id ?? null}
 		hiddenIds={conn.waitingTurn.filter((id) => id !== watched?.id)}
+		label={t.canvas}
 	/>
 
 	<div class="absolute top-[26px] right-5 left-6 flex items-center gap-3.5">

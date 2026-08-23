@@ -196,7 +196,9 @@ export const de: Strings = {
 		onInstinct: '(aus dem Bauch)',
 		storyOf: 'Verlauf von {name}',
 		focusOn: '{name} auf der Karte zeigen',
-		lettersLeft: '{n}/{total}'
+		lettersLeft: '{n}/{total}',
+		canvas:
+			'Die Karte. Ziehen, um sich umzusehen, Pfeiltasten zum Verschieben, Plus und Minus zum Zoomen.'
 	},
 	brain: {
 		yourOwn: 'Dein Ged\u00e4chtnis',

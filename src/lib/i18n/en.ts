@@ -194,7 +194,8 @@ export const en: Strings = {
 		onInstinct: '(on instinct)',
 		storyOf: "{name}'s story",
 		focusOn: 'Show {name} on the map',
-		lettersLeft: '{n}/{total}'
+		lettersLeft: '{n}/{total}',
+		canvas: 'The map. Drag to look around, arrow keys to pan, plus and minus to zoom.'
 	},
 	brain: {
 		yourOwn: 'Your memory',

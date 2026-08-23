@@ -64,6 +64,8 @@
 		focusId?: string | null;
 		/** Agents whose turn has not come yet stay off the board. */
 		hiddenIds?: string[];
+		/** Names the canvas for a screen reader, and says how to move it. */
+		label?: string;
 	};
 
 	let {
@@ -74,7 +76,8 @@
 		step = null,
 		paceScale = 1,
 		focusId = null,
-		hiddenIds = []
+		hiddenIds = [],
+		label = ''
 	}: Props = $props();
 
 	/* ------------------------------------------------------------- constants */
@@ -131,6 +134,50 @@
 
 	/** Never more than this much of a road, so a stub cannot reach its far end. */
 	const STUB_MAX = 0.4;
+
+	/**
+	 * How far the player may pull back, and what the ground can afford.
+	 *
+	 * Zooming out is bounded by the terrain rather than by taste. `streamGround`
+	 * asks the worker for every section the viewport touches — each one a 384x384
+	 * texture built from noise — and the count grows with the square of the
+	 * pull-back. `MAX_SECTIONS` is the budget and `minZoom` reads the real screen
+	 * to find the widest view that fits inside it, so a phone and a desktop window
+	 * each get as much as they can carry instead of the same hard number.
+	 *
+	 * Going below `ZOOM_FLOOR` would want a coarser section from the worker: at
+	 * `TEXEL_PER_UNIT = 2` the ground is already oversampled four times over at
+	 * rest, and the texels are wasted long before the sections are.
+	 *
+	 * Zooming in is bounded by the labels, drawn at `resolution: 2`.
+	 */
+	const MAX_ZOOM = 2;
+	const ZOOM_FLOOR = 0.35;
+	const MAX_SECTIONS = 48;
+
+	/** One press of a zoom key, and how far an arrow key slides the land. */
+	const ZOOM_STEP = 1.25;
+	const PAN_STEP = 90;
+
+	/**
+	 * How far a pointer must travel before it counts as a drag.
+	 *
+	 * A tap on the map is not a gesture. Without this, touching the land would take
+	 * the camera off whoever's turn it is for the rest of the beat.
+	 */
+	const DRAG_SLOP = 4;
+
+	/**
+	 * Breathing room past the outermost revealed place, so an edge place is not
+	 * pressed against the frame.
+	 *
+	 * Only breathing room: the clamp adds a second, viewport-derived pad on top,
+	 * and that one is what keeps the story's own camera inside the bound. So this
+	 * can be small, and wants to be — the viewport pad already buys half a screen
+	 * of land past the last place, and at 120 the wall stood a whole screen out,
+	 * far enough that the story had left the frame by the time you got there.
+	 */
+	const BOUND_PAD = 40;
 
 	/** Camera ease, and the walk beats. Mirrors the runner's own pace table. */
 	const CAMERA_MS = 620;
@@ -309,13 +356,52 @@
 	let camera = { x: 0, y: 0 };
 	/** Where the ground was last reconciled, so it is not recomputed every frame. */
 	let streamedAt = { x: Infinity, y: Infinity };
+	/** And at what zoom: the same camera sees more land once you pull back. */
+	let streamedZoom = 0;
 	let cameraFrom = { x: 0, y: 0 };
 	let cameraTo = { x: 0, y: 0 };
 	let cameraElapsed = CAMERA_MS;
 
+	/** The player's zoom, multiplying the fixed `SCALE`. */
+	let zoom = 1;
+
+	/**
+	 * The player has taken the camera, so the story stops moving it.
+	 *
+	 * Handed back at the next beat — a step announced, or the spotlight moving to
+	 * another agent — rather than needing a button to press. Looking around during
+	 * a pause therefore costs nothing and cannot make you miss a walk.
+	 *
+	 * `homing` is the return trip. While it is set the walk moves the camera's
+	 * *target* and lets the ease already in flight carry it, so the land slides
+	 * back to the walker instead of cutting there.
+	 */
+	let detached = false;
+	let homing = false;
+
+	/**
+	 * How far the camera may roam: the box around every place the story has
+	 * actually reached, in world units.
+	 *
+	 * It grows as the fog lifts, so panning can never show a place before the story
+	 * has been there. Home is the exception, and was always the exception — it is
+	 * public from the first frame and carries a beacon, so the bound reaches down
+	 * the road you are walking towards while staying shut on the flanks.
+	 */
+	let bound: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
+
+	/** Live pointers, so two fingers can be told from one. */
+	const pointers = new Map<number, { x: number; y: number }>();
+	/** Distance between two of them on the last move, for the pinch. */
+	let pinch = 0;
+	let dragging = false;
+	let travelled = 0;
+
 	/** The walk in flight: which road, how far along, and how long it gets. */
 	let walk: { choiceId: string; elapsed: number; hold: number; span: number } | null = null;
 	let walkedStepId = -1;
+	/** Whose story the camera was last handed to, so a change of teller is seen. */
+	let lastWatchedId = '';
 
 	let clock = 0;
 
@@ -776,8 +862,9 @@
 
 	function onScreen(at: Point) {
 		if (!app) return false;
-		const x = at.x * SCALE + camera.x;
-		const y = at.y * SCALE + camera.y;
+		const k = pxPerUnit();
+		const x = at.x * k + camera.x;
+		const y = at.y * k + camera.y;
 		const pad = 80;
 		return x > -pad && x < app.screen.width + pad && y > -pad && y < app.screen.height + pad;
 	}
@@ -798,10 +885,11 @@
 	function streamGround() {
 		if (!terrain || !app || !layers || !PIXI) return;
 
-		const left = -camera.x / SCALE;
-		const top = -camera.y / SCALE;
-		const right = left + app.screen.width / SCALE;
-		const bottom = top + app.screen.height / SCALE;
+		const k = pxPerUnit();
+		const left = -camera.x / k;
+		const top = -camera.y / k;
+		const right = left + app.screen.width / k;
+		const bottom = top + app.screen.height / k;
 
 		const x0 = Math.floor(left / SECTION_W) - 1;
 		const x1 = Math.floor(right / SECTION_W) + 1;
@@ -885,10 +973,11 @@
 
 	function wanted(sx: number, sy: number) {
 		if (!app) return false;
-		const left = -camera.x / SCALE - SECTION_W;
-		const top = -camera.y / SCALE - SECTION_H;
-		const right = left + app.screen.width / SCALE + SECTION_W * 2;
-		const bottom = top + app.screen.height / SCALE + SECTION_H * 2;
+		const k = pxPerUnit();
+		const left = -camera.x / k - SECTION_W;
+		const top = -camera.y / k - SECTION_H;
+		const right = left + app.screen.width / k + SECTION_W * 2;
+		const bottom = top + app.screen.height / k + SECTION_H * 2;
 		const x = sx * SECTION_W;
 		const y = sy * SECTION_H;
 		return x + SECTION_W > left && x < right && y + SECTION_H > top && y < bottom;
@@ -896,21 +985,197 @@
 
 	/* ---------------------------------------------------------------- camera */
 
+	/**
+	 * Live pixels per world unit: the fixed `SCALE` times the player's zoom.
+	 *
+	 * Every authored size in this file is still divided by `SCALE` alone, and that
+	 * is deliberate — those divisions turn design pixels into world units, which is
+	 * a property of the drawing and not of where the camera happens to be. Only the
+	 * handful of places doing *coordinate* arithmetic use this instead, so a zoom
+	 * scales the whole scene uniformly, text and roads together.
+	 */
+	function pxPerUnit() {
+		return SCALE * zoom;
+	}
+
 	/** Where the board must sit for `at` to land on the eyeline. */
 	function frame(at: Point) {
 		if (!app) return { x: 0, y: 0 };
+		const k = pxPerUnit();
 		return {
-			x: app.screen.width / 2 - at.x * SCALE,
-			y: app.screen.height * EYE_Y - at.y * SCALE
+			x: app.screen.width / 2 - at.x * k,
+			y: app.screen.height * EYE_Y - at.y * k
 		};
 	}
 
+	/** The box the story has reached. Reads reactive state; call it from an effect. */
+	function boundOf() {
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for (const node of places) {
+			const at = placeAt.get(node.id);
+			if (!at) continue;
+			if (at.x < minX) minX = at.x;
+			if (at.y < minY) minY = at.y;
+			if (at.x > maxX) maxX = at.x;
+			if (at.y > maxY) maxY = at.y;
+		}
+		return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+	}
+
+	/**
+	 * The bound, padded out to the edge of what the camera may show.
+	 *
+	 * The pads are derived rather than chosen. `frame` stands a place at the middle
+	 * of the screen across and at `EYE_Y` down, so a bound that stopped at the
+	 * outermost place would exclude camera positions the *story* takes by itself —
+	 * and the first drag after one of those would snap. Padding by exactly the
+	 * framing distance makes the clamp a no-op for the follow camera, which is why
+	 * nothing below has to special-case it.
+	 */
+	function limits() {
+		if (!app || !bound) return null;
+		const k = pxPerUnit();
+		const w = app.screen.width;
+		const h = app.screen.height;
+		return {
+			minX: bound.minX - BOUND_PAD - w / 2 / k,
+			maxX: bound.maxX + BOUND_PAD + w / 2 / k,
+			minY: bound.minY - BOUND_PAD - (h * EYE_Y) / k,
+			maxY: bound.maxY + BOUND_PAD + (h * (1 - EYE_Y)) / k
+		};
+	}
+
+	/**
+	 * Keep the visible land inside the bound, one axis at a time.
+	 *
+	 * When the bound is narrower than the screen the two walls cross over: there is
+	 * no legal place to stand, so it centres what there is rather than picking a
+	 * wall and pressing the story against it.
+	 */
+	function clampCamera(at: Point): Point {
+		const box = limits();
+		if (!box || !app) return at;
+		const k = pxPerUnit();
+
+		const fit = (v: number, min: number, max: number, span: number) => {
+			const lo = span - max * k;
+			const hi = -min * k;
+			if (lo > hi) return (span - (max - min) * k) / 2 - min * k;
+			return Math.min(hi, Math.max(lo, v));
+		};
+
+		return {
+			x: fit(at.x, box.minX, box.maxX, app.screen.width),
+			y: fit(at.y, box.minY, box.maxY, app.screen.height)
+		};
+	}
+
+	/**
+	 * The floor on zooming out: whichever budget bites first.
+	 *
+	 * Never above 1, because 1 is the authored framing — a story with barely
+	 * anything revealed should simply not zoom out, not be shoved closer than the
+	 * map was designed to sit.
+	 */
+	function minZoom() {
+		if (!app) return 1;
+		const w = app.screen.width;
+		const h = app.screen.height;
+
+		// What the ground can carry. Walked down in steps rather than solved: the
+		// section count is a pair of floors either side of a division and does not
+		// inverse cleanly, and this runs on resize rather than per frame.
+		let ground = 1;
+		for (let z = 1; z >= ZOOM_FLOOR; z -= 0.05) {
+			const k = SCALE * z;
+			// Mirrors `streamGround`: the span, plus its one section of margin
+			// either side, plus the section the near edge is standing in.
+			const across = Math.ceil(w / k / SECTION_W) + 3;
+			const down = Math.ceil(h / k / SECTION_H) + 3;
+			if (across * down > MAX_SECTIONS) break;
+			ground = z;
+		}
+
+		// And no point pulling back past the story itself: at this zoom the revealed
+		// land already fills the frame and the clamp would only centre it.
+		let story = ZOOM_FLOOR;
+		if (bound) {
+			const bw = bound.maxX - bound.minX + BOUND_PAD * 2;
+			const bh = bound.maxY - bound.minY + BOUND_PAD * 2;
+			story = Math.min(w / (bw * SCALE), h / (bh * SCALE));
+		}
+
+		return Math.min(1, Math.max(ground, story));
+	}
+
+	/**
+	 * Zoom about a point, keeping the land under it still.
+	 *
+	 * The anchor is where the player's fingers are when they hold the camera, and
+	 * the eyeline when the story holds it — which is exactly where the followed
+	 * token stands, so following and zooming never argue about the centre.
+	 */
+	function setZoom(next: number, anchor?: Point) {
+		if (!app) return;
+		const want = Math.min(MAX_ZOOM, Math.max(minZoom(), next));
+		if (Math.abs(want - zoom) < 0.001) return;
+
+		const at = anchor ?? { x: app.screen.width / 2, y: app.screen.height * EYE_Y };
+		const ratio = want / zoom;
+		zoom = want;
+		camera = clampCamera({
+			x: at.x - (at.x - camera.x) * ratio,
+			y: at.y - (at.y - camera.y) * ratio
+		});
+
+		// The tween's endpoints are screen pixels and meant something different at
+		// the old scale. Retire it; whoever owns the camera will re-aim next frame.
+		cameraFrom = { ...camera };
+		cameraTo = { ...camera };
+		cameraElapsed = CAMERA_MS;
+	}
+
+	/** The player takes the camera. Handed back at the next beat. */
+	function take() {
+		if (detached) return;
+		detached = true;
+		homing = false;
+		cameraFrom = { ...camera };
+		cameraTo = { ...camera };
+		cameraElapsed = CAMERA_MS;
+	}
+
+	/** Slide the land by a screen-pixel delta. */
+	function pan(dx: number, dy: number) {
+		take();
+		camera = clampCamera({ x: camera.x + dx, y: camera.y + dy });
+	}
+
+	/** Hand the camera back to the story, easing rather than cutting. */
+	function give(at: Point) {
+		if (!detached) return;
+		detached = false;
+		homing = true;
+		cameraFrom = { ...camera };
+		cameraTo = frame(at);
+		cameraElapsed = 0;
+	}
+
+	/** Re-aim a tween in flight without restarting it. */
+	function retarget(at: Point) {
+		cameraTo = frame(at);
+	}
+
 	function lookAt(at: Point, immediate = false) {
+		if (detached) return;
 		const target = frame(at);
 		if (immediate) {
-			camera = { ...target };
-			cameraFrom = { ...target };
-			cameraTo = { ...target };
+			camera = clampCamera(target);
+			cameraFrom = { ...camera };
+			cameraTo = { ...camera };
 			cameraElapsed = CAMERA_MS;
 			return;
 		}
@@ -918,6 +1183,107 @@
 		cameraFrom = { ...camera };
 		cameraTo = target;
 		cameraElapsed = 0;
+	}
+
+	/* ----------------------------------------------------------------- input */
+
+	function midpoint() {
+		const [a, b] = [...pointers.values()];
+		return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+	}
+
+	function spread() {
+		const [a, b] = [...pointers.values()];
+		return Math.hypot(a.x - b.x, a.y - b.y);
+	}
+
+	function onPointerDown(event: PointerEvent) {
+		if (!ready) return;
+		host.setPointerCapture(event.pointerId);
+		pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+		if (pointers.size === 2) pinch = spread();
+		dragging = pointers.size === 1;
+		travelled = 0;
+	}
+
+	function onPointerMove(event: PointerEvent) {
+		const held = pointers.get(event.pointerId);
+		if (!held) return;
+
+		const dx = event.clientX - held.x;
+		const dy = event.clientY - held.y;
+		held.x = event.clientX;
+		held.y = event.clientY;
+
+		if (pointers.size >= 2) {
+			// Two fingers do both at once: the change in spread is the zoom, and the
+			// midpoint it is taken about moves with the hand.
+			const now = spread();
+			if (pinch > 0 && now > 0) {
+				take();
+				setZoom(zoom * (now / pinch), midpoint());
+			}
+			pinch = now;
+			return;
+		}
+
+		if (!dragging) return;
+		travelled += Math.abs(dx) + Math.abs(dy);
+		if (travelled < DRAG_SLOP) return;
+		pan(dx, dy);
+	}
+
+	function onPointerUp(event: PointerEvent) {
+		pointers.delete(event.pointerId);
+		if (host.hasPointerCapture(event.pointerId)) host.releasePointerCapture(event.pointerId);
+		// The finger that stays behind is now a drag of its own, from where it is.
+		if (pointers.size < 2) pinch = 0;
+		dragging = pointers.size === 1;
+	}
+
+	function onWheel(event: WheelEvent) {
+		if (!ready) return;
+		event.preventDefault();
+		// A trackpad pinch arrives as a wheel event with `ctrlKey` set, which the
+		// browser would otherwise spend on zooming the page.
+		if (event.ctrlKey || event.metaKey) {
+			const box = host.getBoundingClientRect();
+			take();
+			// A trackpad pinch sends a stream of small deltas and a mouse notch sends
+			// one of about 100, so the step is clamped rather than proportional — the
+			// same gesture on a mouse would otherwise cross the whole range at once.
+			const ratio = Math.min(1.25, Math.max(0.8, Math.exp(-event.deltaY / 240)));
+			setZoom(zoom * ratio, {
+				x: event.clientX - box.left,
+				y: event.clientY - box.top
+			});
+			return;
+		}
+		pan(-event.deltaX, -event.deltaY);
+	}
+
+	/** Arrows slide the land, plus and minus zoom. The same camera, by keyboard. */
+	function onKeyDown(event: KeyboardEvent) {
+		if (!ready) return;
+		const steps: Record<string, [number, number]> = {
+			ArrowLeft: [PAN_STEP, 0],
+			ArrowRight: [-PAN_STEP, 0],
+			ArrowUp: [0, PAN_STEP],
+			ArrowDown: [0, -PAN_STEP]
+		};
+		const step = steps[event.key];
+		if (step) {
+			event.preventDefault();
+			pan(step[0], step[1]);
+			return;
+		}
+		if (event.key === '+' || event.key === '=') {
+			event.preventDefault();
+			setZoom(zoom * ZOOM_STEP);
+		} else if (event.key === '-' || event.key === '_') {
+			event.preventDefault();
+			setZoom(zoom / ZOOM_STEP);
+		}
 	}
 
 	/* ----------------------------------------------------------- the ticker */
@@ -940,7 +1306,10 @@
 
 				const token = watched ? tokenViews.get(watched.id) : undefined;
 				if (token) token.position.set(at.x, at.y);
-				lookAt(at, true);
+				// Mid-return: move the target and let the ease finish the journey,
+				// rather than snapping from wherever the player had wandered to.
+				if (homing) retarget(at);
+				else lookAt(at, true);
 			}
 			if (walk.elapsed >= walk.hold + walk.span) walk = null;
 		}
@@ -949,19 +1318,26 @@
 			cameraElapsed = Math.min(CAMERA_MS, cameraElapsed + deltaMS);
 			const p = cameraElapsed / CAMERA_MS;
 			const eased = 1 - Math.pow(1 - p, 3);
-			camera = {
+			camera = clampCamera({
 				x: cameraFrom.x + (cameraTo.x - cameraFrom.x) * eased,
 				y: cameraFrom.y + (cameraTo.y - cameraFrom.y) * eased
-			};
+			});
+			if (cameraElapsed >= CAMERA_MS) homing = false;
 		}
 
 		// Whole pixels: a rope and a sprite rounded differently show as a seam.
+		world.scale.set(pxPerUnit());
 		world.position.set(Math.round(camera.x), Math.round(camera.y));
 
 		// Checking the section grid every frame would be a set of allocations 60
-		// times a second for a question whose answer changes about once a walk.
-		if (Math.hypot(camera.x - streamedAt.x, camera.y - streamedAt.y) > SECTION_W * SCALE * 0.25) {
+		// times a second for a question whose answer changes about once a walk — or
+		// the moment a zoom changes how much of that grid the same camera can see.
+		if (
+			zoom !== streamedZoom ||
+			Math.hypot(camera.x - streamedAt.x, camera.y - streamedAt.y) > SECTION_W * pxPerUnit() * 0.25
+		) {
 			streamedAt = { ...camera };
+			streamedZoom = zoom;
 			streamGround();
 		}
 
@@ -1052,7 +1428,8 @@
 				};
 
 				world = new PIXI.Container();
-				world.scale.set(SCALE);
+				// The ticker owns the scale from here, because the player can change it.
+				world.scale.set(pxPerUnit());
 				app.stage.addChild(world);
 
 				layers = {
@@ -1078,7 +1455,13 @@
 
 				const shade = new PIXI.Sprite(tex.vignette);
 				screen.addChild(shade);
-				const fit = () => shade.setSize(app!.screen.width, app!.screen.height);
+				// Both zoom floors and every wall are read off the frame, so a resize
+				// can leave the camera outside its own bound or below its own minimum.
+				const fit = () => {
+					shade.setSize(app!.screen.width, app!.screen.height);
+					setZoom(zoom);
+					camera = clampCamera(camera);
+				};
 				fit();
 
 				observer = new ResizeObserver(fit);
@@ -1134,6 +1517,9 @@
 		if (!ready) return;
 		// Named so the dependency is unmistakable to a later reader.
 		void [tree, players, watched, worn, trail, stubs, places, walking];
+		// The one place allowed to read `places` for the bound: this effect already
+		// depends on it, and the effect that owns the renderer must never.
+		bound = boundOf();
 		sync();
 	});
 
@@ -1141,6 +1527,11 @@
 	$effect(() => {
 		if (!ready || !walking || walking.id === walkedStepId) return;
 		walkedStepId = walking.id;
+
+		// A new beat: the camera comes back from wherever it was left, easing from
+		// there to whoever is about to set out.
+		const from = watched ? placeAt.get(watched.agent.currentNode) : undefined;
+		if (from) give(from);
 
 		const road = roads.get(walking.choiceId);
 		const hold = walking.retrace ? 0 : DECIDE_MS * paceScale;
@@ -1153,7 +1544,14 @@
 	$effect(() => {
 		if (!ready || !watched) return;
 		const at = placeAt.get(watched.agent.currentNode);
-		if (!at || walk) return;
+		if (!at) return;
+		// The other beat that takes the camera back. Guarded on the id rather than
+		// on the effect running, which it does whenever an agent moves at all.
+		if (watched.id !== lastWatchedId) {
+			lastWatchedId = watched.id;
+			give(at);
+		}
+		if (walk) return;
 		lookAt(at, cameraElapsed >= CAMERA_MS && camera.x === 0 && camera.y === 0);
 	});
 
@@ -1201,7 +1599,32 @@
 	     entirely if the renderer could not start. -->
 	<div class="world-ground absolute inset-0"></div>
 
-	<div bind:this={host} data-shot="map-canvas" class="absolute inset-0" class:hidden={failed}></div>
+	<!-- Dragging the land is a gesture and not a scroll, so `touch-action: none`
+	     stops the browser spending it on a page pan or a pinch-zoom instead.
+
+	     `application` is the honest role for a canvas that owns its own keys, and
+	     the ignores are needed because ARIA files it under `structure` — so every
+	     a11y rule reads it as inert scenery. Focus and the arrow keys are for a
+	     sighted player without a pointer; a screen reader is served by the live
+	     region below, which says where the agent is standing and what its ways
+	     out are, and which does not depend on where the camera is looking. -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div
+		bind:this={host}
+		data-shot="map-canvas"
+		class="map-host absolute inset-0"
+		class:hidden={failed}
+		role="application"
+		tabindex="0"
+		aria-label={label || undefined}
+		onpointerdown={onPointerDown}
+		onpointermove={onPointerMove}
+		onpointerup={onPointerUp}
+		onpointercancel={onPointerUp}
+		onwheel={onWheel}
+		onkeydown={onKeyDown}
+	></div>
 
 	<p class="sr-only" aria-live="polite">{spoken}</p>
 
@@ -1218,6 +1641,10 @@
 	 * the first sections arriving read as the land resolving rather than as the
 	 * screen changing colour.
 	 */
+	.map-host {
+		touch-action: none;
+	}
+
 	.world-ground {
 		background:
 			radial-gradient(circle at 32% 22%, rgb(74 82 88 / 40%), transparent 62%),
