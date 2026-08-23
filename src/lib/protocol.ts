@@ -112,6 +112,16 @@ export type ServerEvent =
 			reveal: ChoicesRevealed;
 			/** The world has stood here before — the client keeps the arrival quiet. */
 			familiar: boolean;
+			/**
+			 * This place has already introduced itself once in this match.
+			 *
+			 * The words are authored and do not change, so the second telling is the
+			 * game repeating itself: the client puts the bubble up but does not read
+			 * it aloud, and the beat here is brisk rather than long enough to hear a
+			 * sentence out. Decided on the server because the server is the one
+			 * holding the tale still while it is read.
+			 */
+			retold: boolean;
 			utterance: number;
 	  }
 	| {
@@ -129,6 +139,8 @@ export type ServerEvent =
 			 * database from the start and had nowhere to go until now.
 			 */
 			consequence: string;
+			/** The same road's consequence has been read aloud once already. */
+			retold: boolean;
 			/** True when the decision came from the offline fallback brain. */
 			improvised: boolean;
 			/** Walking proven ground: collapsed into a single line rather than narrated. */

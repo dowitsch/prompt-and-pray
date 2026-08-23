@@ -200,22 +200,6 @@ export class Connection {
 	 */
 	private saidKnown = false;
 	/**
-	 * The world's lines that have already been read out loud in this match.
-	 *
-	 * A node's description and its fork are authored once and are the same words
-	 * every time an agent stands there; so is a road's consequence. Seen on the
-	 * board a second time they are context, but *heard* a second time they are the
-	 * game repeating itself at you — and voiced lines are slow, so the repeat is
-	 * paid for in seconds of everybody's turn. So the world says a thing aloud
-	 * once, and after that only the agent talks: its reasoning is new every time.
-	 *
-	 * Nodes and choices kept apart on purpose. Coming back to a crossroads and
-	 * taking the *other* road is a line nobody has heard, and keying both off the
-	 * node would swallow it.
-	 */
-	private heardNodes = new Set<string>();
-	private heardChoices = new Set<string>();
-	/**
 	 * The lines just put on the board, not yet read out, in the order they are said.
 	 *
 	 * `speak` appends and `read` drains, one event later in the same reducer case.
@@ -541,9 +525,6 @@ export class Connection {
 	/** Everything a new match must not inherit. */
 	private forgetStory(): void {
 		this.hush();
-		// A new match has not heard any of it yet.
-		this.heardNodes.clear();
-		this.heardChoices.clear();
 		this.summary = null;
 		this.effects = [];
 		this.lastStep = null;
@@ -707,10 +688,6 @@ export class Connection {
 				// bury the one moment this bubble exists for.
 				if (!event.familiar) {
 					const ways = event.reveal.choices.map((c) => c.label);
-					// Drawn either way — a bubble is how you know where the agent is
-					// standing — but only read out the first time the world says it.
-					const heard = this.heardNodes.has(event.nodeId);
-					this.heardNodes.add(event.nodeId);
 					/*
 					 * The place gets to say what it is before it asks anything.
 					 *
@@ -727,7 +704,13 @@ export class Connection {
 						[event.nodeDescription.trim(), listWays(this.locale, ways)].filter(Boolean).join(' '),
 						fmt(this.t.narration.comesTo, { place: event.nodeTitle }),
 						false,
-						!heard
+						/*
+						 * Drawn either way — a bubble is how you know where the agent is
+						 * standing — but a place only introduces itself out loud once. The
+						 * server decides that, because it also has to shorten the beat it
+						 * holds for; the two would drift if both ends worked it out.
+						 */
+						!event.retold
 					);
 				}
 				void this.read(event.utterance);
@@ -764,9 +747,15 @@ export class Connection {
 					 * server. Not said on a retrace: that stretch has had its line.
 					 */
 					if (event.consequence.trim()) {
-						const heard = this.heardChoices.has(event.choiceId);
-						this.heardChoices.add(event.choiceId);
-						this.speak('system', event.playerId, event.consequence, undefined, false, !heard);
+						// Same road, same authored line: shown, and read only the once.
+						this.speak(
+							'system',
+							event.playerId,
+							event.consequence,
+							undefined,
+							false,
+							!event.retold
+						);
 					}
 				}
 				void this.read(event.utterance);

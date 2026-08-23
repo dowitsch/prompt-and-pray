@@ -53,6 +53,17 @@ export const PACE = {
 	MOVE: 950,
 
 	/**
+	 * Arriving somewhere the tale has already described once in this match.
+	 *
+	 * The bubble goes up — you still need to see where the agent is standing —
+	 * but the words are the same words, so nobody is being read to and there is
+	 * nothing to hold for. Long enough to register the place, and then on.
+	 */
+	RETOLD_ARRIVE: 550,
+	/** And the thinking after it, for the same reason: get to the agent's line. */
+	RETOLD_THINK: 700,
+
+	/**
 	 * Retracing ground the world has already proven safe. Kept brisk on purpose:
 	 * by the eighth round nobody wants to watch the same four steps narrated
 	 * four times over. The client collapses these into one "walks the road it
@@ -102,6 +113,21 @@ export class MatchRunner {
 	 * about an earlier line is recognisably answering about an earlier line.
 	 */
 	private utterances = 0;
+
+	/**
+	 * Places and roads whose authored lines have already been told once.
+	 *
+	 * Authored text does not change between tellings, so the second time an agent
+	 * stands at the Old Ford the description and the fork are the game repeating
+	 * itself — and if anyone is listening, repeating itself slowly. Tracked here
+	 * rather than on each client because the pace is the server's to set: it is
+	 * the one holding the tale still while a line is read.
+	 *
+	 * Places and roads apart, because coming back to a known crossroads and taking
+	 * the *other* road is a consequence nobody has heard yet.
+	 */
+	private readonly toldPlaces = new Set<string>();
+	private readonly toldRoads = new Set<string>();
 
 	/**
 	 * Hold a beat. Every pause in the telling goes through here, so one dial
@@ -252,6 +278,11 @@ export class MatchRunner {
 			// A crossroads the world has already seen needs no ceremony on arrival.
 			const familiar = this.game.isFamiliar(node.id) && step > 0;
 
+			// Said once. After that the place is drawn but not read out, and the
+			// beat shrinks to match — nothing is being waited for.
+			const retold = this.toldPlaces.has(node.id);
+			if (!familiar) this.toldPlaces.add(node.id);
+
 			const reveal = this.game.sightAt(player.id);
 			this.game.setThinking(player.id, true);
 			const arrival = ++this.utterances;
@@ -264,9 +295,13 @@ export class MatchRunner {
 				nodeDescription: node.description,
 				reveal,
 				familiar,
+				retold,
 				utterance: arrival
 			});
-			await this.told(arrival, familiar ? PACE.RETRACE_ARRIVE : PACE.ARRIVE);
+			await this.told(
+				arrival,
+				familiar ? PACE.RETRACE_ARRIVE : retold ? PACE.RETOLD_ARRIVE : PACE.ARRIVE
+			);
 
 			const startedAt = Date.now();
 			const context: DecisionContext = {
@@ -289,11 +324,16 @@ export class MatchRunner {
 			// Stepping off the known road is worth watching even at a familiar
 			// crossroads, so the brisk pace needs both conditions together.
 			const retrace = familiar && this.game.isProvenSafe(chosen.id);
-			const thinkFloor = (retrace ? PACE.RETRACE_THINK : PACE.THINK_MIN) * this.paceScale;
+			// Nothing was read out on the way in, so there is nothing to have
+			// finished reading: get to the one line that is new.
+			const thinkPace = retrace ? PACE.RETRACE_THINK : retold ? PACE.RETOLD_THINK : PACE.THINK_MIN;
+			const thinkFloor = thinkPace * this.paceScale;
 			await sleep(thinkFloor - (Date.now() - startedAt));
 			if (this.stopped) return;
 
 			this.game.setThinking(player.id, false);
+			const retoldRoad = this.toldRoads.has(chosen.id);
+			if (!retrace) this.toldRoads.add(chosen.id);
 			const reasoned = ++this.utterances;
 			this.broadcast({
 				type: 'AGENT_CHOICE',
@@ -303,6 +343,7 @@ export class MatchRunner {
 				choiceLabel: chosen.label,
 				reasoning: decision.reasoning,
 				consequence: chosen.consequence,
+				retold: retoldRoad,
 				improvised: decision.improvised ?? false,
 				retrace,
 				utterance: reasoned
